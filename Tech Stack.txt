@@ -1,0 +1,38 @@
+FastAPI
+Flutter 
+WebSockets 
+PostgreSQL and PostGIS
+Redis
+Riverpod 
+Google Maps
+Firebase Cloud Messaging
+LLM Integration
+Docker
+Sentry
+Elasticsearch 
+GitHub Actions
+S3
+OTP
+
+
+Services:
+
+Gateway Service (The Entry Point)
+
+Auth & User Service
+
+Verification Service
+
+Location & Tracking Service
+
+Bidding & Matchmaking Service
+
+Search & Map Service
+
+Notification Service
+
+Billing & Wallet Service
+
+Intelligence Service (The LLM Layer)
+
+Logging & Observability
