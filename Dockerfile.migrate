@@ -1,0 +1,22 @@
+# Dockerfile for running Alembic migrations
+# Separate from the service Dockerfile since it needs ALL ORM models loaded
+FROM python:3.12-slim AS builder
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+WORKDIR /app
+
+COPY pyproject.toml uv.lock* ./
+COPY libs/platform/ ./libs/platform/
+COPY services/ ./services/
+COPY migrations/ ./migrations/
+
+RUN uv sync --frozen --no-dev
+
+FROM python:3.12-slim
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+WORKDIR /app
+COPY --from=builder /app /app
+ENV PATH="/app/.venv/bin:$PATH" \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+CMD ["alembic", "-c", "migrations/alembic.ini", "upgrade", "head"]

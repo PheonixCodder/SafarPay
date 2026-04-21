@@ -1,0 +1,21 @@
+[project]
+name = "geospatial"
+version = "0.1.0"
+description = "SafarPay Geospatial Service — PostGIS place management and proximity search"
+requires-python = ">=3.10"
+dependencies = [
+    "sp",
+    "fastapi>=0.111.0",
+    "uvicorn[standard]>=0.30.0",
+    "shapely>=2.0.0",
+]
+
+[tool.uv.sources]
+sp = { workspace = true }
+
+[tool.uv.build-backend]
+module-root = "."
+
+[build-system]
+requires = ["uv_build>=0.11.7,<0.12.0"]
+build-backend = "uv_build"
