@@ -1,0 +1,271 @@
+services:
+
+  # ── Infrastructure ──────────────────────────────────────────────────────────
+
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: safarpay-postgres
+    environment:
+      POSTGRES_DB: safarpay_db
+      POSTGRES_USER: safarpay
+      POSTGRES_PASSWORD: safarpay_secret
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-schemas.sql:/docker-entrypoint-initdb.d/init-schemas.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U safarpay -d safarpay_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - safarpay-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: safarpay-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - safarpay-net
+
+  kafka:
+    image: bitnami/kafka:3.7
+    container_name: safarpay-kafka
+    environment:
+      # KRaft mode — no Zookeeper required
+      KAFKA_CFG_NODE_ID: "1"
+      KAFKA_CFG_PROCESS_ROLES: "broker,controller"
+      KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: "1@kafka:9093"
+      KAFKA_CFG_LISTENERS: "PLAINTEXT://:9092,CONTROLLER://:9093"
+      KAFKA_CFG_ADVERTISED_LISTENERS: "PLAINTEXT://kafka:9092"
+      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: "PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT"
+      KAFKA_CFG_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
+      KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_CFG_NUM_PARTITIONS: "3"
+      KAFKA_CFG_DEFAULT_REPLICATION_FACTOR: "1"
+      ALLOW_PLAINTEXT_LISTENER: "yes"
+    ports:
+      - "9092:9092"
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics.sh --bootstrap-server localhost:9092 --list"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    networks:
+      - safarpay-net
+
+  # ── Database migrations (runs once, then exits) ────────────────────────────
+
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile.migrate
+    container_name: safarpay-migrate
+    environment:
+      POSTGRES_DB_URI: postgresql+psycopg://safarpay:safarpay_secret@postgres:5432/safarpay_db
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - safarpay-net
+    restart: "no"
+
+  # ── Microservices ───────────────────────────────────────────────────────────
+
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE_NAME: gateway
+    container_name: safarpay-gateway
+    ports:
+      - "8000:8000"
+    environment:
+      POSTGRES_DB_URI: postgresql+psycopg://safarpay:safarpay_secret@postgres:5432/safarpay_db
+      REDIS_URL: redis://redis:6379/0
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      JWT_ALGORITHM: HS256
+      APP_NAME: safarpay
+      LOG_LEVEL: INFO
+      AUTH_SERVICE_URL: http://auth:8001
+      BIDDING_SERVICE_URL: http://bidding:8002
+      LOCATION_SERVICE_URL: http://location:8003
+      NOTIFICATION_SERVICE_URL: http://notification:8004
+      VERIFICATION_SERVICE_URL: http://verification:8005
+      GEOSPATIAL_SERVICE_URL: http://geospatial:8006
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - safarpay-net
+
+  auth:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE_NAME: auth
+    container_name: safarpay-auth
+    ports:
+      - "8001:8000"
+    environment:
+      POSTGRES_DB_URI: postgresql+psycopg://safarpay:safarpay_secret@postgres:5432/safarpay_db
+      REDIS_URL: redis://redis:6379/0
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      JWT_ALGORITHM: HS256
+      JWT_EXPIRATION_HOURS: "24"
+      APP_NAME: safarpay
+      LOG_LEVEL: INFO
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - safarpay-net
+
+  bidding:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE_NAME: bidding
+    container_name: safarpay-bidding
+    ports:
+      - "8002:8000"
+    environment:
+      POSTGRES_DB_URI: postgresql+psycopg://safarpay:safarpay_secret@postgres:5432/safarpay_db
+      REDIS_URL: redis://redis:6379/0
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      APP_NAME: safarpay
+      LOG_LEVEL: INFO
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    networks:
+      - safarpay-net
+
+  location:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE_NAME: location
+    container_name: safarpay-location
+    ports:
+      - "8003:8000"
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      APP_NAME: safarpay
+      LOG_LEVEL: INFO
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - safarpay-net
+
+  notification:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE_NAME: notification
+    container_name: safarpay-notification
+    ports:
+      - "8004:8000"
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      APP_NAME: safarpay
+      LOG_LEVEL: INFO
+    depends_on:
+      kafka:
+        condition: service_healthy
+    networks:
+      - safarpay-net
+
+  verification:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE_NAME: verification
+    container_name: safarpay-verification
+    ports:
+      - "8005:8000"
+    environment:
+      POSTGRES_DB_URI: postgresql+psycopg://safarpay:safarpay_secret@postgres:5432/safarpay_db
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      APP_NAME: safarpay
+      LOG_LEVEL: INFO
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    networks:
+      - safarpay-net
+
+  geospatial:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE_NAME: geospatial
+    container_name: safarpay-geospatial
+    ports:
+      - "8006:8000"
+    environment:
+      POSTGRES_DB_URI: postgresql+psycopg://safarpay:safarpay_secret@postgres:5432/safarpay_db
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      APP_NAME: safarpay
+      LOG_LEVEL: INFO
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    networks:
+      - safarpay-net
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  safarpay-net:
+    driver: bridge

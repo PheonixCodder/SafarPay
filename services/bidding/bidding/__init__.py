@@ -1,0 +1,1 @@
+"""Bidding service package."""

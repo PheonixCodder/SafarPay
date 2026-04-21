@@ -1,0 +1,115 @@
+[project]
+name = "safarpay"
+version = "0.1.0"
+description = "SafarPay microservices platform"
+requires-python = ">=3.10"
+dependencies = [
+    "sp"
+]
+
+[tool.uv.sources]
+sp = { workspace = true }
+
+[tool.uv.workspace]
+members = [
+    "libs/platform",
+    "services/auth",
+    "services/gateway",
+    "services/bidding",
+    "services/location",
+    "services/geospatial",
+    "services/notification",
+    "services/verification",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "httpx>=0.27.0",
+    "ruff>=0.4.0",
+    "mypy>=1.10.0",
+    "import-linter>=2.1",
+]
+
+# ── Ruff linting ──────────────────────────────────────────────────────────────
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "UP", "B", "SIM"]
+ignore = ["E501"]
+
+# ── Import linter — enforces architectural boundaries ─────────────────────────
+[tool.importlinter]
+include_external_packages = true
+root_packages = [
+    "sp",
+    "auth",
+    "gateway",
+    "bidding",
+    "location",
+    "notification",
+    "verification",
+    "geospatial",
+]
+
+[[tool.importlinter.contracts]]
+name = "Platform core has no upward dependencies"
+type = "forbidden"
+source_modules = ["sp.core"]
+forbidden_modules = [
+    "sp.infrastructure",
+    "auth",
+    "gateway",
+    "bidding",
+    "location",
+    "notification",
+    "verification",
+    "geospatial",
+]
+
+[[tool.importlinter.contracts]]
+name = "Service domains are pure — no infrastructure or framework imports"
+type = "forbidden"
+source_modules = [
+    "auth.domain",
+    "bidding.domain",
+    "location.domain",
+    "notification.domain",
+    "verification.domain",
+    "geospatial.domain",
+]
+forbidden_modules = [
+    "sp",
+    "sqlalchemy",
+    "redis",
+    "kafka",
+    "fastapi",
+    "pydantic",
+]
+
+[[tool.importlinter.contracts]]
+name = "Services do not import each other"
+type = "independence"
+modules = [
+    "auth",
+    "gateway",
+    "bidding",
+    "location",
+    "notification",
+    "verification",
+    "geospatial",
+]
+
+# ── Pytest config ─────────────────────────────────────────────────────────────
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+# ── Mypy config ───────────────────────────────────────────────────────────────
+[tool.mypy]
+python_version = "3.10"
+ignore_missing_imports = true
+strict = false
