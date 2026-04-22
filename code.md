@@ -194,4 +194,3 @@
 ├── Tech Stack.txt
 └── uv.lock
 ```
-arkers are combined with and, or, and parentheses, e.g., aiohttp >=3.7.4,<4; (sys_platform != 'win32' or implementation_name != 'pypy') and python_version >= '3.10'. Note that versions within markers must be quoted, while versions outside of markers must not be quoted.
