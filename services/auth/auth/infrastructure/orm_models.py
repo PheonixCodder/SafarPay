@@ -6,15 +6,16 @@ The single Base from platform ensures Alembic discovers these models.
 from __future__ import annotations
 
 import uuid
+from datetime import datetime, timezone
 
 from sp.infrastructure.db.base import Base, TimestampMixin
-from sqlalchemy import Boolean, String
+from sqlalchemy import Boolean, String, ForeignKey, DateTime, Text, Integer, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID as PgUUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 
 class UserORM(Base, TimestampMixin):
-    """Maps to auth.users table."""
+    """The central profile connecting identities."""
 
     __tablename__ = "users"
     __table_args__ = {"schema": "auth"}
@@ -22,11 +23,69 @@ class UserORM(Base, TimestampMixin):
     id: Mapped[uuid.UUID] = mapped_column(
         PgUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
-    email: Mapped[str] = mapped_column(
-        String(255), unique=True, nullable=False, index=True
+    full_name: Mapped[str | None] = mapped_column(String(255))
+    email: Mapped[str | None] = mapped_column(String(255), unique=True, index=True)
+    phone: Mapped[str | None] = mapped_column(String(20), unique=True, index=True)
+    role: Mapped[str] = mapped_column(String(20), default="passenger")
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_verified: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    # Relationships
+    accounts: Mapped[list[AccountORM]] = relationship(back_populates="user", cascade="all, delete-orphan")
+    sessions: Mapped[list[SessionORM]] = relationship(back_populates="user", cascade="all, delete-orphan")
+
+
+class AccountORM(Base, TimestampMixin):
+    """The OAuth bridge (e.g., Google login)."""
+
+    __tablename__ = "accounts"
+    __table_args__ = (
+        UniqueConstraint("provider", "provider_account_id", name="uq_provider_account"),
+        {"schema": "auth"}
     )
-    phone: Mapped[str] = mapped_column(String(20), nullable=False)
-    role: Mapped[str] = mapped_column(String(20), nullable=False, default="passenger")
-    hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    is_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
+    id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("auth.users.id", ondelete="CASCADE"))
+
+    provider: Mapped[str] = mapped_column(String(50))  # e.g., "google"
+    provider_account_id: Mapped[str] = mapped_column(String(255))  # Google's sub ID
+
+    user: Mapped[UserORM] = relationship(back_populates="accounts")
+
+
+class SessionORM(Base, TimestampMixin):
+    """The active device tracker with Refresh Token Rotation."""
+
+    __tablename__ = "sessions"
+    __table_args__ = {"schema": "auth"}
+
+    id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("auth.users.id", ondelete="CASCADE"))
+
+    refresh_token_hash: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    is_revoked: Mapped[bool] = mapped_column(Boolean, default=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+    # Metadata for Device Management UI
+    user_agent: Mapped[str | None] = mapped_column(Text)
+    ip_address: Mapped[str | None] = mapped_column(String(45))
+    last_active_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+    )
+
+    user: Mapped[UserORM] = relationship(back_populates="sessions")
+
+
+class VerificationORM(Base, TimestampMixin):
+    """Temporary storage for WhatsApp OTPs."""
+
+    __tablename__ = "verifications"
+    __table_args__ = {"schema": "auth"}
+
+    id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    identifier: Mapped[str] = mapped_column(String(255), index=True)  # phone number or email
+    code_hash: Mapped[str] = mapped_column(String(255))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    attempt_count: Mapped[int] = mapped_column(Integer, default=0)

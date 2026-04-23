@@ -36,7 +36,16 @@ class Settings(BaseSettings):
     # ── JWT ───────────────────────────────────────────────────────────────────
     JWT_SECRET: str = "change-me-in-production-use-32-char-min"
     JWT_ALGORITHM: str = "HS256"
-    JWT_EXPIRATION_HOURS: int = 24
+    JWT_EXPIRATION_MINUTES: int = 15
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 30
+
+    # ── WhatsApp (pywa) ───────────────────────────────────────────────────────
+    WHATSAPP_TOKEN: str = ""
+    WHATSAPP_PHONE_ID: str = ""
+    WHATSAPP_AUTH_TEMPLATE_NAME: str = "safarpay_auth_otp"
+
+    # ── Google OAuth (Mobile SDK — id_token verification only) ────────────────
+    GOOGLE_CLIENT_ID: str = ""
 
     # ── Application ───────────────────────────────────────────────────────────
     APP_NAME: str = "safarpay"
