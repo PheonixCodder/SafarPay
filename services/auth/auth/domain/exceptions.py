@@ -14,7 +14,7 @@ class UserNotFoundError(AuthDomainError):
 
 
 class UserAlreadyExistsError(AuthDomainError):
-    """Raised when attempting to register a duplicate email."""
+    """Raised when attempting to register a duplicate email or phone."""
 
 
 class InactiveUserError(AuthDomainError):
@@ -23,3 +23,35 @@ class InactiveUserError(AuthDomainError):
 
 class TokenExpiredError(AuthDomainError):
     """Raised when a JWT token has passed its expiry."""
+
+
+class InvalidSessionError(AuthDomainError):
+    """Raised when a refresh token maps to no active session."""
+
+
+class OTPExpiredError(AuthDomainError):
+    """Raised when the OTP has expired or was already used."""
+
+
+class OTPInvalidError(AuthDomainError):
+    """Raised when the OTP code does not match."""
+
+
+class OTPMaxAttemptsError(AuthDomainError):
+    """Raised when too many OTP verification attempts have been made."""
+
+
+class OTPRateLimitError(AuthDomainError):
+    """Raised when OTP send/verify rate limit is exceeded."""
+
+
+class GoogleTokenError(AuthDomainError):
+    """Raised when Google id_token verification fails."""
+
+
+class InvalidVerificationTokenError(AuthDomainError):
+    """Raised when the phone verification_token is invalid or expired."""
+
+
+class PhoneAlreadyLinkedError(AuthDomainError):
+    """Raised when trying to link a phone that belongs to another account (pre-merge info)."""
