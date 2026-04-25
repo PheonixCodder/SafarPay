@@ -81,16 +81,18 @@ class CacheManager:
         key: str,
         value: Any,
         ttl: int | None = None,
+        nx: bool = False,
     ) -> bool:
         redis = self._assert_connected()
         try:
             serialized = json.dumps(value, default=str)
         except (TypeError, ValueError):
             serialized = str(value)
-        return await redis.setex(
+        return await redis.set(
             self._key(namespace, key),
-            ttl or self._default_ttl,
             serialized,
+            ex=ttl or self._default_ttl,
+            nx=nx,
         )
 
     async def delete(self, namespace: str, key: str) -> bool:

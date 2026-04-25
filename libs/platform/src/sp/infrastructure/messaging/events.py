@@ -62,6 +62,10 @@ class DocumentVerifiedEvent(BaseEvent):
     event_type: Literal["document.verified"] = "document.verified"
 
 
+class VerificationReviewRequestedEvent(BaseEvent):
+    event_type: Literal["verification.review_requested"] = "verification.review_requested"
+
+
 # ── Registry for deserialisation in subscriber ────────────────────────────────
 
 EVENT_REGISTRY: dict[str, type[BaseEvent]] = {
@@ -71,4 +75,5 @@ EVENT_REGISTRY: dict[str, type[BaseEvent]] = {
     "bid.accepted": BidAcceptedEvent,
     "notification.requested": NotificationRequestedEvent,
     "document.verified": DocumentVerifiedEvent,
+    "verification.review_requested": VerificationReviewRequestedEvent,
 }
