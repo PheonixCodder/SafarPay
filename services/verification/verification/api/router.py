@@ -1,52 +1,167 @@
-"""Verification API router — token ALWAYS from Authorization header, never query param."""
-from __future__ import annotations
-
-from typing import Annotated
-from uuid import UUID
-
+"""FastAPI router for the verification service."""
 from fastapi import APIRouter, Depends, HTTPException, status
-from sp.infrastructure.security.dependencies import CurrentUser
 
-from ..application.schemas import DocumentResponse, SubmitDocumentRequest
-from ..application.use_cases import (
-    GetDocumentUseCase,
-    ListUserDocumentsUseCase,
-    SubmitDocumentUseCase,
+from ..application.schemas import (
+    IdentitySubmissionRequest,
+    LicenseSubmissionRequest,
+    SelfieSubmissionRequest,
+    VehicleSubmissionRequest,
+    DocumentUploadUrlsResponse,
+    VerificationStatusResponse,
+    ReviewSubmissionResponse,
 )
-from ..domain.exceptions import DocumentNotFoundError, UnauthorizedDocumentAccessError
-from ..infrastructure.dependencies import get_doc_uc, get_list_uc, get_submit_uc
+from ..application.use_cases import VerificationUseCases
+from ..infrastructure.dependencies import (
+    CurrentUser,
+    DriverRepo,
+    VehicleRepo,
+    DocumentRepo,
+    DriverVehicleRepo,
+    StorageProvider,
+    Resolver,
+    IdentityEngine,
+    EventPub,
+    VerificationRejectionRepo,
+    Cache,
+)
+from ..domain.exceptions import VerificationDomainError, DriverNotFoundError, InvalidDocumentStateError
 
-router = APIRouter(tags=["verification"])
+router = APIRouter(prefix="/v1/verification", tags=["Driver Verification"])
 
 
-@router.post("/documents", response_model=DocumentResponse, status_code=status.HTTP_201_CREATED)
-async def submit_document(
-    req: SubmitDocumentRequest,
+def get_use_cases(
+    driver_repo: DriverRepo,
+    vehicle_repo: VehicleRepo,
+    document_repo: DocumentRepo,
+    driver_vehicle_repo: DriverVehicleRepo,
+    storage_provider: StorageProvider,
+    resolver: Resolver,
+    identity_engine: IdentityEngine,
+    event_publisher: EventPub,
+    rejection_repo: VerificationRejectionRepo,
+    cache: Cache,
+) -> VerificationUseCases:
+    return VerificationUseCases(
+        driver_repo=driver_repo,
+        vehicle_repo=vehicle_repo,
+        document_repo=document_repo,
+        driver_vehicle_repo=driver_vehicle_repo,
+        storage_provider=storage_provider,
+        rejection_resolver=resolver,
+        identity_engine=identity_engine,
+        event_publisher=event_publisher,
+        rejection_repo=rejection_repo,
+        cache_manager=cache,
+    )
+
+
+UseCases = Depends(get_use_cases)
+
+
+@router.get(
+    "/me",
+    response_model=VerificationStatusResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def get_my_verification_status(
     current_user: CurrentUser,
-    use_case: Annotated[SubmitDocumentUseCase, Depends(get_submit_uc)],
-) -> DocumentResponse:
-    """Submit an identity document for verification."""
-    return await use_case.execute(req, current_user)
-
-
-@router.get("/documents", response_model=list[DocumentResponse])
-async def list_my_documents(
-    current_user: CurrentUser,
-    use_case: Annotated[ListUserDocumentsUseCase, Depends(get_list_uc)],
-) -> list[DocumentResponse]:
-    """List all documents submitted by the authenticated user."""
-    return await use_case.execute(current_user)
-
-
-@router.get("/documents/{doc_id}", response_model=DocumentResponse)
-async def get_document(
-    doc_id: UUID,
-    current_user: CurrentUser,
-    use_case: Annotated[GetDocumentUseCase, Depends(get_doc_uc)],
-) -> DocumentResponse:
+    use_cases: VerificationUseCases = UseCases,
+) -> VerificationStatusResponse:
+    """Get the full verification state (aggregated response) for the current user."""
     try:
-        return await use_case.execute(doc_id, current_user)
-    except DocumentNotFoundError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from None
-    except UnauthorizedDocumentAccessError as exc:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from None
+        return await use_cases.get_verification_status(user_id=current_user.user_id)
+    except (VerificationDomainError, ValueError) as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred.")
+
+
+@router.post(
+    "/driver/cnic",
+    response_model=DocumentUploadUrlsResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def submit_identity(
+    request: IdentitySubmissionRequest,
+    current_user: CurrentUser,
+    use_cases: VerificationUseCases = UseCases,
+) -> DocumentUploadUrlsResponse:
+    """Submit identity documents and request upload URLs for Front & Back images."""
+    try:
+        return await use_cases.submit_identity_documents(
+            user_id=current_user.user_id, request=request
+        )
+    except (VerificationDomainError, ValueError) as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred.")
+
+
+@router.post(
+    "/driver/license",
+    response_model=DocumentUploadUrlsResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def submit_license(
+    request: LicenseSubmissionRequest,
+    current_user: CurrentUser,
+    use_cases: VerificationUseCases = UseCases,
+) -> DocumentUploadUrlsResponse:
+    """Submit Driving License details and request upload URLs for Front & Back images."""
+    try:
+        return await use_cases.submit_license_documents(
+            user_id=current_user.user_id, request=request
+        )
+    except (VerificationDomainError, ValueError) as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred.")
+
+
+@router.post(
+    "/driver/selfie",
+    response_model=DocumentUploadUrlsResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def submit_selfie(
+    request: SelfieSubmissionRequest,
+    current_user: CurrentUser,
+    use_cases: VerificationUseCases = UseCases,
+) -> DocumentUploadUrlsResponse:
+    """Request upload URL for selfie with driving license."""
+    try:
+        return await use_cases.submit_selfie(
+            user_id=current_user.user_id, request=request
+        )
+    except (VerificationDomainError, ValueError) as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred.")
+
+
+@router.post(
+    "/driver/vehicle",
+    response_model=DocumentUploadUrlsResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def submit_vehicle(
+    request: VehicleSubmissionRequest,
+    current_user: CurrentUser,
+    use_cases: VerificationUseCases = UseCases,
+) -> DocumentUploadUrlsResponse:
+    """Submit Vehicle details and request upload URLs for registration docs and photos."""
+    try:
+        return await use_cases.submit_vehicle_info_and_documents(
+            user_id=current_user.user_id, request=request
+        )
+    except (VerificationDomainError, ValueError) as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An unexpected error occurred.")
+
+@router.post("/submit-review", response_model=ReviewSubmissionResponse, status_code=200)
+async def submit_for_review(
+    current_user: CurrentUser,
+    use_cases: VerificationUseCases = UseCases,
+) -> ReviewSubmissionResponse:
+    return await use_cases.request_verification_review(user_id=current_user.user_id)

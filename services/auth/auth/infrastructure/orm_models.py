@@ -26,6 +26,7 @@ class UserORM(Base, TimestampMixin):
     full_name: Mapped[str | None] = mapped_column(String(255))
     email: Mapped[str | None] = mapped_column(String(255), unique=True, index=True)
     phone: Mapped[str | None] = mapped_column(String(20), unique=True, index=True)
+    profile_img: Mapped[str | None] = mapped_column(String(500))
     role: Mapped[str] = mapped_column(String(20), default="passenger")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -89,3 +90,4 @@ class VerificationORM(Base, TimestampMixin):
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     attempt_count: Mapped[int] = mapped_column(Integer, default=0)
+

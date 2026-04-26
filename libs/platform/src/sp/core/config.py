@@ -56,6 +56,12 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     LOG_FORMAT: str = "json"
 
+    # ── AWS S3 ────────────────────────────────────────────────────────────────
+    AWS_REGION: str = "us-east-1"
+    S3_IDENTITY_BUCKET: str = "safarpay-identity-docs"
+    S3_LICENSE_BUCKET: str = "safarpay-license-docs"
+    S3_VEHICLE_BUCKET: str = "safarpay-vehicle-docs"
+
     # ── Messaging ─────────────────────────────────────────────────────────────
     KAFKA_BOOTSTRAP_SERVERS: str | None = None
     MAX_RETRY_ATTEMPTS: int = 3

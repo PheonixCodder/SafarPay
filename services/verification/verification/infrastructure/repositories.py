@@ -1,53 +1,332 @@
-"""Verification concrete repository."""
+"""Concrete SQLAlchemy repositories for the verification service."""
 from __future__ import annotations
 
 from uuid import UUID
 
-from sp.infrastructure.db.repository import BaseRepository
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
-from ..domain.models import Document, DocumentStatus, DocumentType
-from .orm_models import DocumentORM
+from ..domain.interfaces import (
+    DriverRepositoryProtocol,
+    VehicleRepositoryProtocol,
+    DocumentRepositoryProtocol,
+    DriverVehicleRepositoryProtocol,
+    VerificationRejectionRepositoryProtocol,
+)
+from ..domain.models import Driver, Vehicle, Document, DriverVehicle, VerificationRejection
+from .orm_models import DriverORM, VehicleORM, DocumentORM, DriverVehicleORM, VerificationRejectionORM
 
 
-class DocumentRepository(BaseRepository[DocumentORM]):
+class DriverRepository(DriverRepositoryProtocol):
     def __init__(self, session: AsyncSession) -> None:
-        super().__init__(session, DocumentORM)
+        self._session = session
 
-    async def find_by_id(self, doc_id: UUID) -> Document | None:  # type: ignore[override]
-        orm = await super().find_by_id(doc_id)
-        return self._to_domain(orm) if orm else None
-
-    async def find_by_user(self, user_id: UUID) -> list[Document]:
-        result = await self._session.execute(
-            select(DocumentORM).where(DocumentORM.user_id == user_id)
-        )
-        return [self._to_domain(o) for o in result.scalars().all()]
-
-    async def save(self, doc: Document) -> Document:  # type: ignore[override]
-        orm = DocumentORM(
-            id=doc.id,
-            user_id=doc.user_id,
-            doc_type=doc.doc_type.value,
-            status=doc.status.value,
-            file_url=doc.file_url,
-            submitted_at=doc.submitted_at,
-            verified_at=doc.verified_at,
-            rejection_reason=doc.rejection_reason,
-        )
-        saved = await super().save(orm)
-        return self._to_domain(saved)
-
-    @staticmethod
-    def _to_domain(orm: DocumentORM) -> Document:
-        return Document(
+    def _to_domain(self, orm: DriverORM) -> Driver:
+        return Driver(
             id=orm.id,
             user_id=orm.user_id,
-            doc_type=DocumentType(orm.doc_type),
-            status=DocumentStatus(orm.status),
-            file_url=orm.file_url,
-            submitted_at=orm.submitted_at,
-            verified_at=orm.verified_at,
-            rejection_reason=orm.rejection_reason,
+            verification_status=orm.verification_status,
+            review_attempts=orm.review_attempts,
+            last_reviewed_at=orm.last_reviewed_at,
+            created_at=orm.created_at,
+            updated_at=orm.updated_at,
         )
+
+    async def find_by_id(self, driver_id: UUID) -> Driver | None:
+        result = await self._session.execute(
+            select(DriverORM).where(DriverORM.id == driver_id)
+        )
+        orm = result.scalar_one_or_none()
+        return self._to_domain(orm) if orm else None
+
+    async def find_by_user_id(self, user_id: UUID) -> Driver | None:
+        result = await self._session.execute(
+            select(DriverORM).where(DriverORM.user_id == user_id)
+        )
+        orm = result.scalar_one_or_none()
+        return self._to_domain(orm) if orm else None
+
+    async def save(self, driver: Driver) -> Driver:
+        orm = DriverORM(
+            id=driver.id,
+            user_id=driver.user_id,
+            verification_status=driver.verification_status,
+        )
+        self._session.add(orm)
+        await self._session.flush()
+        return self._to_domain(orm)
+
+    async def update(self, driver: Driver) -> Driver:
+        await self._session.execute(
+            update(DriverORM)
+            .where(DriverORM.id == driver.id)
+            .values(
+                verification_status=driver.verification_status,
+                review_attempts=driver.review_attempts,
+                last_reviewed_at=driver.last_reviewed_at,
+            )
+        )
+        await self._session.flush()
+        return driver
+
+
+class VehicleRepository(VehicleRepositoryProtocol):
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    def _to_domain(self, orm: VehicleORM) -> Vehicle:
+        return Vehicle(
+            id=orm.id,
+            brand=orm.brand,
+            model=orm.model,
+            year=orm.year,
+            color=orm.color,
+            plate_number=orm.plate_number,
+            max_passengers=orm.max_passengers,
+            vehicle_type=orm.vehicle_type,
+            verification_status=orm.verification_status,
+            is_active=orm.is_active,
+            created_at=orm.created_at,
+            updated_at=orm.updated_at,
+        )
+
+    async def find_by_id(self, vehicle_id: UUID) -> Vehicle | None:
+        result = await self._session.execute(
+            select(VehicleORM).where(VehicleORM.id == vehicle_id)
+        )
+        orm = result.scalar_one_or_none()
+        return self._to_domain(orm) if orm else None
+
+    async def find_by_plate_number(self, plate_number: str) -> Vehicle | None:
+        result = await self._session.execute(
+            select(VehicleORM).where(VehicleORM.plate_number == plate_number)
+        )
+        orm = result.scalar_one_or_none()
+        return self._to_domain(orm) if orm else None
+
+    async def save(self, vehicle: Vehicle) -> Vehicle:
+        orm = VehicleORM(
+            id=vehicle.id,
+            brand=vehicle.brand,
+            model=vehicle.model,
+            year=vehicle.year,
+            color=vehicle.color,
+            plate_number=vehicle.plate_number,
+            max_passengers=vehicle.max_passengers,
+            vehicle_type=vehicle.vehicle_type,
+            verification_status=vehicle.verification_status,
+            is_active=vehicle.is_active,
+        )
+        self._session.add(orm)
+        await self._session.flush()
+        return self._to_domain(orm)
+
+    async def update(self, vehicle: Vehicle) -> Vehicle:
+        await self._session.execute(
+            update(VehicleORM)
+            .where(VehicleORM.id == vehicle.id)
+            .values(
+                brand=vehicle.brand,
+                model=vehicle.model,
+                year=vehicle.year,
+                color=vehicle.color,
+                plate_number=vehicle.plate_number,
+                max_passengers=vehicle.max_passengers,
+                vehicle_type=vehicle.vehicle_type,
+                verification_status=vehicle.verification_status,
+                is_active=vehicle.is_active,
+            )
+        )
+        await self._session.flush()
+        return vehicle
+
+
+class DocumentRepository(DocumentRepositoryProtocol):
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    def _to_domain(self, orm: DocumentORM) -> Document:
+        return Document(
+            id=orm.id,
+            document_type=orm.document_type,
+            file_key=orm.file_key,
+            entity_id=orm.entity_id,
+            entity_type=orm.entity_type,
+            document_number=orm.document_number,
+            expiry_date=orm.expiry_date,
+            verification_status=orm.verification_status,
+            metadata_json=orm.metadata_json,
+            created_at=orm.created_at,
+            updated_at=orm.updated_at,
+        )
+
+    async def find_by_id(self, document_id: UUID) -> Document | None:
+        result = await self._session.execute(
+            select(DocumentORM).where(DocumentORM.id == document_id)
+        )
+        orm = result.scalar_one_or_none()
+        return self._to_domain(orm) if orm else None
+
+    async def find_by_entity_id(self, entity_id: UUID) -> list[Document]:
+        result = await self._session.execute(
+            select(DocumentORM).where(DocumentORM.entity_id == entity_id)
+        )
+        return [self._to_domain(orm) for orm in result.scalars().all()]
+
+    async def find_by_entity_and_type(
+        self, entity_id: UUID, document_type: str
+    ) -> Document | None:
+        result = await self._session.execute(
+            select(DocumentORM).where(
+                DocumentORM.entity_id == entity_id,
+                DocumentORM.document_type == document_type,
+            )
+        )
+        orm = result.scalar_one_or_none()
+        return self._to_domain(orm) if orm else None
+
+    async def save(self, document: Document) -> Document:
+        orm = DocumentORM(
+            id=document.id,
+            document_type=document.document_type,
+            file_key=document.file_key,
+            entity_id=document.entity_id,
+            entity_type=document.entity_type,
+            document_number=document.document_number,
+            expiry_date=document.expiry_date,
+            verification_status=document.verification_status,
+            metadata_json=document.metadata_json,
+        )
+        self._session.add(orm)
+        await self._session.flush()
+        return self._to_domain(orm)
+
+    async def update(self, document: Document) -> Document:
+        await self._session.execute(
+            update(DocumentORM)
+            .where(DocumentORM.id == document.id)
+            .values(
+                file_key=document.file_key,
+                document_number=document.document_number,
+                expiry_date=document.expiry_date,
+                verification_status=document.verification_status,
+                metadata_json=document.metadata_json,
+            )
+        )
+        await self._session.flush()
+        return document
+
+
+class DriverVehicleRepository(DriverVehicleRepositoryProtocol):
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    def _to_domain(self, orm: DriverVehicleORM) -> DriverVehicle:
+        return DriverVehicle(
+            id=orm.id,
+            driver_id=orm.driver_id,
+            vehicle_id=orm.vehicle_id,
+            is_currently_selected=orm.is_currently_selected,
+            assigned_at=orm.assigned_at,
+            created_at=orm.created_at,
+            updated_at=orm.updated_at,
+        )
+
+    async def find_by_driver_id(self, driver_id: UUID) -> list[DriverVehicle]:
+        result = await self._session.execute(
+            select(DriverVehicleORM).where(DriverVehicleORM.driver_id == driver_id)
+        )
+        return [self._to_domain(orm) for orm in result.scalars().all()]
+
+    async def find_active_by_driver_id(self, driver_id: UUID) -> DriverVehicle | None:
+        result = await self._session.execute(
+            select(DriverVehicleORM).where(
+                DriverVehicleORM.driver_id == driver_id,
+                DriverVehicleORM.is_currently_selected.is_(True),
+            )
+        )
+        orm = result.scalar_one_or_none()
+        return self._to_domain(orm) if orm else None
+
+    async def link_driver_vehicle(
+        self, driver_id: UUID, vehicle_id: UUID
+    ) -> DriverVehicle:
+        orm = DriverVehicleORM(driver_id=driver_id, vehicle_id=vehicle_id)
+        self._session.add(orm)
+        await self._session.flush()
+        return self._to_domain(orm)
+
+    async def set_active_vehicle(self, driver_id: UUID, vehicle_id: UUID) -> None:
+        # First set all vehicles for this driver to inactive
+        await self._session.execute(
+            update(DriverVehicleORM)
+            .where(DriverVehicleORM.driver_id == driver_id)
+            .values(is_currently_selected=False)
+        )
+        # Then set the selected one to active
+        await self._session.execute(
+            update(DriverVehicleORM)
+            .where(
+                DriverVehicleORM.driver_id == driver_id,
+                DriverVehicleORM.vehicle_id == vehicle_id,
+            )
+            .values(is_currently_selected=True)
+        )
+        await self._session.flush()
+
+
+class VerificationRejectionRepository(VerificationRejectionRepositoryProtocol):
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    def _to_domain(self, orm: VerificationRejectionORM) -> VerificationRejection:
+        return VerificationRejection(
+            id=orm.id,
+            driver_id=orm.driver_id,
+            document_id=orm.document_id,
+            rejection_reason_code=orm.rejection_reason_code,
+            admin_comment=orm.admin_comment,
+            is_resolved=orm.is_resolved,
+            rejected_at=orm.rejected_at,
+            created_at=orm.created_at,
+            updated_at=orm.updated_at,
+        )
+
+    async def find_active_rejection_by_document(
+        self, document_id: UUID
+    ) -> VerificationRejection | None:
+        result = await self._session.execute(
+            select(VerificationRejectionORM)
+            .where(
+                VerificationRejectionORM.document_id == document_id,
+                VerificationRejectionORM.is_resolved.is_(False),
+            )
+            .order_by(VerificationRejectionORM.rejected_at.desc())
+        )
+        orm = result.scalars().first()
+        return self._to_domain(orm) if orm else None
+
+    async def mark_rejections_resolved(self, document_id: UUID) -> None:
+        await self._session.execute(
+            update(VerificationRejectionORM)
+            .where(
+                VerificationRejectionORM.document_id == document_id,
+                VerificationRejectionORM.is_resolved.is_(False),
+            )
+            .values(is_resolved=True)
+        )
+        await self._session.flush()
+
+    async def create_rejection(self, rejection: VerificationRejection) -> VerificationRejection:
+        orm = VerificationRejectionORM(
+            id=rejection.id,
+            driver_id=rejection.driver_id,
+            rejection_reason_code=rejection.rejection_reason_code,
+            document_id=rejection.document_id,
+            admin_comment=rejection.admin_comment,
+            is_resolved=rejection.is_resolved,
+        )
+        self._session.add(orm)
+        await self._session.flush()
+        return self._to_domain(orm)

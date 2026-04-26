@@ -2,11 +2,17 @@
 name = "verification"
 version = "0.1.0"
 description = "SafarPay Verification Service — identity document management"
-requires-python = ">=3.10"
+requires-python = ">=3.10,<3.12"
 dependencies = [
     "sp",
     "fastapi>=0.111.0",
     "uvicorn[standard]>=0.30.0",
+    "deepface==0.0.93",
+    "paddleocr==2.7.0.3",
+    "opencv-python-headless>=4.9.0",
+    "numpy>=1.26",
+    "python-dateutil>=2.9.0",
+    "rapidfuzz>=3.6.0",
 ]
 
 [tool.uv.sources]
