@@ -99,6 +99,20 @@ class CacheManager:
         redis = self._assert_connected()
         return await redis.delete(self._key(namespace, key)) > 0
 
+    async def delete_if_equals(self, namespace: str, key: str, expected_value: str) -> bool:
+        """Atomically delete a key if its value matches the expected value."""
+        redis = self._assert_connected()
+        full_key = self._key(namespace, key)
+        script = """
+        if redis.call("get", KEYS[1]) == ARGV[1] then
+            return redis.call("del", KEYS[1])
+        else
+            return 0
+        end
+        """
+        result = await redis.eval(script, 1, full_key, expected_value)
+        return bool(result)
+
     async def increment(
         self,
         namespace: str,

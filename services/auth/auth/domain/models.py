@@ -20,6 +20,7 @@ class User:
     full_name: str | None = None
     email: str | None = None
     phone: str | None = None
+    profile_img: str | None = None
     is_active: bool = True
     is_verified: bool = False  # True once phone is verified via OTP
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
@@ -31,6 +32,7 @@ class User:
         full_name: str | None = None,
         email: str | None = None,
         phone: str | None = None,
+        profile_img: str | None = None,
         is_verified: bool = False,
     ) -> User:
         return cls(
@@ -39,6 +41,7 @@ class User:
             full_name=full_name,
             email=email,
             phone=phone,
+            profile_img=profile_img,
             is_verified=is_verified,
         )
 

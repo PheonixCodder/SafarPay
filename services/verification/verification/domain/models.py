@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from dataclasses import dataclass, field
 from enum import Enum
 

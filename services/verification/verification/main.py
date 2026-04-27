@@ -15,7 +15,7 @@ import asyncio
 import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 from sp.infrastructure.db.engine import get_db_engine
-from sp.infrastructure.db.session import get_async_session
+from sp.infrastructure.db.session import get_async_session, get_session_factory
 from sp.infrastructure.messaging.kafka import KafkaProducerWrapper, KafkaConsumerWrapper
 from sp.infrastructure.messaging.publisher import EventPublisher
 from sp.infrastructure.messaging.subscriber import EventSubscriber
@@ -38,9 +38,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     settings = get_settings()
     setup_logging(SERVICE_NAME, level=settings.LOG_LEVEL, log_format=settings.LOG_FORMAT)
     app.state.db_engine = get_db_engine(settings.POSTGRES_DB_URI, settings.POSTGRES_POOL_SIZE)
-    cache = get_cache_manager_factory(settings)
-    await cache.connect()
-    app.state.cache = cache
+    # Avoid lru_cache unhashable Settings error by creating the factory once
+    app.state.session_factory = get_session_factory(settings)
+
+    app.state.cache = get_cache_manager_factory(settings)
+    await app.state.cache.connect()
     app.state.metrics = MetricsCollector(SERVICE_NAME)
 
     # ML Engine
@@ -63,8 +65,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         if not driver_id_str: return
         driver_id = uuid.UUID(driver_id_str)
         
+        factory = app.state.session_factory
         # Correctly manage session lifecycle in background task
-        async with AsyncSession(app.state.db_engine, expire_on_commit=False) as session:
+        async with factory() as session:
             try:
                 driver_repo = DriverRepository(session)
                 rejection_repo = VerificationRejectionRepository(session)
@@ -92,6 +95,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     yield
     
     app.state.subscriber_task.cancel()
+    try:
+        await app.state.subscriber_task
+    except asyncio.CancelledError:
+        pass
     await subscriber.stop()
     await app.state.publisher.close()
     await app.state.cache.close()

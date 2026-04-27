@@ -25,7 +25,7 @@ class S3StorageProvider(StorageProviderProtocol):
         )
 
     async def generate_presigned_put_url(
-        self, bucket_name: str, object_key: str, expires_in: int = 3600
+        self, bucket_name: str, object_key: str, expires_in: int = 3600, content_type: str = "image/jpeg"
     ) -> str:
         """
         Generate a presigned URL to upload an object to S3 via a PUT request.
@@ -36,6 +36,7 @@ class S3StorageProvider(StorageProviderProtocol):
                 Params={
                     "Bucket": bucket_name,
                     "Key": object_key,
+                    "ContentType": content_type,
                 },
                 ExpiresIn=expires_in,
             )
