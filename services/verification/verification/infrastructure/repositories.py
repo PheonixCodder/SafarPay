@@ -265,7 +265,7 @@ class DriverVehicleRepository(DriverVehicleRepositoryProtocol):
             .values(is_currently_selected=False)
         )
         # Then set the selected one to active
-        await self._session.execute(
+        result = await self._session.execute(
             update(DriverVehicleORM)
             .where(
                 DriverVehicleORM.driver_id == driver_id,
@@ -273,6 +273,10 @@ class DriverVehicleRepository(DriverVehicleRepositoryProtocol):
             )
             .values(is_currently_selected=True)
         )
+        if result.rowcount == 0:
+            from verification.domain.exceptions import DriverNotFoundError
+            raise DriverNotFoundError(f"DriverVehicle link not found for driver {driver_id} and vehicle {vehicle_id}")
+            
         await self._session.flush()
 
 
@@ -326,6 +330,7 @@ class VerificationRejectionRepository(VerificationRejectionRepositoryProtocol):
             document_id=rejection.document_id,
             admin_comment=rejection.admin_comment,
             is_resolved=rejection.is_resolved,
+            rejected_at=rejection.rejected_at,
         )
         self._session.add(orm)
         await self._session.flush()

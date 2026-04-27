@@ -93,8 +93,11 @@ class IdentityVerificationEngine:
             extracted["license_raw_text"] = license_text
 
             # 3. Name Extraction & Matching
-            cnic_name = self._normalize_name(cnic_text)
-            license_name = self._normalize_name(license_text)
+            cnic_extracted_name = self._extract_name_from_ocr(cnic_text)
+            license_extracted_name = self._extract_name_from_ocr(license_text)
+            
+            cnic_name = self._normalize_name(cnic_extracted_name)
+            license_name = self._normalize_name(license_extracted_name)
             
             if not self._cross_check_names(cnic_name, license_name):
                 errors.append({
@@ -167,7 +170,26 @@ class IdentityVerificationEngine:
             return ""
         
         text_lines = [line[1][0] for line in result[0] if line]
-        return " ".join(text_lines)
+        return "\n".join(text_lines)
+
+    def _extract_name_from_ocr(self, text: str) -> str:
+        """Extracts the likely name string from full OCR text."""
+        pattern = r"(?i)(?:name|identity number|cnic|national id)[\s:]*([A-Za-z\s]{4,30})"
+        match = re.search(pattern, text)
+        if match:
+            candidate = match.group(1).strip()
+            if candidate:
+                return candidate
+                
+        # Fallback: longest alphabetic line that looks like a name
+        lines = text.split('\n')
+        best_line = ""
+        for line in lines:
+            cleaned = re.sub(r'[^a-zA-Z\s]', '', line).strip()
+            if len(cleaned.split()) >= 2 and len(cleaned) < 40 and len(cleaned) > len(best_line):
+                best_line = cleaned
+                
+        return best_line if best_line else text
 
     def _normalize_name(self, text: str) -> str:
         """Lowercases and removes common noise from names."""
@@ -179,39 +201,35 @@ class IdentityVerificationEngine:
         return " ".join(text.split())
 
     def _parse_date(self, text: str) -> date | None:
-        """Parse date from OCR text (supports DD-MM-YYYY, DD/MM/YYYY, etc)."""
-        # More flexible regex to catch various separators and Pakistani formats
+        """Parse date from OCR text using keywords and dateutil."""
+        import dateutil.parser
+        
+        text_lower = text.lower()
+        keywords = ["expiry", "date of expiry", "valid until", "valid upto"]
+        
+        search_windows = []
+        for kw in keywords:
+            idx = text_lower.find(kw)
+            if idx != -1:
+                search_windows.append(text[idx:idx+40])
+                
+        search_windows.append(text) # Fallback to whole text
+        
         patterns = [
-            r"(\d{2})[-/.](\d{2})[-/.](\d{4})",  # DD-MM-YYYY
-            r"(\d{2})[-/.](\d{2})[-/.](\d{2})",    # DD-MM-YY
-            r"(\d{4})[-/.](\d{2})[-/.](\d{2})",    # YYYY-MM-DD
+            r"(\d{2}[-/.]\d{2}[-/.]\d{4})",
+            r"(\d{4}[-/.]\d{2}[-/.]\d{2})",
+            r"(\d{2}[-/.]\d{2}[-/.]\d{2})",
         ]
-        for pattern in patterns:
-            match = re.search(pattern, text)
-            if match:
-                try:
-                    parts = match.groups()
-                    d, m, y = int(parts[0]), int(parts[1]), int(parts[2])
-                    
-                    current_year = date.today().year
-                    # Handle DD-MM-YY (2-digit year)
-                    if len(parts[2]) == 2:
-                        # Pakistani documents often use 2-digit years. 
-                        # If year < (current_year % 100) + 20, assume 20xx, else 19xx
-                        # (e.g., if 2026, 26+20 = 46. "45" -> 2045, "47" -> 1947).
-                        threshold = (current_year % 100) + 20
-                        if y <= threshold:
-                            y += 2000
-                        else:
-                            y += 1900
-                    
-                    # Handle YYYY-MM-DD pattern
-                    if pattern.startswith(r"(\d{4})"):
-                        return date(d, m, y)
+        
+        for window in search_windows:
+            for pattern in patterns:
+                for match in re.findall(pattern, window):
+                    try:
+                        dt = dateutil.parser.parse(match, dayfirst=True)
+                        return dt.date()
+                    except (ValueError, OverflowError):
+                        continue
                         
-                    return date(y, m, d)
-                except (ValueError, IndexError):
-                    continue
         return None
 
     def _crop_face(self, image_bytes: bytes) -> np.ndarray:
@@ -222,6 +240,9 @@ class IdentityVerificationEngine:
         faces = DeepFace.extract_faces(img, detector_backend='retinaface', enforce_detection=False)
         if not faces or len(faces) == 0:
             raise MLProcessingError("No face detected in ID.")
+            
+        if faces[0].get('confidence', 0) < 0.5:
+            raise MLProcessingError("No face detected in ID with sufficient confidence.")
             
         face_data = faces[0]['face']
         

@@ -8,9 +8,11 @@ dependencies = [
     "fastapi>=0.111.0",
     "uvicorn[standard]>=0.30.0",
     "deepface==0.0.93",
+    # TODO: paddleocr==2.7.0.3 has transitive dependencies that enforce python < 3.12. 
+    # Revisit this when newer paddle/paddleocr wheels exist.
     "paddleocr==2.7.0.3",
     "opencv-python-headless>=4.9.0",
-    "numpy>=1.26",
+    "numpy>=1.26,<2.0",
     "python-dateutil>=2.9.0",
     "rapidfuzz>=3.6.0",
 ]

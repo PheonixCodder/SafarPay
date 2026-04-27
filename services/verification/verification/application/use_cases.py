@@ -180,15 +180,18 @@ class VerificationUseCases:
     async def execute_verification_review(self, driver_id: uuid.UUID) -> None:
         """Background worker logic: ML verification and state persistence."""
         lock_key = f"review_lock:{driver_id}"
-        # Try to acquire lock for 60 seconds
-        if not await self.cache_manager.set("verification", lock_key, "locked", ttl=60, nx=True):
+        lock_token = uuid.uuid4().hex
+        # Try to acquire lock for 180 seconds
+        if not await self.cache_manager.set("verification", lock_key, lock_token, ttl=180, nx=True):
             logger.warning("Verification review already in progress for driver_id=%s. Skipping.", driver_id)
             return
 
         try:
             await self._execute_verification_review_internal(driver_id)
         finally:
-            await self.cache_manager.delete("verification", lock_key)
+            current_token = await self.cache_manager.get("verification", lock_key)
+            if current_token == lock_token:
+                await self.cache_manager.delete("verification", lock_key)
 
     async def _execute_verification_review_internal(self, driver_id: uuid.UUID) -> None:
         """Internal logic for verification review."""
@@ -236,7 +239,7 @@ class VerificationUseCases:
                     raise ValueError(f"Missing document type {doc_type} during execution.")
                     
             fetched_bytes = await asyncio.gather(*fetch_tasks)
-            doc_bytes = dict(zip(doc_types_to_fetch, fetched_bytes))
+            doc_bytes = dict(zip(doc_types_to_fetch, fetched_bytes, strict=True))
             
             bundle = VerificationBundle(
                 id_front=doc_bytes[DocumentType.ID_FRONT],
@@ -274,13 +277,16 @@ class VerificationUseCases:
             # Meta is already saved in 3a for OCR, now finalize
             
             if result.success:
-                # Mark ONLY identity documents as verified
                 identity_doc_types = [
                     DocumentType.ID_FRONT, DocumentType.ID_BACK,
                     DocumentType.LICENSE_FRONT, DocumentType.LICENSE_BACK,
                     DocumentType.SELFIE_ID
                 ]
-                for doc_type in identity_doc_types:
+                vehicle_doc_types = [
+                    DocumentType.REGISTRATION_DOC_FRONT, DocumentType.REGISTRATION_DOC_BACK,
+                    DocumentType.VEHICLE_PHOTO_FRONT, DocumentType.VEHICLE_PHOTO_BACK
+                ]
+                for doc_type in identity_doc_types + vehicle_doc_types:
                     if doc_type in all_docs:
                         doc = all_docs[doc_type]
                         doc.verification_status = VerificationStatus.VERIFIED
@@ -289,13 +295,16 @@ class VerificationUseCases:
                 driver.verification_status = VerificationStatus.VERIFIED
                 await self.driver_repo.update(driver)
             else:
-                # Mark identity documents as rejected
                 identity_doc_types = [
                     DocumentType.ID_FRONT, DocumentType.ID_BACK,
                     DocumentType.LICENSE_FRONT, DocumentType.LICENSE_BACK,
                     DocumentType.SELFIE_ID
                 ]
-                for doc_type in identity_doc_types:
+                vehicle_doc_types = [
+                    DocumentType.REGISTRATION_DOC_FRONT, DocumentType.REGISTRATION_DOC_BACK,
+                    DocumentType.VEHICLE_PHOTO_FRONT, DocumentType.VEHICLE_PHOTO_BACK
+                ]
+                for doc_type in identity_doc_types + vehicle_doc_types:
                     if doc_type in all_docs:
                         doc = all_docs[doc_type]
                         doc.verification_status = VerificationStatus.REJECTED
@@ -322,6 +331,26 @@ class VerificationUseCases:
 
         except MLProcessingError as e:
             logger.error(f"[{trace_id}] Verification ML failed for driver {driver.id}: {e}")
+            identity_doc_types = [
+                DocumentType.ID_FRONT, DocumentType.ID_BACK,
+                DocumentType.LICENSE_FRONT, DocumentType.LICENSE_BACK,
+                DocumentType.SELFIE_ID
+            ]
+            for doc_type in identity_doc_types:
+                if doc_type in all_docs:
+                    doc = all_docs[doc_type]
+                    doc.verification_status = VerificationStatus.REJECTED
+                    await self.document_repo.update(doc)
+            
+            rej = VerificationRejection(
+                id=uuid.uuid4(),
+                driver_id=driver.id,
+                document_id=None,
+                rejection_reason_code="ML_PROCESSING_ERROR",
+                admin_comment=str(e),
+            )
+            await self.rejection_repo.create_rejection(rej)
+
             driver.verification_status = VerificationStatus.REJECTED
             await self.driver_repo.update(driver)
         except Exception as e:
