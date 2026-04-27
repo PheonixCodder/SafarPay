@@ -1,0 +1,1 @@
+"""Ride service application package."""

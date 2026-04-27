@@ -168,13 +168,47 @@
 │   │   │   ├── __init__.py
 │   │   │   └── main.py
 │   │   └── pyproject.toml
+│   ├── ride
+│   │   ├── ride
+│   │   │   ├── __pycache__
+│   │   │   ├── api
+│   │   │   │   ├── __init__.py
+│   │   │   │   └── router.py
+│   │   │   ├── application
+│   │   │   │   ├── __pycache__
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── schemas.py
+│   │   │   │   └── use_cases.py
+│   │   │   ├── domain
+│   │   │   │   ├── __pycache__
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── exceptions.py
+│   │   │   │   ├── interfaces.py
+│   │   │   │   └── models.py
+│   │   │   ├── infrastructure
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── dependencies.py
+│   │   │   │   ├── geospatial_client.py
+│   │   │   │   ├── notification_client.py
+│   │   │   │   ├── orm_models.py
+│   │   │   │   ├── repositories.py
+│   │   │   │   ├── webhook_client.py
+│   │   │   │   └── websocket_manager.py
+│   │   │   ├── __init__.py
+│   │   │   └── main.py
+│   │   └── pyproject.toml
 │   └── verification
 │       ├── verification
 │       │   ├── __pycache__
 │       │   ├── api
+│       │   │   ├── __pycache__
 │       │   │   ├── __init__.py
 │       │   │   └── router.py
 │       │   ├── application
+│       │   │   ├── __pycache__
+│       │   │   ├── services
+│       │   │   │   ├── identity_verification_engine.py
+│       │   │   │   └── rejection_resolver.py
 │       │   │   ├── __init__.py
 │       │   │   ├── schemas.py
 │       │   │   └── use_cases.py
@@ -182,12 +216,15 @@
 │       │   │   ├── __pycache__
 │       │   │   ├── __init__.py
 │       │   │   ├── exceptions.py
+│       │   │   ├── interfaces.py
 │       │   │   └── models.py
 │       │   ├── infrastructure
+│       │   │   ├── __pycache__
 │       │   │   ├── __init__.py
 │       │   │   ├── dependencies.py
 │       │   │   ├── orm_models.py
-│       │   │   └── repositories.py
+│       │   │   ├── repositories.py
+│       │   │   └── storage.py
 │       │   ├── __init__.py
 │       │   └── main.py
 │       └── pyproject.toml
@@ -203,3 +240,4 @@
 ├── Tech Stack.txt
 └── uv.lock
 ```
+

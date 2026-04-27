@@ -61,6 +61,7 @@ class Settings(BaseSettings):
     S3_IDENTITY_BUCKET: str = "safarpay-identity-docs"
     S3_LICENSE_BUCKET: str = "safarpay-license-docs"
     S3_VEHICLE_BUCKET: str = "safarpay-vehicle-docs"
+    S3_PROOF_BUCKET: str = "safarpay-ride-proofs"
 
     # ── Messaging ─────────────────────────────────────────────────────────────
     KAFKA_BOOTSTRAP_SERVERS: str | None = None

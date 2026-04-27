@@ -66,6 +66,68 @@ class VerificationReviewRequestedEvent(BaseEvent):
     event_type: Literal["verification.review_requested"] = "verification.review_requested"
 
 
+# ── Ride / Service-Request events ─────────────────────────────────────────────
+
+class ServiceRequestCreatedEvent(BaseEvent):
+    event_type: Literal["service.request.created"] = "service.request.created"
+
+
+class ServiceRequestUpdatedEvent(BaseEvent):
+    event_type: Literal["service.request.updated"] = "service.request.updated"
+
+
+class ServiceRequestCancelledEvent(BaseEvent):
+    event_type: Literal["service.request.cancelled"] = "service.request.cancelled"
+
+
+class ServiceRequestAcceptedEvent(BaseEvent):
+    event_type: Literal["service.request.accepted"] = "service.request.accepted"
+
+
+class ServiceRequestStartedEvent(BaseEvent):
+    event_type: Literal["service.request.started"] = "service.request.started"
+
+
+class ServiceRequestCompletedEvent(BaseEvent):
+    event_type: Literal["service.request.completed"] = "service.request.completed"
+
+
+class ServiceStopArrivedEvent(BaseEvent):
+    event_type: Literal["service.stop.arrived"] = "service.stop.arrived"
+
+
+class ServiceStopCompletedEvent(BaseEvent):
+    event_type: Literal["service.stop.completed"] = "service.stop.completed"
+
+
+class ServiceProofUploadedEvent(BaseEvent):
+    event_type: Literal["service.proof.uploaded"] = "service.proof.uploaded"
+
+
+class ServiceVerificationGeneratedEvent(BaseEvent):
+    event_type: Literal["service.verification.generated"] = "service.verification.generated"
+
+
+class ServiceVerificationVerifiedEvent(BaseEvent):
+    event_type: Literal["service.verification.verified"] = "service.verification.verified"
+
+
+class DriverMatchingRequestedEvent(BaseEvent):
+    event_type: Literal["driver.matching.requested"] = "driver.matching.requested"
+
+
+class DriverMatchingCompletedEvent(BaseEvent):
+    event_type: Literal["driver.matching.completed"] = "driver.matching.completed"
+
+
+class DriverAvailabilityUpdatedEvent(BaseEvent):
+    event_type: Literal["driver.availability.updated"] = "driver.availability.updated"
+
+
+class DriverLocationUpdatedEvent(BaseEvent):
+    event_type: Literal["driver.location.updated"] = "driver.location.updated"
+
+
 # ── Registry for deserialisation in subscriber ────────────────────────────────
 
 EVENT_REGISTRY: dict[str, type[BaseEvent]] = {
@@ -76,4 +138,20 @@ EVENT_REGISTRY: dict[str, type[BaseEvent]] = {
     "notification.requested": NotificationRequestedEvent,
     "document.verified": DocumentVerifiedEvent,
     "verification.review_requested": VerificationReviewRequestedEvent,
+    # Ride events
+    "service.request.created": ServiceRequestCreatedEvent,
+    "service.request.updated": ServiceRequestUpdatedEvent,
+    "service.request.cancelled": ServiceRequestCancelledEvent,
+    "service.request.accepted": ServiceRequestAcceptedEvent,
+    "service.request.started": ServiceRequestStartedEvent,
+    "service.request.completed": ServiceRequestCompletedEvent,
+    "service.stop.arrived": ServiceStopArrivedEvent,
+    "service.stop.completed": ServiceStopCompletedEvent,
+    "service.proof.uploaded": ServiceProofUploadedEvent,
+    "service.verification.generated": ServiceVerificationGeneratedEvent,
+    "service.verification.verified": ServiceVerificationVerifiedEvent,
+    "driver.matching.requested": DriverMatchingRequestedEvent,
+    "driver.matching.completed": DriverMatchingCompletedEvent,
+    "driver.availability.updated": DriverAvailabilityUpdatedEvent,
+    "driver.location.updated": DriverLocationUpdatedEvent,
 }
