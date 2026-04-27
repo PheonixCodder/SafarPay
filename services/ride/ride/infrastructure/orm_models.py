@@ -122,7 +122,6 @@ class ServiceRequestORM(Base, TimestampMixin):
         index=True,
     )
 
-    # 🚨 DRIVER LINK ONLY THROUGH MATCHING SYSTEM (NOT FK HERE)
     assigned_driver_id: Mapped[uuid.UUID | None] = mapped_column(
         PgUUID(as_uuid=True),
         ForeignKey("verification.drivers.id", ondelete="SET NULL"),
@@ -213,11 +212,6 @@ class ServiceRequestORM(Base, TimestampMixin):
 
 class ServiceStopORM(Base, TimestampMixin):
     __tablename__ = "service_stops"
-    __table_args__ = (
-        Index("ix_service_stops_request_order", "service_request_id", "sequence_order", unique=True),
-        Index("ix_service_stops_request_type", "service_request_id", "stop_type"),
-        {"schema": "service_request"},
-    )
 
     id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
@@ -425,6 +419,7 @@ class IntercityDetailORM(Base, TimestampMixin):
     toll_estimate: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
     fuel_surcharge: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
 
+    # Note: total_stops is an operational cache; source of truth is ServiceStopORM count.
     total_stops: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     is_multi_city_trip: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
@@ -447,18 +442,11 @@ class IntercityPassengerGroupORM(Base, TimestampMixin):
     __table_args__ = (
         CheckConstraint("passenger_count > 0", name="ck_intercity_passenger_groups_passenger_count_positive"),
         CheckConstraint("luggage_count >= 0", name="ck_intercity_passenger_groups_luggage_count_non_negative"),
-        Index("ix_intercity_passenger_groups_request", "service_request_id"),
+        Index("ix_intercity_passenger_groups_request", "intercity_service_request_id"),
         {"schema": "service_request"},
     )
 
     id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-
-    service_request_id: Mapped[uuid.UUID] = mapped_column(
-        PgUUID(as_uuid=True),
-        ForeignKey("service_request.service_requests.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
 
     intercity_service_request_id: Mapped[uuid.UUID] = mapped_column(
         PgUUID(as_uuid=True),
@@ -510,6 +498,10 @@ class ServiceProofImageORM(Base, TimestampMixin):
     __tablename__ = "service_proof_images"
     __table_args__ = (
         Index("ix_service_proof_images_request_stop_type", "service_request_id", "stop_id", "proof_type"),
+        CheckConstraint(
+            "(uploaded_by_user_id IS NOT NULL) OR (uploaded_by_driver_id IS NOT NULL)",
+            name="ck_service_proof_images_uploader_exists"
+        ),
         {"schema": "service_request"},
     )
 
@@ -590,8 +582,16 @@ class ServiceVerificationCodeORM(Base, TimestampMixin):
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     generated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    verified_by_user_id: Mapped[uuid.UUID | None] = mapped_column(PgUUID(as_uuid=True), nullable=True)
-    verified_by_driver_id: Mapped[uuid.UUID | None] = mapped_column(PgUUID(as_uuid=True), nullable=True)
+    verified_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        PgUUID(as_uuid=True),
+        ForeignKey("auth.users.id", ondelete="SET NULL"),
+        nullable=True
+    )
+    verified_by_driver_id: Mapped[uuid.UUID | None] = mapped_column(
+        PgUUID(as_uuid=True),
+        ForeignKey("verification.drivers.id", ondelete="SET NULL"),
+        nullable=True
+    )
 
     service_request: Mapped["ServiceRequestORM"] = relationship(back_populates="verification_codes")
     stop: Mapped["ServiceStopORM | None"] = relationship(back_populates="verification_codes")
