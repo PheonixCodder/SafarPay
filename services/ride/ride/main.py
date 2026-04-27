@@ -108,23 +108,48 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     yield
 
     # ── Teardown ──────────────────────────────────────────────────────────────
-    await app.state.cache.close()
-    await app.state.db_engine.dispose()
+    try:
+        await app.state.cache.close()
+    except Exception as e:
+        import logging
+        logging.getLogger("ride.main").error("Failed to close cache: %s", e)
+
+    try:
+        await app.state.db_engine.dispose()
+    except Exception as e:
+        import logging
+        logging.getLogger("ride.main").error("Failed to dispose db engine: %s", e)
 
     if app.state.publisher:
-        await app.state.publisher.close()
+        try:
+            await app.state.publisher.close()
+        except Exception as e:
+            import logging
+            logging.getLogger("ride.main").error("Failed to close publisher: %s", e)
 
     webhook_client = app.state.webhook_client
     if hasattr(webhook_client, "close"):
-        await webhook_client.close()
+        try:
+            await webhook_client.close()
+        except Exception as e:
+            import logging
+            logging.getLogger("ride.main").error("Failed to close webhook client: %s", e)
 
     geo_client = app.state.geo_client
     if hasattr(geo_client, "close"):
-        await geo_client.close()
+        try:
+            await geo_client.close()
+        except Exception as e:
+            import logging
+            logging.getLogger("ride.main").error("Failed to close geo client: %s", e)
 
     notif_client = app.state.notification_client
     if hasattr(notif_client, "close"):
-        await notif_client.close()
+        try:
+            await notif_client.close()
+        except Exception as e:
+            import logging
+            logging.getLogger("ride.main").error("Failed to close notif client: %s", e)
 
 
 def create_app() -> FastAPI:

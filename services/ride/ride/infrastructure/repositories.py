@@ -21,6 +21,7 @@ from uuid import UUID
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+import sqlalchemy
 
 from ..domain.models import (
     DriverGenderPreference,
@@ -170,21 +171,23 @@ def _ride_orm_to_domain(o: ServiceRequestORM) -> ServiceRequest:
         pricing_mode=PricingMode(o.pricing_mode.value),
         status=_STATUS_FROM_ORM[o.status],
         assigned_driver_id=o.assigned_driver_id,
-        baseline_min_price=float(o.baseline_min_price) if o.baseline_min_price else None,
-        baseline_max_price=float(o.baseline_max_price) if o.baseline_max_price else None,
-        final_price=float(o.final_price) if o.final_price else None,
+        baseline_min_price=float(o.baseline_min_price) if o.baseline_min_price is not None else None,
+        baseline_max_price=float(o.baseline_max_price) if o.baseline_max_price is not None else None,
+        final_price=float(o.final_price) if o.final_price is not None else None,
         scheduled_at=o.scheduled_at,
         is_scheduled=o.is_scheduled,
         is_risky=o.is_risky,
         auto_accept_driver=o.auto_accept_driver,
+        requires_otp_start=getattr(o.city_ride, "requires_otp_start", False) if "city_ride" not in sqlalchemy.inspect(o).unloaded and o.city_ride else False,
+        requires_otp_end=getattr(o.city_ride, "requires_otp_end", False) if "city_ride" not in sqlalchemy.inspect(o).unloaded and o.city_ride else False,
         accepted_at=o.accepted_at,
         completed_at=o.completed_at,
         cancelled_at=o.cancelled_at,
         cancellation_reason=o.cancellation_reason,
         created_at=o.created_at,
-        stops=[_stop_orm_to_domain(s) for s in (o.stops or [])],
-        proof_images=[_proof_orm_to_domain(p) for p in (o.proof_images or [])],
-        verification_codes=[_code_orm_to_domain(c) for c in (o.verification_codes or [])],
+        stops=[_stop_orm_to_domain(s) for s in o.stops] if "stops" not in sqlalchemy.inspect(o).unloaded and o.stops else [],
+        proof_images=[_proof_orm_to_domain(p) for p in o.proof_images] if "proof_images" not in sqlalchemy.inspect(o).unloaded and o.proof_images else [],
+        verification_codes=[_code_orm_to_domain(c) for c in o.verification_codes] if "verification_codes" not in sqlalchemy.inspect(o).unloaded and o.verification_codes else [],
     )
 
 

@@ -71,7 +71,6 @@ class S3StorageProvider:
                 Params={
                     "Bucket": self._bucket,
                     "Key": object_key,
-                    "ContentType": content_type,
                 },
                 ExpiresIn=expires_in,
             )

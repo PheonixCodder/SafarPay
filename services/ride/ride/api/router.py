@@ -11,6 +11,10 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect, status
 from sp.core.observability.logging import get_logger
 from sp.infrastructure.security.dependencies import CurrentUser
+from sp.infrastructure.security.jwt import verify_token
+from sp.core.config import get_settings
+from sp.infrastructure.db.session import get_session_factory
+from sqlalchemy import text
 
 from ..application.schemas import (
     AcceptRideRequest,
@@ -52,23 +56,33 @@ from ..application.use_cases import (
     VerifyVerificationCodeUseCase,
 )
 from ..domain.exceptions import (
+    DuplicateStopSequenceError,
+    InsufficientStopsError,
+    InvalidMimeTypeError,
     InvalidStateTransitionError,
     ProofUploadError,
     RideAlreadyCancelledError,
     RideAlreadyCompletedError,
+    RideDomainError,
+    RideNotAssignedError,
     RideNotFoundError,
+    ServiceTypeDetailMismatchError,
+    StopAlreadyArrivedError,
     StopAlreadyCompletedError,
     StopNotArrivedError,
     StopNotFoundError,
+    StopSequenceError,
     UnauthorisedRideAccessError,
     VerificationCodeAlreadyVerifiedError,
-    VerificationCodeExpiredError,
     VerificationCodeExhaustedError,
+    VerificationCodeExpiredError,
     VerificationCodeInvalidError,
     VerificationCodeNotFoundError,
 )
 from ..domain.models import RideStatus
 from ..infrastructure.dependencies import (
+    CurrentDriver,
+    OptionalDriverId,
     get_accept_ride_uc,
     get_add_stop_uc,
     get_broadcast_uc,
@@ -99,24 +113,39 @@ logger = get_logger("ride.api")
 # ---------------------------------------------------------------------------
 
 def _handle_domain(exc: Exception) -> HTTPException:
-    mapping: dict[type, tuple[int, str]] = {
-        RideNotFoundError:                      (404, str(exc)),
-        StopNotFoundError:                      (404, str(exc)),
-        VerificationCodeNotFoundError:          (404, str(exc)),
-        UnauthorisedRideAccessError:            (403, str(exc)),
-        InvalidStateTransitionError:            (409, str(exc)),
-        RideAlreadyCancelledError:              (409, str(exc)),
-        RideAlreadyCompletedError:              (409, str(exc)),
-        StopAlreadyCompletedError:              (409, str(exc)),
-        StopNotArrivedError:                    (409, str(exc)),
-        VerificationCodeInvalidError:           (422, str(exc)),
-        VerificationCodeExpiredError:           (422, str(exc)),
-        VerificationCodeExhaustedError:         (429, str(exc)),
-        VerificationCodeAlreadyVerifiedError:   (409, str(exc)),
-        ProofUploadError:                       (422, str(exc)),
-    }
-    code, detail = mapping.get(type(exc), (500, "Internal server error"))
-    return HTTPException(status_code=code, detail=detail)
+    if isinstance(exc, HTTPException):
+        return exc
+
+    mapping = [
+        (RideNotFoundError, 404),
+        (StopNotFoundError, 404),
+        (VerificationCodeNotFoundError, 404),
+        (UnauthorisedRideAccessError, 403),
+        (InvalidStateTransitionError, 409),
+        (RideAlreadyCancelledError, 409),
+        (RideAlreadyCompletedError, 409),
+        (StopAlreadyCompletedError, 409),
+        (StopNotArrivedError, 409),
+        (VerificationCodeInvalidError, 422),
+        (VerificationCodeExpiredError, 422),
+        (VerificationCodeExhaustedError, 429),
+        (VerificationCodeAlreadyVerifiedError, 409),
+        (ProofUploadError, 422),
+        (RideNotAssignedError, 409),
+        (ServiceTypeDetailMismatchError, 422),
+        (InsufficientStopsError, 422),
+        (DuplicateStopSequenceError, 422),
+        (StopSequenceError, 422),
+        (StopAlreadyArrivedError, 409),
+        (RideDomainError, 400),
+    ]
+
+    for exc_type, status_code in mapping:
+        if isinstance(exc, exc_type):
+            return HTTPException(status_code=status_code, detail=str(exc))
+
+    logger.exception("Unhandled domain exception: %s", exc)
+    return HTTPException(status_code=500, detail="Internal server error")
 
 
 # ---------------------------------------------------------------------------
@@ -161,10 +190,12 @@ async def get_ride(
 async def cancel_ride(
     ride_id: UUID,
     body: CancelRideRequest,
+    current_user: CurrentUser,
     uc: Annotated[CancelRideUseCase, Depends(get_cancel_ride_uc)],
 ) -> RideResponse:
+    """Cancel a ride. Only the passenger who created the ride may call this."""
     try:
-        return await uc.execute(ride_id, body)
+        return await uc.execute(ride_id, body, current_user.user_id)
     except Exception as exc:
         raise _handle_domain(exc) from None
 
@@ -173,10 +204,12 @@ async def cancel_ride(
 async def accept_ride(
     ride_id: UUID,
     body: AcceptRideRequest,
+    driver_id: CurrentDriver,
     uc: Annotated[AcceptRideUseCase, Depends(get_accept_ride_uc)],
 ) -> RideResponse:
+    """Accept a ride. Caller must be an authenticated driver; driver_id is derived from JWT."""
     try:
-        return await uc.execute(ride_id, body)
+        return await uc.execute(ride_id, body, driver_id)
     except Exception as exc:
         raise _handle_domain(exc) from None
 
@@ -185,10 +218,12 @@ async def accept_ride(
 async def start_ride(
     ride_id: UUID,
     body: VerifyAndStartRequest,
+    driver_id: CurrentDriver,
     uc: Annotated[StartRideUseCase, Depends(get_start_ride_uc)],
 ) -> RideResponse:
+    """Start a ride. Caller must be the driver assigned to this ride."""
     try:
-        return await uc.execute(ride_id, body)
+        return await uc.execute(ride_id, body, driver_id)
     except Exception as exc:
         raise _handle_domain(exc) from None
 
@@ -197,10 +232,12 @@ async def start_ride(
 async def complete_ride(
     ride_id: UUID,
     body: VerifyAndCompleteRequest,
+    driver_id: CurrentDriver,
     uc: Annotated[CompleteRideUseCase, Depends(get_complete_ride_uc)],
 ) -> RideResponse:
+    """Complete a ride. Caller must be the driver assigned to this ride."""
     try:
-        return await uc.execute(ride_id, body)
+        return await uc.execute(ride_id, body, driver_id)
     except Exception as exc:
         raise _handle_domain(exc) from None
 
@@ -225,11 +262,11 @@ async def add_stop(
 @router.post("/stops/{stop_id}/arrived", response_model=dict)
 async def stop_arrived(
     stop_id: UUID,
-    current_user: CurrentUser,
+    driver_id: CurrentDriver,
     uc: Annotated[MarkStopArrivedUseCase, Depends(get_mark_arrived_uc)],
 ) -> dict:
     try:
-        stop = await uc.execute(stop_id, current_user.user_id)
+        stop = await uc.execute(stop_id, driver_id)
         return stop.model_dump()
     except Exception as exc:
         raise _handle_domain(exc) from None
@@ -238,11 +275,11 @@ async def stop_arrived(
 @router.post("/stops/{stop_id}/completed", response_model=dict)
 async def stop_completed(
     stop_id: UUID,
-    current_user: CurrentUser,
+    driver_id: CurrentDriver,
     uc: Annotated[MarkStopCompletedUseCase, Depends(get_mark_completed_uc)],
 ) -> dict:
     try:
-        stop = await uc.execute(stop_id, current_user.user_id)
+        stop = await uc.execute(stop_id, driver_id)
         return stop.model_dump()
     except Exception as exc:
         raise _handle_domain(exc) from None
@@ -300,11 +337,20 @@ async def generate_proof_upload_url(
     ride_id: UUID,
     body: ProofUploadUrlRequest,
     current_user: CurrentUser,
+    driver_id: OptionalDriverId,
     uc: Annotated[GenerateProofUploadUrlUseCase, Depends(get_gen_proof_url_uc)],
 ) -> ProofUploadUrlResponse:
-    """Generate a time-limited presigned S3 PUT URL for a ride proof image."""
+    """Generate a time-limited presigned S3 PUT URL for a ride proof image.
+
+    Caller must be either the ride's passenger or the assigned driver.
+    actor_id is the driver's UUID when the caller is a driver (so it can be
+    correctly compared against ride.assigned_driver_id), or the user's UUID
+    when the caller is a passenger.
+    """
     try:
-        return await uc.execute(ride_id, body)
+        # Use driver UUID for drivers so the use case can match ride.assigned_driver_id
+        actor_id = driver_id if driver_id is not None else current_user.user_id
+        return await uc.execute(ride_id, body, actor_user_id=actor_id)
     except Exception as exc:
         raise _handle_domain(exc) from None
 
@@ -318,11 +364,23 @@ async def generate_proof_upload_url(
 async def upload_proof(
     ride_id: UUID,
     body: UploadProofRequest,
+    current_user: CurrentUser,
+    driver_id: OptionalDriverId,
     uc: Annotated[UploadProofUseCase, Depends(get_upload_proof_uc)],
 ) -> ProofImageResponse:
-    """Register proof image metadata once the binary has been uploaded to S3."""
+    """Register proof image metadata once the binary has been uploaded to S3.
+
+    The uploader identity is derived entirely from the JWT principal — the
+    body fields `uploaded_by_user_id` / `uploaded_by_driver_id` are ignored
+    to prevent identity spoofing.  The driver's UUID (not their auth user_id)
+    is passed so the use case can correctly match ride.assigned_driver_id.
+    """
     try:
-        return await uc.execute(ride_id, body)
+        if driver_id is not None:
+            # Caller is a driver: pass the driver UUID so it matches assigned_driver_id
+            return await uc.execute(ride_id, body, uploader_driver_id=driver_id)
+        else:
+            return await uc.execute(ride_id, body, uploader_user_id=current_user.user_id)
     except Exception as exc:
         raise _handle_domain(exc) from None
 
@@ -336,11 +394,18 @@ async def get_proof_url(
     ride_id: UUID,
     proof_id: UUID,
     current_user: CurrentUser,
+    driver_id: OptionalDriverId,
     uc: Annotated[GetProofWithUrlUseCase, Depends(get_proof_with_url_uc)],
 ) -> ProofImageWithUrlResponse:
-    """Return the proof metadata and a time-limited presigned GET URL for viewing."""
+    """Return the proof metadata and a time-limited presigned GET URL for viewing.
+
+    Only the original uploader (passenger or driver) may retrieve the URL.
+    actor_id is the driver UUID when the caller is a driver, so it correctly
+    matches proof.uploaded_by_driver_id which stores the driver UUID.
+    """
     try:
-        return await uc.execute(ride_id, proof_id)
+        actor_id = driver_id if driver_id is not None else current_user.user_id
+        return await uc.execute(ride_id, proof_id, actor_user_id=actor_id)
     except Exception as exc:
         raise _handle_domain(exc) from None
 
@@ -368,14 +433,33 @@ async def nearby_drivers(
 @router.websocket("/ws/drivers")
 async def ws_drivers(
     ws: WebSocket,
-    driver_id: UUID,
+    token: str = Query(...),
     manager: WebSocketManager = Depends(get_ws_manager),
 ) -> None:
     """
     Driver real-time channel.
-    Query param: driver_id (UUID of the authenticated driver).
+    Query param: token (JWT).
     Receives: NEW_JOB, JOB_CANCELLED, JOB_ASSIGNED, JOB_UPDATED
     """
+    settings = get_settings()
+    payload = verify_token(token, settings.JWT_SECRET, settings.JWT_ALGORITHM)
+    if not payload or payload.role != "driver":
+        await ws.close(code=status.WS_1008_POLICY_VIOLATION)
+        return
+
+    # Look up driver_id
+    factory = get_session_factory(settings)
+    async with factory() as session:
+        result = await session.execute(
+            text("SELECT id FROM verification.drivers WHERE user_id = :uid LIMIT 1"),
+            {"uid": payload.user_id},
+        )
+        row = result.fetchone()
+        if not row:
+            await ws.close(code=status.WS_1008_POLICY_VIOLATION)
+            return
+        driver_id = row[0]
+
     await manager.connect_driver(driver_id, ws)
     try:
         while True:
@@ -397,21 +481,39 @@ async def ws_drivers(
 @router.websocket("/ws/passengers")
 async def ws_passengers(
     ws: WebSocket,
-    user_id: UUID,
+    token: str = Query(...),
     ride_id: UUID | None = None,
     manager: WebSocketManager = Depends(get_ws_manager),
 ) -> None:
     """
     Passenger real-time channel.
-    Query params:
-        user_id  — passenger UUID
-        ride_id  — (optional) subscribe to a specific ride channel
-    Receives: RIDE_CREATED, DRIVER_MATCHED, DRIVER_ASSIGNED, STOP_UPDATED,
-              RIDE_STARTED, RIDE_COMPLETED, RIDE_CANCELLED
+    Query param: token (JWT)
+    Receives: RIDE_UPDATED, DRIVER_LOCATION
     """
+    settings = get_settings()
+    payload = verify_token(token, settings.JWT_SECRET, settings.JWT_ALGORITHM)
+    if not payload or payload.role != "passenger":
+        await ws.close(code=status.WS_1008_POLICY_VIOLATION)
+        return
+
+    user_id = payload.user_id
+
+    # If ride_id is provided, verify passenger owns the ride
+    if ride_id:
+        factory = get_session_factory(settings)
+        async with factory() as session:
+            result = await session.execute(
+                text("SELECT id FROM service_request.service_requests WHERE id = :rid AND user_id = :uid LIMIT 1"),
+                {"rid": ride_id, "uid": user_id},
+            )
+            if not result.fetchone():
+                await ws.close(code=status.WS_1008_POLICY_VIOLATION)
+                return
+
     await manager.connect_passenger(user_id, ws)
     if ride_id:
-        manager.subscribe_to_ride(ride_id, ws)
+        await manager.subscribe_to_ride(user_id, ride_id)
+
     try:
         while True:
             data = await ws.receive_text()
@@ -421,6 +523,6 @@ async def ws_passengers(
         pass
     finally:
         if ride_id:
-            manager.unsubscribe_from_ride(ride_id, ws)
+            await manager.unsubscribe_from_ride(user_id, ride_id)
         await manager.disconnect_passenger(user_id, ws)
         logger.info("Passenger WS disconnected user_id=%s", user_id)

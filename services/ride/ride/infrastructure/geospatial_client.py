@@ -73,7 +73,14 @@ class GeospatialClient:
             resp = await self._client.get("/api/v1/drivers/nearby", params=params)
             resp.raise_for_status()
             data: list[dict[str, Any]] = resp.json().get("drivers", [])
-            return [self._to_domain(d) for d in data]
+            
+            candidates = []
+            for d in data:
+                try:
+                    candidates.append(self._to_domain(d))
+                except Exception as e:
+                    logger.warning("GeospatialClient skipped malformed driver row: %s, error: %s", d, e)
+            return candidates
         except httpx.HTTPError as exc:
             logger.error("GeospatialClient error: %s", exc)
             return []

@@ -5,6 +5,8 @@ import logging
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
+from typing import TYPE_CHECKING
+
 from sp.infrastructure.cache.manager import CacheManager
 from sp.infrastructure.messaging.events import (
     DriverMatchingCompletedEvent,
@@ -21,6 +23,14 @@ from sp.infrastructure.messaging.events import (
     ServiceVerificationVerifiedEvent,
 )
 from sp.infrastructure.messaging.publisher import EventPublisher
+
+if TYPE_CHECKING:
+    from .schemas import (
+        ProofImageWithUrlResponse,
+        ProofUploadUrlRequest,
+        ProofUploadUrlResponse,
+    )
+    from ..infrastructure.storage import S3StorageProvider
 
 from ..domain.exceptions import (
     RideNotFoundError,
@@ -284,8 +294,12 @@ class CancelRideUseCase:
         self._ws = ws
         self._pub = publisher
 
-    async def execute(self, ride_id: UUID, cmd: CancelRideRequest) -> RideResponse:
+    async def execute(self, ride_id: UUID, cmd: CancelRideRequest, passenger_id: UUID) -> RideResponse:
         ride = await _load_ride_or_404(self._repo, ride_id)
+        if ride.passenger_id != passenger_id:
+            raise UnauthorisedRideAccessError(
+                "Only the passenger who created this ride may cancel it."
+            )
         ride.cancel(cmd.reason)
         await self._repo.update_status(
             ride.id, ride.status,
@@ -325,9 +339,9 @@ class AcceptRideUseCase:
         self._ws = ws
         self._pub = publisher
 
-    async def execute(self, ride_id: UUID, cmd: AcceptRideRequest) -> RideResponse:
+    async def execute(self, ride_id: UUID, cmd: AcceptRideRequest, driver_id: UUID) -> RideResponse:
         ride = await _load_ride_or_404(self._repo, ride_id)
-        ride.accept(cmd.driver_id)
+        ride.accept(driver_id)
         await self._repo.update_status(
             ride.id, ride.status,
             accepted_at=ride.accepted_at,
@@ -335,14 +349,14 @@ class AcceptRideUseCase:
         )
         await _cache_ride(self._cache, ride)
         await _publish(self._pub, ServiceRequestAcceptedEvent(payload={
-            "ride_id": str(ride.id), "driver_id": str(cmd.driver_id),
+            "ride_id": str(ride.id), "driver_id": str(driver_id),
         }))
         await self._ws.broadcast_to_passenger(
             ride.passenger_id, PassengerEvent.DRIVER_ASSIGNED,
-            {"ride_id": str(ride.id), "driver_id": str(cmd.driver_id)},
+            {"ride_id": str(ride.id), "driver_id": str(driver_id)},
         )
         await self._ws.broadcast_to_driver(
-            cmd.driver_id, DriverEvent.JOB_ASSIGNED,
+            driver_id, DriverEvent.JOB_ASSIGNED,
             {"ride_id": str(ride.id)},
         )
         return _ride_to_resp(ride)
@@ -367,15 +381,19 @@ class StartRideUseCase:
         self._ws = ws
         self._pub = publisher
 
-    async def execute(self, ride_id: UUID, cmd: VerifyAndStartRequest) -> RideResponse:
+    async def execute(self, ride_id: UUID, cmd: VerifyAndStartRequest, driver_id: UUID) -> RideResponse:
         ride = await _load_ride_or_404(self._repo, ride_id)
-        if ride.assigned_driver_id != cmd.driver_id:
+        if ride.assigned_driver_id != driver_id:
             raise UnauthorisedRideAccessError("Driver is not assigned to this ride.")
+
+        if ride.requires_otp_start and not cmd.verification_code:
+            raise VerificationCodeNotFoundError("A verification code is required to start this ride.")
+
         if cmd.verification_code:
             code = await self._code_repo.find_active_by_ride(ride_id)
             if not code:
                 raise VerificationCodeNotFoundError("No active verification code found.")
-            code.verify(cmd.verification_code, driver_id=cmd.driver_id)
+            code.verify(cmd.verification_code, driver_id=driver_id)
             await self._code_repo.update_verification(code)
         ride.start()
         await self._repo.update_status(ride.id, ride.status)
@@ -406,15 +424,19 @@ class CompleteRideUseCase:
         self._ws = ws
         self._pub = publisher
 
-    async def execute(self, ride_id: UUID, cmd: VerifyAndCompleteRequest) -> RideResponse:
+    async def execute(self, ride_id: UUID, cmd: VerifyAndCompleteRequest, driver_id: UUID) -> RideResponse:
         ride = await _load_ride_or_404(self._repo, ride_id)
-        if ride.assigned_driver_id != cmd.driver_id:
+        if ride.assigned_driver_id != driver_id:
             raise UnauthorisedRideAccessError("Driver is not assigned to this ride.")
+
+        if ride.requires_otp_end and not cmd.verification_code:
+            raise VerificationCodeNotFoundError("A verification code is required to complete this ride.")
+
         if cmd.verification_code:
             code = await self._code_repo.find_active_by_ride(ride_id)
             if not code:
                 raise VerificationCodeNotFoundError("No active verification code for completion.")
-            code.verify(cmd.verification_code, driver_id=cmd.driver_id)
+            code.verify(cmd.verification_code, driver_id=driver_id)
             await self._code_repo.update_verification(code)
         ride.complete()
         await self._repo.update_status(
@@ -616,14 +638,34 @@ class UploadProofUseCase:
         self._proof_repo = proof_repo
         self._pub = publisher
 
-    async def execute(self, ride_id: UUID, cmd: UploadProofRequest) -> ProofImageResponse:
-        await _load_ride_or_404(self._repo, ride_id)
+    async def execute(
+        self,
+        ride_id: UUID,
+        cmd: UploadProofRequest,
+        uploader_user_id: UUID | None = None,
+        uploader_driver_id: UUID | None = None,
+    ) -> ProofImageResponse:
+        ride = await _load_ride_or_404(self._repo, ride_id)
+        # Authorise: only the passenger or the assigned driver may register proofs
+        if uploader_user_id is not None:
+            if ride.passenger_id != uploader_user_id:
+                raise UnauthorisedRideAccessError(
+                    "Only the ride passenger may upload proof as a user."
+                )
+        elif uploader_driver_id is not None:
+            if ride.assigned_driver_id != uploader_driver_id:
+                raise UnauthorisedRideAccessError(
+                    "Only the assigned driver may upload proof for this ride."
+                )
+        else:
+            raise UnauthorisedRideAccessError("Authenticated principal required to upload proof.")
         proof = ProofImage.create(
             service_request_id=ride_id,
             proof_type=cmd.proof_type,
             file_key=cmd.file_key,
-            uploaded_by_user_id=cmd.uploaded_by_user_id,
-            uploaded_by_driver_id=cmd.uploaded_by_driver_id,
+            # Derive uploader fields from the validated principal, not the request body
+            uploaded_by_user_id=uploader_user_id,
+            uploaded_by_driver_id=uploader_driver_id,
             stop_id=cmd.stop_id,
             file_name=cmd.file_name,
             mime_type=cmd.mime_type,
@@ -757,11 +799,23 @@ class GenerateProofUploadUrlUseCase:
         self,
         ride_id: UUID,
         cmd: "ProofUploadUrlRequest",
+        actor_user_id: UUID,
     ) -> "ProofUploadUrlResponse":
-        from .schemas import ProofUploadUrlResponse
         from ..infrastructure.storage import build_proof_key
 
-        await _load_ride_or_404(self._repo, ride_id)
+        ride = await _load_ride_or_404(self._repo, ride_id)
+        # Authorise: only the passenger or the assigned driver may request a presigned URL
+        is_passenger = ride.passenger_id == actor_user_id
+        is_driver = (
+            ride.assigned_driver_id is not None
+            # actor_user_id here is already the resolved driver_id when caller is a driver;
+            # the router passes the resolved driver_id for driver callers.
+            and ride.assigned_driver_id == actor_user_id
+        )
+        if not (is_passenger or is_driver):
+            raise UnauthorisedRideAccessError(
+                "Only the ride passenger or assigned driver may generate a proof upload URL."
+            )
 
         file_key = build_proof_key(ride_id, cmd.proof_type.value, cmd.file_name)
         presigned_url = await self._storage.generate_presigned_put_url(
@@ -800,14 +854,26 @@ class GetProofWithUrlUseCase:
         self,
         ride_id: UUID,
         proof_id: UUID,
+        actor_user_id: UUID,
     ) -> "ProofImageWithUrlResponse":
-        from .schemas import ProofImageWithUrlResponse
+        from ..domain.exceptions import RideNotFoundError, UnauthorisedRideAccessError
+        from ..domain.interfaces import ServiceRequestRepositoryProtocol
 
         proofs = await self._proof_repo.find_by_ride(ride_id)
         proof = next((p for p in proofs if p.id == proof_id), None)
         if proof is None:
-            from ..domain.exceptions import RideNotFoundError
             raise RideNotFoundError(f"Proof {proof_id} not found on ride {ride_id}.")
+
+        # Authorise: verify the actor is either the uploader or matches ride ownership
+        # (proof carries either uploaded_by_user_id or uploaded_by_driver_id)
+        caller_is_uploader = (
+            proof.uploaded_by_user_id == actor_user_id
+            or proof.uploaded_by_driver_id == actor_user_id
+        )
+        if not caller_is_uploader:
+            raise UnauthorisedRideAccessError(
+                "Only the uploader of this proof may retrieve its presigned URL."
+            )
 
         view_url = await self._storage.generate_presigned_get_url(proof.file_key)
 

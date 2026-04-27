@@ -82,9 +82,9 @@ class UploadProofRequest(BaseModel):
     checksum_sha256: str | None = Field(None, max_length=64)
     is_primary: bool = False
     stop_id: UUID | None = None
-    # Uploader role: set exactly one
-    uploaded_by_user_id: UUID | None = None
-    uploaded_by_driver_id: UUID | None = None
+    # NOTE: uploaded_by_user_id / uploaded_by_driver_id are intentionally absent.
+    # The server derives the uploader identity from the authenticated JWT principal
+    # to prevent identity spoofing; clients must not supply these fields.
 
 
 class ProofImageResponse(BaseModel):
@@ -344,19 +344,23 @@ class CancelRideRequest(BaseModel):
 
 
 class AcceptRideRequest(BaseModel):
-    driver_id: UUID = Field(..., description="Driver accepting the ride")
+    """No driver_id — the acting driver is derived from the authenticated JWT principal."""
 
 
 class VerifyAndStartRequest(BaseModel):
-    """Optional OTP code submitted at ride start."""
+    """Optional OTP code submitted at ride start.
+
+    No driver_id — the acting driver is derived from the authenticated JWT principal.
+    """
     verification_code: str | None = Field(None, min_length=4, max_length=10)
-    driver_id: UUID
 
 
 class VerifyAndCompleteRequest(BaseModel):
-    """Optional OTP code submitted at ride completion."""
+    """Optional OTP code submitted at ride completion.
+
+    No driver_id — the acting driver is derived from the authenticated JWT principal.
+    """
     verification_code: str | None = Field(None, min_length=4, max_length=10)
-    driver_id: UUID
     final_price: float | None = Field(None, ge=0)
 
 

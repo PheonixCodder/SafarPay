@@ -310,7 +310,12 @@ class VerificationCode:
             VerificationCodeExpiredError,
             VerificationCodeExhaustedError,
             VerificationCodeInvalidError,
+            RideDomainError,
         )
+
+        if not (bool(user_id) ^ bool(driver_id)):
+            raise RideDomainError("Exactly one of user_id or driver_id must be provided to verify the code.")
+
         if self.is_verified:
             raise VerificationCodeAlreadyVerifiedError(
                 f"Code {self.id} has already been verified."
@@ -326,7 +331,7 @@ class VerificationCode:
 
         self.attempts += 1
 
-        if self.code != submitted_code:
+        if not secrets.compare_digest(self.code, submitted_code):
             remaining = self.max_attempts - self.attempts
             raise VerificationCodeInvalidError(
                 f"Invalid code. {remaining} attempt(s) remaining."
@@ -388,6 +393,8 @@ class ServiceRequest:
     is_scheduled: bool = False
     is_risky: bool = False
     auto_accept_driver: bool = True
+    requires_otp_start: bool = False
+    requires_otp_end: bool = False
 
     accepted_at: datetime | None = None
     completed_at: datetime | None = None

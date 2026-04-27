@@ -17,7 +17,7 @@ from sqlalchemy import (
     Enum as SQLEnum,
     func,
 )
-from sqlalchemy.dialects.postgresql import UUID as PgUUID
+from sqlalchemy.dialects.postgresql import UUID as PgUUID, ARRAY
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from sp.infrastructure.db.base import Base, TimestampMixin
@@ -111,11 +111,6 @@ class FuelType(enum.Enum):
 
 class ServiceRequestORM(Base, TimestampMixin):
     __tablename__ = "service_requests"
-    __table_args__ = (
-        Index("ix_service_requests_user_id_status", "user_id", "status"),
-        Index("ix_service_requests_service_type_status", "service_type", "status"),
-        {"schema": "service_request"},
-    )
 
     id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
@@ -366,7 +361,10 @@ class CityRideDetailORM(Base, TimestampMixin):
 
     is_shared_ride: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     max_co_passengers: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    allowed_fuel_types: list[FuelType]
+    allowed_fuel_types: Mapped[list[FuelType]] = mapped_column(
+        ARRAY(SQLEnum(FuelType, name="fuel_type_enum", schema="service_request", create_type=True)),
+        nullable=True,
+    )
     is_smoking_allowed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     is_pet_allowed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     requires_wheelchair_access: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
@@ -402,7 +400,10 @@ class IntercityDetailORM(Base, TimestampMixin):
     luggage_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     child_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     senior_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    allowed_fuel_types: list[FuelType]
+    allowed_fuel_types: Mapped[list[FuelType]] = mapped_column(
+        ARRAY(SQLEnum(FuelType, name="fuel_type_enum", schema="service_request", create_type=False)),
+        nullable=True,
+    )
     preferred_departure_time: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     departure_time_flexibility_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
     is_round_trip: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
