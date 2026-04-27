@@ -98,6 +98,7 @@ class UserResponse(BaseModel):
     full_name: Optional[str]
     email: Optional[str]
     phone: Optional[str]
+    profile_img: Optional[str]
     role: str
     is_active: bool
     is_verified: bool

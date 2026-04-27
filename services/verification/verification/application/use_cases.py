@@ -189,9 +189,7 @@ class VerificationUseCases:
         try:
             await self._execute_verification_review_internal(driver_id)
         finally:
-            current_token = await self.cache_manager.get("verification", lock_key)
-            if current_token == lock_token:
-                await self.cache_manager.delete("verification", lock_key)
+            await self.cache_manager.delete_if_equals("verification", lock_key, lock_token)
 
     async def _execute_verification_review_internal(self, driver_id: uuid.UUID) -> None:
         """Internal logic for verification review."""
@@ -206,6 +204,8 @@ class VerificationUseCases:
         if driver.verification_status in [VerificationStatus.VERIFIED, VerificationStatus.REJECTED]:
             logger.info(f"[{trace_id}] Driver {driver_id} already processed.")
             return  # Idempotency guard
+            
+        all_docs: dict[DocumentType, Document] = {}
             
         try:
             # 1. Fetch Docs

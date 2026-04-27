@@ -138,6 +138,8 @@ class IdentityVerificationEngine:
                     "document_type": DocumentType.SELFIE_ID
                 })
 
+        except MLProcessingError:
+            raise
         except Exception as e:
             logger.exception("Identity engine crashed")
             errors.append({"code": "INTERNAL_ENGINE_ERROR", "details": str(e)})
@@ -174,22 +176,24 @@ class IdentityVerificationEngine:
 
     def _extract_name_from_ocr(self, text: str) -> str:
         """Extracts the likely name string from full OCR text."""
-        pattern = r"(?i)(?:name|identity number|cnic|national id)[\s:]*([A-Za-z\s]{4,30})"
-        match = re.search(pattern, text)
+        # Match only "name" keyword followed by letters/spaces on same line, avoid newline capture.
+        pattern = r"(?i)^\s*name\s*[:=]?\s*([A-Za-z][A-Za-z ]{3,29})\s*$"
+        match = re.search(pattern, text, re.MULTILINE)
         if match:
             candidate = match.group(1).strip()
             if candidate:
                 return candidate
-                
-        # Fallback: longest alphabetic line that looks like a name
-        lines = text.split('\n')
+
+        # Fallback: longest alphabetic line that looks like a name (>=2 words, <40 chars).
         best_line = ""
-        for line in lines:
-            cleaned = re.sub(r'[^a-zA-Z\s]', '', line).strip()
+        for line in text.split('\n'):
+            cleaned = re.sub(r'[^A-Za-z\s]', '', line).strip()
             if len(cleaned.split()) >= 2 and len(cleaned) < 40 and len(cleaned) > len(best_line):
                 best_line = cleaned
-                
-        return best_line if best_line else text
+
+        # Fail closed: if no plausible name line found, return empty so
+        # cross-check surfaces NAME_MISMATCH instead of fuzzy-matching full OCR dumps.
+        return best_line
 
     def _normalize_name(self, text: str) -> str:
         """Lowercases and removes common noise from names."""

@@ -38,9 +38,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     settings = get_settings()
     setup_logging(SERVICE_NAME, level=settings.LOG_LEVEL, log_format=settings.LOG_FORMAT)
     app.state.db_engine = get_db_engine(settings.POSTGRES_DB_URI, settings.POSTGRES_POOL_SIZE)
-    cache = get_cache_manager_factory(settings)
-    await cache.connect()
-    app.state.cache = cache
+    # Avoid lru_cache unhashable Settings error by creating the factory once
+    app.state.session_factory = get_session_factory(settings)
+
+    app.state.cache = get_cache_manager_factory(settings)
+    await app.state.cache.connect()
     app.state.metrics = MetricsCollector(SERVICE_NAME)
 
     # ML Engine
@@ -63,7 +65,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         if not driver_id_str: return
         driver_id = uuid.UUID(driver_id_str)
         
-        factory = get_session_factory(settings)
+        factory = app.state.session_factory
         # Correctly manage session lifecycle in background task
         async with factory() as session:
             try:

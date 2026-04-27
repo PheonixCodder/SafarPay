@@ -31,6 +31,7 @@ class UserRepository(UserRepositoryProtocol):
             full_name=orm.full_name,
             email=orm.email,
             phone=orm.phone,
+            profile_img=orm.profile_img,
             is_active=orm.is_active,
             is_verified=orm.is_verified,
             created_at=orm.created_at,
@@ -64,6 +65,7 @@ class UserRepository(UserRepositoryProtocol):
             full_name=user.full_name,
             email=user.email,
             phone=user.phone,
+            profile_img=user.profile_img,
             is_active=user.is_active,
             is_verified=user.is_verified,
         )
@@ -79,6 +81,7 @@ class UserRepository(UserRepositoryProtocol):
                 full_name=user.full_name,
                 email=user.email,
                 phone=user.phone,
+                profile_img=user.profile_img,
                 role=user.role.value,
                 is_active=user.is_active,
                 is_verified=user.is_verified,
