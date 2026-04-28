@@ -3,9 +3,8 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta, timezone
-from uuid import UUID
-
 from typing import TYPE_CHECKING
+from uuid import UUID
 
 from sp.infrastructure.cache.manager import CacheManager
 from sp.infrastructure.messaging.events import (
@@ -25,12 +24,12 @@ from sp.infrastructure.messaging.events import (
 from sp.infrastructure.messaging.publisher import EventPublisher
 
 if TYPE_CHECKING:
+    from ..infrastructure.storage import S3StorageProvider
     from .schemas import (
         ProofImageWithUrlResponse,
         ProofUploadUrlRequest,
         ProofUploadUrlResponse,
     )
-    from ..infrastructure.storage import S3StorageProvider
 
 from ..domain.exceptions import (
     RideNotFoundError,
@@ -54,6 +53,7 @@ from ..domain.models import (
     Stop,
     VerificationCode,
 )
+from ..infrastructure.websocket_manager import DriverEvent, PassengerEvent, WebSocketManager
 from .schemas import (
     AcceptRideRequest,
     AddStopRequest,
@@ -72,7 +72,6 @@ from .schemas import (
     VerifyAndStartRequest,
     VerifyCodeRequest,
 )
-from ..infrastructure.websocket_manager import DriverEvent, PassengerEvent, WebSocketManager
 
 logger = logging.getLogger("ride.use_cases")
 
@@ -362,6 +361,48 @@ class AcceptRideUseCase:
         return _ride_to_resp(ride)
 
 
+class InternalAssignDriverUseCase:
+    def __init__(
+        self,
+        repo: ServiceRequestRepositoryProtocol,
+        cache: CacheManager,
+        ws: WebSocketManager,
+        publisher: EventPublisher | None = None,
+    ) -> None:
+        self._repo = repo
+        self._cache = cache
+        self._ws = ws
+        self._pub = publisher
+
+    async def execute(self, ride_id: UUID, driver_id: UUID, final_price: float | None = None) -> RideResponse:
+        ride = await _load_ride_or_404(self._repo, ride_id)
+        ride.accept(driver_id)
+        if final_price is not None:
+            ride.final_price = final_price
+
+        await self._repo.update_status(
+            ride.id, ride.status,
+            accepted_at=ride.accepted_at,
+            assigned_driver_id=ride.assigned_driver_id,
+            final_price=final_price,
+        )
+        await _cache_ride(self._cache, ride)
+        await _publish(self._pub, ServiceRequestAcceptedEvent(payload={
+            "ride_id": str(ride.id), "driver_id": str(driver_id),
+            "passenger_user_id": str(ride.passenger_id),  # consumed by Location Service
+        }))
+
+        await self._ws.broadcast_to_passenger(
+            ride.passenger_id, PassengerEvent.DRIVER_ASSIGNED,
+            {"ride_id": str(ride.id), "driver_id": str(driver_id)},
+        )
+        await self._ws.broadcast_to_driver(
+            driver_id, DriverEvent.JOB_ASSIGNED,
+            {"ride_id": str(ride.id)},
+        )
+        return _ride_to_resp(ride)
+
+
 # ---------------------------------------------------------------------------
 # Phase 2: Start
 # ---------------------------------------------------------------------------
@@ -472,7 +513,7 @@ class AddStopUseCase:
         self._ws = ws
         self._pub = publisher
 
-    async def execute(self, ride_id: UUID, cmd: "AddStopRequest") -> StopResponse:
+    async def execute(self, ride_id: UUID, cmd: AddStopRequest) -> StopResponse:
         ride = await _load_ride_or_404(self._repo, ride_id)
         if not ride.is_active:
             raise RideNotFoundError("Cannot add stops to an inactive ride.")
@@ -790,7 +831,7 @@ class GenerateProofUploadUrlUseCase:
     def __init__(
         self,
         repo: ServiceRequestRepositoryProtocol,
-        storage: "S3StorageProvider",
+        storage: S3StorageProvider,
     ) -> None:
         self._repo = repo
         self._storage = storage
@@ -798,9 +839,9 @@ class GenerateProofUploadUrlUseCase:
     async def execute(
         self,
         ride_id: UUID,
-        cmd: "ProofUploadUrlRequest",
+        cmd: ProofUploadUrlRequest,
         actor_user_id: UUID,
-    ) -> "ProofUploadUrlResponse":
+    ) -> ProofUploadUrlResponse:
         from ..infrastructure.storage import build_proof_key
 
         ride = await _load_ride_or_404(self._repo, ride_id)
@@ -845,7 +886,7 @@ class GetProofWithUrlUseCase:
     def __init__(
         self,
         proof_repo: ProofImageRepositoryProtocol,
-        storage: "S3StorageProvider",
+        storage: S3StorageProvider,
     ) -> None:
         self._proof_repo = proof_repo
         self._storage = storage
@@ -855,9 +896,8 @@ class GetProofWithUrlUseCase:
         ride_id: UUID,
         proof_id: UUID,
         actor_user_id: UUID,
-    ) -> "ProofImageWithUrlResponse":
+    ) -> ProofImageWithUrlResponse:
         from ..domain.exceptions import RideNotFoundError, UnauthorisedRideAccessError
-        from ..domain.interfaces import ServiceRequestRepositoryProtocol
 
         proofs = await self._proof_repo.find_by_ride(ride_id)
         proof = next((p for p in proofs if p.id == proof_id), None)

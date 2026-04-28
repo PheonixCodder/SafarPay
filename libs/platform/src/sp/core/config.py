@@ -70,7 +70,17 @@ class Settings(BaseSettings):
     # ── Observability ─────────────────────────────────────────────────────────
     OTEL_ENDPOINT: str | None = None
 
-    # ── Gateway upstream registry ─────────────────────────────────────────────
+    # ── Location Service ──────────────────────────────────────────────────────
+    LOCATION_UPDATE_RATE_LIMIT_WINDOW: int = 5      # seconds per rate-limit window
+    LOCATION_UPDATE_RATE_LIMIT_MAX: int = 2         # max pings allowed per window (ONLINE)
+    LOCATION_UPDATE_RATE_LIMIT_MAX_ON_RIDE: int = 3 # max pings allowed per window (ON_RIDE)
+    LOCATION_REDIS_TTL: int = 75                    # driver/passenger Hash TTL (seconds)
+    LOCATION_STALE_THRESHOLD_SECONDS: int = 75      # mark actor stale after N seconds
+    LOCATION_STALE_GRACE_SECONDS: int = 10          # jitter buffer added to stale threshold
+    LOCATION_MAX_SPEED_KMH: float = 200.0           # fraud: discard above this speed
+    LOCATION_MIN_ACCURACY_METERS: float = 50.0      # fraud: discard below this accuracy
+    LOCATION_HISTORY_RETENTION_DAYS: int = 90       # PostGIS history rows older than this are purged
+    MAPBOX_ACCESS_TOKEN: str = ""
     AUTH_SERVICE_URL: str = "http://auth:8001"
     BIDDING_SERVICE_URL: str = "http://bidding:8002"
     LOCATION_SERVICE_URL: str = "http://location:8003"

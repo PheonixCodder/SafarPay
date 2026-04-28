@@ -16,7 +16,6 @@ import uuid
 import boto3
 from botocore.config import Config
 from botocore.exceptions import ClientError
-
 from sp.core.config import get_settings
 
 logger = logging.getLogger("ride.storage")

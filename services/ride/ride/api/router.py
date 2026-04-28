@@ -9,11 +9,11 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect, status
+from sp.core.config import get_settings
 from sp.core.observability.logging import get_logger
+from sp.infrastructure.db.session import get_session_factory
 from sp.infrastructure.security.dependencies import CurrentUser
 from sp.infrastructure.security.jwt import verify_token
-from sp.core.config import get_settings
-from sp.infrastructure.db.session import get_session_factory
 from sqlalchemy import text
 
 from ..application.schemas import (
@@ -21,7 +21,6 @@ from ..application.schemas import (
     AddStopRequest,
     CancelRideRequest,
     CreateRideRequest,
-    DriverCandidateResponse,
     GenerateVerificationCodeRequest,
     NearbyDriversResponse,
     ProofImageResponse,
@@ -39,7 +38,6 @@ from ..application.schemas import (
 from ..application.use_cases import (
     AcceptRideUseCase,
     AddStopUseCase,
-    BroadcastRideToDriversUseCase,
     CancelRideUseCase,
     CompleteRideUseCase,
     CreateRideUseCase,
@@ -58,7 +56,6 @@ from ..application.use_cases import (
 from ..domain.exceptions import (
     DuplicateStopSequenceError,
     InsufficientStopsError,
-    InvalidMimeTypeError,
     InvalidStateTransitionError,
     ProofUploadError,
     RideAlreadyCancelledError,
@@ -85,7 +82,6 @@ from ..infrastructure.dependencies import (
     OptionalDriverId,
     get_accept_ride_uc,
     get_add_stop_uc,
-    get_broadcast_uc,
     get_cancel_ride_uc,
     get_complete_ride_uc,
     get_create_ride_uc,

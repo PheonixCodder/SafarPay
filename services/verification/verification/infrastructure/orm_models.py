@@ -137,7 +137,4 @@ class DriverStatsORM(Base):
     total_rides: Mapped[int] = mapped_column(Integer, default=0)
     acceptance_rate: Mapped[float] = mapped_column(Numeric(5, 2), default=0.0)
     cancellation_rate: Mapped[float] = mapped_column(Numeric(5, 2), default=0.0)
-    # Note: online_minutes_today is a temporal field; requires external daily reset (e.g., Redis/Cron).
-    online_minutes_today: Mapped[int] = mapped_column(Integer, default=0)
-
     driver: Mapped[DriverORM] = relationship(back_populates="stats")

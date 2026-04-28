@@ -126,6 +126,19 @@ class DriverAvailabilityUpdatedEvent(BaseEvent):
 
 class DriverLocationUpdatedEvent(BaseEvent):
     event_type: Literal["driver.location.updated"] = "driver.location.updated"
+    # payload: {driver_id, lat, lng, speed_kmh, heading_degrees, accuracy_meters, ride_id, recorded_at}
+
+
+class PassengerLocationUpdatedEvent(BaseEvent):
+    """Published by Location Service when a passenger sends a GPS ping."""
+    event_type: Literal["passenger.location.updated"] = "passenger.location.updated"
+    # payload: {user_id, lat, lng, ride_id, recorded_at}
+
+
+class DriverStatusChangedEvent(BaseEvent):
+    """Published by Location Service when a driver goes ONLINE, OFFLINE, or ON_RIDE."""
+    event_type: Literal["driver.status.changed"] = "driver.status.changed"
+    # payload: {driver_id, status: ONLINE|OFFLINE|ON_RIDE, ride_id}
 
 
 # ── Registry for deserialisation in subscriber ────────────────────────────────
@@ -154,4 +167,6 @@ EVENT_REGISTRY: dict[str, type[BaseEvent]] = {
     "driver.matching.completed": DriverMatchingCompletedEvent,
     "driver.availability.updated": DriverAvailabilityUpdatedEvent,
     "driver.location.updated": DriverLocationUpdatedEvent,
+    "passenger.location.updated": PassengerLocationUpdatedEvent,
+    "driver.status.changed": DriverStatusChangedEvent,
 }

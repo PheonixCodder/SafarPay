@@ -8,7 +8,7 @@ from fastapi import Depends, HTTPException, Request, status
 from sp.infrastructure.cache.manager import CacheManager
 from sp.infrastructure.db.session import get_async_session
 from sp.infrastructure.messaging.publisher import EventPublisher
-from sp.infrastructure.security.dependencies import CurrentUser, get_current_user
+from sp.infrastructure.security.dependencies import get_current_user
 from sp.infrastructure.security.jwt import TokenPayload
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,6 +19,7 @@ from ..application.use_cases import (
     BroadcastRideToDriversUseCase,
     CancelRideUseCase,
     CompleteRideUseCase,
+    CreateRideUseCase,
     FindNearbyDriversUseCase,
     GenerateProofUploadUrlUseCase,
     GenerateVerificationCodeUseCase,
@@ -30,9 +31,7 @@ from ..application.use_cases import (
     StartRideUseCase,
     UploadProofUseCase,
     VerifyVerificationCodeUseCase,
-    CreateRideUseCase,
 )
-from .storage import S3StorageProvider
 from ..domain.interfaces import (
     GeospatialClientProtocol,
     ProofImageRepositoryProtocol,
@@ -47,8 +46,8 @@ from .repositories import (
     StopRepository,
     VerificationCodeRepository,
 )
+from .storage import S3StorageProvider
 from .websocket_manager import WebSocketManager
-
 
 # ---------------------------------------------------------------------------
 # Raw infrastructure providers

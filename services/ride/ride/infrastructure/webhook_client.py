@@ -20,8 +20,6 @@ from uuid import UUID
 
 import httpx
 
-from ..domain.interfaces import WebhookClientProtocol
-
 logger = logging.getLogger("ride.webhook")
 
 _RETRY_STATUSES = {429, 500, 502, 503, 504}

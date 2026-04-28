@@ -7,52 +7,167 @@ from sp.infrastructure.db.repository import BaseRepository
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..domain.models import Bid, BidStatus
-from .orm_models import BidORM
+from ..domain.models import Bid, BiddingSession, BiddingSessionStatus, BidStatus
+from .orm_models import RideBiddingSessionORM, RideBidORM
 
 
-class BidRepository(BaseRepository[BidORM]):
+class BidRepository(BaseRepository[RideBidORM]):
     def __init__(self, session: AsyncSession) -> None:
-        super().__init__(session, BidORM)
+        super().__init__(session, RideBidORM)
 
-    async def find_by_item(self, item_id: str) -> list[Bid]:
+    async def find_by_session(self, session_id: UUID) -> list[Bid]:
         result = await self._session.execute(
-            select(BidORM).where(BidORM.item_id == item_id).order_by(BidORM.amount.desc())
+            select(RideBidORM)
+            .where(RideBidORM.bidding_session_id == session_id)
+            .order_by(RideBidORM.bid_amount.asc())
         )
         return [self._to_domain(o) for o in result.scalars().all()]
+
+    async def find_by_driver_and_session(self, driver_id: UUID, session_id: UUID) -> Bid | None:
+        result = await self._session.execute(
+            select(RideBidORM)
+            .where(
+                RideBidORM.bidding_session_id == session_id,
+                RideBidORM.driver_id == driver_id
+            )
+        )
+        orm = result.scalar_one_or_none()
+        return self._to_domain(orm) if orm else None
 
     async def find_by_id(self, bid_id: UUID) -> Bid | None:  # type: ignore[override]
         orm = await super().find_by_id(bid_id)
         return self._to_domain(orm) if orm else None
 
-    async def get_highest_bid(self, item_id: str) -> float | None:
-        result = await self._session.execute(
-            select(BidORM.amount)
-            .where(BidORM.item_id == item_id)
-            .order_by(BidORM.amount.desc())
-            .limit(1)
-        )
-        return result.scalar_one_or_none()
-
     async def save(self, bid: Bid) -> Bid:  # type: ignore[override]
-        orm = BidORM(
+        orm = RideBidORM(
             id=bid.id,
-            item_id=bid.item_id,
-            bidder_id=bid.bidder_id,
-            amount=bid.amount,
+            service_request_id=bid.service_request_id,
+            bidding_session_id=bid.bidding_session_id,
+            driver_id=bid.driver_id,
+            driver_vehicle_id=bid.driver_vehicle_id,
+            bid_amount=bid.bid_amount,
+            currency=bid.currency,
+            eta_minutes=bid.eta_minutes,
+            message=bid.message,
             status=bid.status.value,
-            placed_at=bid.placed_at,
+            expires_at=bid.expires_at,
         )
         saved = await super().save(orm)
         return self._to_domain(saved)
 
+    async def update_status(self, bid_id: UUID, status: str) -> None:
+        orm = await super().find_by_id(bid_id)
+        if orm:
+            orm.status = status # type: ignore[assignment]
+            await self._session.flush()
+
+    async def find_lowest_by_session(self, session_id: UUID) -> Bid | None:
+        result = await self._session.execute(
+            select(RideBidORM)
+            .where(RideBidORM.bidding_session_id == session_id, RideBidORM.status == BidStatus.ACTIVE.value)
+            .order_by(RideBidORM.bid_amount.asc(), RideBidORM.created_at.asc())
+            .limit(1)
+        )
+        orm = result.scalar_one_or_none()
+        return self._to_domain(orm) if orm else None
+
+    async def mark_outbid_transactional(self, session_id: UUID, new_lowest_amount: float, placed_at_threshold: Any) -> int:
+        from sqlalchemy import update
+        result = await self._session.execute(
+            update(RideBidORM)
+            .where(
+                RideBidORM.bidding_session_id == session_id,
+                RideBidORM.status == BidStatus.ACTIVE.value,
+                (RideBidORM.bid_amount > new_lowest_amount) |
+                ((RideBidORM.bid_amount == new_lowest_amount) & (RideBidORM.created_at < placed_at_threshold))
+            )
+            .values(status=BidStatus.OUTBID.value)
+        )
+        await self._session.flush()
+        return result.rowcount
+
+    async def save_outbox_event(self, bid_id: UUID, event_type: str, payload: dict[str, Any]) -> None:
+        import json
+
+        from .orm_models import BidEventType, RideBidEventORM
+        event = RideBidEventORM(
+            bid_id=bid_id,
+            event_type=BidEventType(event_type),
+            payload=json.dumps(payload),
+        )
+        self._session.add(event)
+        await self._session.flush()
+
+
     @staticmethod
-    def _to_domain(orm: BidORM) -> Bid:
+    def _to_domain(orm: RideBidORM) -> Bid:
         return Bid(
             id=orm.id,
-            item_id=orm.item_id,
-            bidder_id=orm.bidder_id,
-            amount=orm.amount,
+            service_request_id=orm.service_request_id,
+            bidding_session_id=orm.bidding_session_id,
+            driver_id=orm.driver_id,
+            bid_amount=float(orm.bid_amount),
+            currency=orm.currency,
             status=BidStatus(orm.status),
-            placed_at=orm.placed_at,
+            driver_vehicle_id=orm.driver_vehicle_id,
+            eta_minutes=orm.eta_minutes,
+            message=orm.message,
+            expires_at=orm.expires_at,
+            placed_at=orm.created_at,
+        )
+
+
+class BiddingSessionRepository(BaseRepository[RideBiddingSessionORM]):
+    def __init__(self, session: AsyncSession) -> None:
+        super().__init__(session, RideBiddingSessionORM)
+
+    async def find_by_id(self, session_id: UUID) -> BiddingSession | None: # type: ignore[override]
+        orm = await super().find_by_id(session_id)
+        return self._to_domain(orm) if orm else None
+
+    async def find_by_ride(self, ride_id: UUID) -> BiddingSession | None:
+        result = await self._session.execute(
+            select(RideBiddingSessionORM).where(RideBiddingSessionORM.service_request_id == ride_id)
+        )
+        orm = result.scalar_one_or_none()
+        return self._to_domain(orm) if orm else None
+
+    async def find_active_sessions(self) -> list[BiddingSession]:
+        result = await self._session.execute(
+            select(RideBiddingSessionORM)
+            .where(RideBiddingSessionORM.status == BiddingSessionStatus.OPEN.value)
+        )
+        return [self._to_domain(o) for o in result.scalars().all()]
+
+    async def save(self, session: BiddingSession) -> BiddingSession: # type: ignore[override]
+        orm = RideBiddingSessionORM(
+            id=session.id,
+            service_request_id=session.service_request_id,
+            status=session.status.value,
+            opened_at=session.opened_at,
+            expires_at=session.expires_at,
+            closed_at=session.closed_at,
+            max_bids_allowed=session.max_bids_allowed,
+            min_driver_rating=session.min_driver_rating,
+        )
+        saved = await super().save(orm)
+        return self._to_domain(saved)
+
+    async def update_status(self, session_id: UUID, status: str) -> None:
+        orm = await super().find_by_id(session_id)
+        if orm:
+            orm.status = status # type: ignore[assignment]
+            await self._session.flush()
+
+    @staticmethod
+    def _to_domain(orm: RideBiddingSessionORM) -> BiddingSession:
+        return BiddingSession(
+            id=orm.id,
+            service_request_id=orm.service_request_id,
+            status=BiddingSessionStatus(orm.status),
+            opened_at=orm.opened_at,
+            expires_at=orm.expires_at,
+            closed_at=orm.closed_at,
+            max_bids_allowed=orm.max_bids_allowed,
+            min_driver_rating=float(orm.min_driver_rating) if orm.min_driver_rating else None,
         )

@@ -18,14 +18,12 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
+import sqlalchemy
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-import sqlalchemy
 
 from ..domain.models import (
-    DriverGenderPreference,
-    FuelType,
     PricingMode,
     ProofImage,
     ProofType,
@@ -36,7 +34,6 @@ from ..domain.models import (
     Stop,
     StopType,
     VerificationCode,
-    VehicleType,
 )
 from .orm_models import (
     CityRideDetailORM,
@@ -199,6 +196,8 @@ def _build_detail_orm(
     """Construct the correct detail ORM object from a dict payload."""
     from .orm_models import (
         DriverGenderPreference as OrmDriverGenderPref,
+    )
+    from .orm_models import (
         VehicleType as OrmVehicleType,
     )
 
@@ -331,8 +330,9 @@ class ServiceRequestRepository:
         detail_data: dict[str, Any],
     ) -> ServiceRequest:
         """Atomically persist ride + detail + stops in one flush."""
-        from .orm_models import ServiceType as OrmServiceType, ServiceCategory as OrmCategory
         from .orm_models import PricingMode as OrmPricingMode
+        from .orm_models import ServiceCategory as OrmCategory
+        from .orm_models import ServiceType as OrmServiceType
 
         ride_orm = ServiceRequestORM(
             id=ride.id,
