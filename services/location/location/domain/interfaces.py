@@ -163,8 +163,13 @@ class LocationRateLimiterProtocol(Protocol):
     Default: max 2 pings per 5-second sliding window.
     """
 
-    async def allow(self, actor_id: UUID) -> bool:
+    async def allow(self, actor_id: UUID, *, is_on_ride: bool = False) -> bool:
         """Return True if this ping is within the allowed rate, False otherwise.
+
+        Args:
+            actor_id:   The driver or passenger UUID.
+            is_on_ride: When True the caller is in an active ride and gets a
+                        higher burst allowance (ON_RIDE = 3/5s vs ONLINE = 2/5s).
 
         Never raises — callers check the return value and raise
         RateLimitExceededError themselves so they control the log level.

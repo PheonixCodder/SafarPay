@@ -21,9 +21,13 @@ logger = logging.getLogger("location.event_publisher")
 
 
 class LocationEventPublisher:
-    """Concrete Kafka event publisher for location domain events."""
+    """Concrete Kafka event publisher for location domain events.
 
-    def __init__(self, publisher: EventPublisher) -> None:
+    When constructed with ``publisher=None`` (Kafka not configured) every
+    publish method is a safe no-op so callers never need to guard against None.
+    """
+
+    def __init__(self, publisher: EventPublisher | None) -> None:
         self._pub = publisher
 
     async def publish_driver_location_updated(
@@ -31,6 +35,8 @@ class LocationEventPublisher:
         driver_id: UUID,
         update: LocationUpdate,
     ) -> None:
+        if self._pub is None:
+            return
         event = DriverLocationUpdatedEvent(
             payload={
                 "driver_id": str(driver_id),
@@ -51,6 +57,8 @@ class LocationEventPublisher:
         status: DriverStatus,
         ride_id: UUID | None = None,
     ) -> None:
+        if self._pub is None:
+            return
         event = DriverStatusChangedEvent(
             payload={
                 "driver_id": str(driver_id),
@@ -65,6 +73,8 @@ class LocationEventPublisher:
         user_id: UUID,
         update: LocationUpdate,
     ) -> None:
+        if self._pub is None:
+            return
         event = PassengerLocationUpdatedEvent(
             payload={
                 "user_id": str(user_id),

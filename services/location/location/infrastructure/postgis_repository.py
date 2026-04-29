@@ -180,9 +180,9 @@ def _row_to_history(row: dict) -> LocationHistory:
         ride_id=UUID(str(row["ride_id"])) if row["ride_id"] else None,
         latitude=float(row["latitude"]),
         longitude=float(row["longitude"]),
-        accuracy_meters=float(row["accuracy_meters"]) if row["accuracy_meters"] else 0.0,
-        speed_kmh=float(row["speed_kmh"]) if row["speed_kmh"] else None,
-        heading_degrees=float(row["heading_degrees"]) if row["heading_degrees"] else None,
+        accuracy_meters=float(row["accuracy_meters"]) if row["accuracy_meters"] is not None else 0.0,
+        speed_kmh=float(row["speed_kmh"]) if row["speed_kmh"] is not None else None,
+        heading_degrees=float(row["heading_degrees"]) if row["heading_degrees"] is not None else None,
         recorded_at=row["recorded_at"],
         ingested_at=row["ingested_at"],
     )

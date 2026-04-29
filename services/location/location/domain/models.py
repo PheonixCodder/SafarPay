@@ -117,6 +117,8 @@ class LocationUpdate:
             )
 
         # 2. GPS accuracy gate — low-quality readings pollute the dataset
+        if self.accuracy_meters < 0:
+            raise GPSAccuracyTooLowError("GPS accuracy cannot be negative")
         if self.accuracy_meters > min_accuracy_meters:
             raise GPSAccuracyTooLowError(
                 f"GPS accuracy {self.accuracy_meters:.1f}m exceeds threshold "
@@ -124,6 +126,8 @@ class LocationUpdate:
             )
 
         # 3. Declared speed cap
+        if self.speed_kmh is not None and self.speed_kmh < 0:
+            raise SpeedValidationError("Declared speed cannot be negative")
         if self.speed_kmh is not None and self.speed_kmh > max_speed_kmh:
             raise SpeedValidationError(
                 f"Declared speed {self.speed_kmh:.1f} km/h exceeds maximum "

@@ -159,6 +159,22 @@ class UpdateDriverLocationUseCase:
         self._ws = ws_manager
         self._publisher = publisher
         self._metrics = metrics
+        self._bg_tasks: set[asyncio.Task] = set()  # prevent GC; also allows exception logging
+
+    def _track(self, task: asyncio.Task) -> None:
+        """Store a task reference and log any exception when it completes."""
+        self._bg_tasks.add(task)
+
+        def _on_done(t: asyncio.Task) -> None:
+            self._bg_tasks.discard(t)
+            if not t.cancelled() and (exc := t.exception()):
+                logger.error(
+                    "Background task %r raised an unhandled exception: %s",
+                    t.get_name(), exc,
+                    exc_info=exc,
+                )
+
+        task.add_done_callback(_on_done)
 
     async def execute(
         self,
@@ -204,10 +220,10 @@ class UpdateDriverLocationUseCase:
         logger.debug("%s | Ping stored lat=%.6f lng=%.6f", correlation, update.latitude, update.longitude)
 
         # 5. PostGIS append — fire-and-forget with retry; never blocks the WS loop
-        asyncio.create_task(
+        self._track(asyncio.create_task(
             self._history.append(update),
             name=f"loc_history_{driver_id}",
-        )
+        ))
 
         # 6. WebSocket broadcast to passengers on this ride
         if ride_id:
@@ -224,10 +240,10 @@ class UpdateDriverLocationUseCase:
 
         # 7. Kafka event (best-effort — None publisher = no Kafka configured)
         if self._publisher:
-            asyncio.create_task(
+            self._track(asyncio.create_task(
                 self._publisher.publish_driver_location_updated(driver_id, update),
                 name=f"loc_event_{driver_id}",
-            )
+            ))
 
 
 # ---------------------------------------------------------------------------
@@ -255,6 +271,22 @@ class UpdatePassengerLocationUseCase:
         self._history = history
         self._limiter = rate_limiter
         self._metrics = metrics
+        self._bg_tasks: set[asyncio.Task] = set()
+
+    def _track(self, task: asyncio.Task) -> None:
+        """Store a task reference and log any exception when it completes."""
+        self._bg_tasks.add(task)
+
+        def _on_done(t: asyncio.Task) -> None:
+            self._bg_tasks.discard(t)
+            if not t.cancelled() and (exc := t.exception()):
+                logger.error(
+                    "Background task %r raised an unhandled exception: %s",
+                    t.get_name(), exc,
+                    exc_info=exc,
+                )
+
+        task.add_done_callback(_on_done)
 
     async def execute(
         self,
@@ -294,10 +326,10 @@ class UpdatePassengerLocationUseCase:
             self._metrics.increment("location_pings_total", labels={"actor": "passenger"})
         logger.debug("%s | Ping stored lat=%.6f lng=%.6f", correlation, update.latitude, update.longitude)
 
-        asyncio.create_task(
+        self._track(asyncio.create_task(
             self._history.append(update),
             name=f"pax_history_{user_id}",
-        )
+        ))
 
 
 # ---------------------------------------------------------------------------
@@ -489,6 +521,22 @@ class SetDriverStatusUseCase:
     ) -> None:
         self._store = store
         self._publisher = publisher
+        self._bg_tasks: set[asyncio.Task] = set()
+
+    def _track(self, task: asyncio.Task) -> None:
+        """Store a task reference and log any exception when it completes."""
+        self._bg_tasks.add(task)
+
+        def _on_done(t: asyncio.Task) -> None:
+            self._bg_tasks.discard(t)
+            if not t.cancelled() and (exc := t.exception()):
+                logger.error(
+                    "Background task %r raised an unhandled exception: %s",
+                    t.get_name(), exc,
+                    exc_info=exc,
+                )
+
+        task.add_done_callback(_on_done)
 
     async def execute(self, driver_id: UUID, req: DriverStatusRequest) -> StatusResponse:
         status = DriverStatus(req.status)
@@ -499,10 +547,10 @@ class SetDriverStatusUseCase:
             await self._store.set_driver_status(driver_id, status)
 
         if self._publisher:
-            asyncio.create_task(
+            self._track(asyncio.create_task(
                 self._publisher.publish_driver_status_changed(driver_id, status),
                 name=f"status_event_{driver_id}",
-            )
+            ))
 
         logger.info("Driver %s status → %s", driver_id, status.value)
         return StatusResponse(success=True, message=f"Driver status set to {status.value}")

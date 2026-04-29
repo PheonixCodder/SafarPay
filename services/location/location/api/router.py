@@ -143,6 +143,8 @@ async def get_driver_location(
     current_user: CurrentUser,
     uc: Annotated[GetCurrentDriverLocationUseCase, Depends(get_current_driver_location_uc)],
 ) -> DriverLocationResponse:
+    if str(current_user.user_id) != str(driver_id) and current_user.role != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
     try:
         return await uc.execute(driver_id)
     except LocationDomainError as exc:
@@ -162,7 +164,10 @@ async def set_driver_status(
 ) -> StatusResponse:
     if str(current_user.user_id) != str(driver_id) and current_user.role != "admin":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
-    return await uc.execute(driver_id=driver_id, req=req)
+    try:
+        return await uc.execute(driver_id=driver_id, req=req)
+    except LocationDomainError as exc:
+        raise _handle_domain(exc) from exc
 
 
 # ---------------------------------------------------------------------------
@@ -369,6 +374,7 @@ async def ws_ride_track(
     ride_id: UUID,
     token: str = Query(..., description="JWT access token — intentional WS exception"),
     ws_manager: WebSocketManager = Depends(get_ws_manager),
+    ride_locations_uc: GetRideLocationsUseCase = Depends(get_ride_locations_uc),
 ) -> None:
     """Passenger subscribes to live driver location for a specific ride.
 
@@ -390,6 +396,18 @@ async def ws_ride_track(
         return
 
     user_id = payload.user_id
+
+    # Authorization: verify caller is a participant of this ride
+    # Reuses GetRideLocationsUseCase which reads from the Redis participant cache
+    try:
+        await ride_locations_uc.execute(ride_id=ride_id, caller_id=user_id)
+    except UnauthorisedLocationAccessError:
+        await websocket.close(code=1008, reason="Forbidden: not a ride participant")
+        return
+    except LocationDomainError:
+        await websocket.close(code=1008, reason="Ride not accessible")
+        return
+
     await ws_manager.connect_passenger(user_id, websocket)
     ws_manager.subscribe_ride(ride_id, user_id)
     logger.info("passenger=%s | Subscribed to ride=%s tracking", user_id, ride_id)

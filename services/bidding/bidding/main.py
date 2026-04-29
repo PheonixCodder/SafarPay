@@ -27,7 +27,7 @@ from .infrastructure.websocket_manager import WebSocketManager
 SERVICE_NAME = "bidding"
 
 
-async def session_expiry_loop(session_factory, ws, webhook):
+async def session_expiry_loop(session_factory, ws, webhook, logger):
     while True:
         try:
             async with session_factory() as session:
@@ -103,7 +103,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         await consumer.start()
         app.state.consumer = consumer
 
-    app.state.expiry_task = asyncio.create_task(session_expiry_loop(app.state.session_factory, app.state.ws_manager, app.state.webhook_client))
+    app.state.expiry_task = asyncio.create_task(
+        session_expiry_loop(
+            app.state.session_factory,
+            app.state.ws_manager,
+            app.state.webhook_client,
+            logger,
+        )
+    )
 
     yield
 

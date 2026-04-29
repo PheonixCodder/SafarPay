@@ -210,22 +210,20 @@ class RedisLocationStore:
     ) -> None:
         """Cache the authoritative participant IDs for a ride (24 h TTL).
 
-        Called by the Kafka consumer on service.request.accepted so that
-        GetRideLocationsUseCase can verify caller identity without querying
-        the Ride Service database.
+        Uses the same atomic _HSET_EXPIRE_SCRIPT Lua script as other hash
+        writes so the hash fields and TTL are set in a single round-trip,
+        eliminating the race window between separate HSET and EXPIRE calls.
         """
         redis = self._redis()
         key = self._ride_key(ride_id)
-        await redis.hset(
-            key,
-            mapping={
-                "driver_id": str(driver_id),
-                "passenger_user_id": str(passenger_user_id),
-            },
-        )
-        await redis.expire(key, _RIDE_PARTICIPANT_TTL)
+        args = [
+            str(_RIDE_PARTICIPANT_TTL),
+            "driver_id", str(driver_id),
+            "passenger_user_id", str(passenger_user_id),
+        ]
+        await redis.eval(_HSET_EXPIRE_SCRIPT, 1, key, *args)
         logger.debug(
-            "Ride %s participants cached driver=%s passenger=%s",
+            "Ride %s participants cached (atomic) driver=%s passenger=%s",
             ride_id, driver_id, passenger_user_id,
         )
 
@@ -279,23 +277,41 @@ class RedisLocationStore:
             sort="ASC",
         )
 
-        drivers: list[DriverLocation] = []
+        # Collect driver IDs from geo results first
+        driver_ids: list[UUID] = []
         for entry in results:
-            # entry = (member_bytes, (lng_float, lat_float))
-            driver_id_str, coords = entry[0], entry[1]
+            driver_id_str = entry[0]
             try:
                 driver_id = UUID(driver_id_str if isinstance(driver_id_str, str) else driver_id_str.decode())
             except (ValueError, AttributeError):
                 continue
+            driver_ids.append(driver_id)
 
-            data = await redis.hgetall(self._driver_key(driver_id))
+        if not driver_ids:
+            return []
+
+        # Batch fetch all driver hashes in a single pipeline round-trip
+        pipe = redis.pipeline()
+        for driver_id in driver_ids:
+            pipe.hgetall(self._driver_key(driver_id))
+        hashes = await pipe.execute()
+
+        drivers: list[DriverLocation] = []
+        stale_ids: list[str] = []
+        for driver_id, data in zip(driver_ids, hashes):
             if not data:
+                # Hash expired but geo member remains — schedule for cleanup
+                stale_ids.append(str(driver_id))
                 continue
-
             driver = self._parse_driver(driver_id, data)
             # Filter: only ONLINE drivers appear in nearby results
             if driver and driver.status == DriverStatus.ONLINE:
                 drivers.append(driver)
+
+        # Remove stale geo members in one ZREM call
+        if stale_ids:
+            await redis.zrem(self._geo_key(), *stale_ids)
+            logger.debug("Removed %d stale geo members: %s", len(stale_ids), stale_ids)
 
         return drivers
 

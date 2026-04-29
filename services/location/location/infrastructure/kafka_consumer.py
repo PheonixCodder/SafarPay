@@ -73,15 +73,17 @@ class LocationKafkaConsumer:
         while True:
             try:
                 messages = await self._consumer.consume_batch(timeout_ms=500)
+                had_error = False
                 for msg in messages:
                     try:
                         await self._dispatch(msg["value"])
                     except Exception as exc:  # noqa: BLE001
+                        had_error = True
                         logger.exception(
                             "Error handling Kafka message offset=%s: %s",
                             msg.get("offset"), exc,
                         )
-                if messages:
+                if messages and not had_error:
                     self._consumer.commit()
             except asyncio.CancelledError:
                 raise

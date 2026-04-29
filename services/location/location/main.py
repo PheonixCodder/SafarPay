@@ -13,6 +13,7 @@ Lifespan wires:
 """
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
@@ -63,7 +64,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # 4. Kafka producer (best-effort — gracefully no-ops if KAFKA_BOOTSTRAP_SERVERS unset)
     producer: KafkaProducerWrapper | None = None
     platform_publisher: EventPublisher | None = None
-    event_publisher: LocationEventPublisher | None = None
 
     if settings.KAFKA_BOOTSTRAP_SERVERS:
         producer = KafkaProducerWrapper(
@@ -74,7 +74,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             topic="location-events",
             producer=producer,
         )
-        event_publisher = LocationEventPublisher(publisher=platform_publisher)
+
+    # Always create a concrete publisher — LocationEventPublisher guards publish
+    # calls with `if self._publisher is None: return` so it's a safe no-op when
+    # Kafka is not configured. This keeps app.state.event_publisher non-nullable.
+    event_publisher = LocationEventPublisher(publisher=platform_publisher)
 
     # 5. Kafka consumer (subscribes to ride-events)
     kafka_consumer: LocationKafkaConsumer | None = None

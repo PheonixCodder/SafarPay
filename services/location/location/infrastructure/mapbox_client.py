@@ -17,6 +17,7 @@ from __future__ import annotations
 import hashlib
 import logging
 from typing import Any
+from urllib.parse import quote
 
 import httpx
 from sp.infrastructure.cache.manager import CacheManager
@@ -53,14 +54,14 @@ class MapboxClient:
 
         Returns an empty list on API error — callers should handle gracefully.
         """
-        cache_key = hashlib.md5(address.lower().strip().encode()).hexdigest()
+        cache_key = hashlib.sha256(address.lower().strip().encode()).hexdigest()
         cached = await self._cache.get("mapbox_geocode", cache_key)
         if cached:
             return [Coordinates(**c) for c in cached]
 
         try:
             resp = await self._http.get(
-                f"{_BASE_URL}/{httpx.URL(address).raw_path}.json",
+                f"{_BASE_URL}/{quote(address.strip(), safe='')}.json",
                 params={
                     "access_token": self._token,
                     "limit": 5,
@@ -84,7 +85,8 @@ class MapboxClient:
             )
             return results
         except Exception as exc:  # noqa: BLE001
-            logger.exception("Mapbox geocode failed for '%s': %s", address, exc)
+            addr_token = hashlib.sha256(address.encode()).hexdigest()[:12]
+            logger.exception("Mapbox geocode failed addr_token=%s: %s", addr_token, exc)
             return []
 
     # ------------------------------------------------------------------
