@@ -14,7 +14,6 @@ from uuid import UUID
 
 import httpx
 
-from ..domain.interfaces import GeospatialClientProtocol
 from ..domain.models import DriverCandidate
 
 logger = logging.getLogger("ride.geospatial")
@@ -73,7 +72,7 @@ class GeospatialClient:
             resp = await self._client.get("/api/v1/drivers/nearby", params=params)
             resp.raise_for_status()
             data: list[dict[str, Any]] = resp.json().get("drivers", [])
-            
+
             candidates = []
             for d in data:
                 try:

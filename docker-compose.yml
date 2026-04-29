@@ -185,13 +185,35 @@ services:
     ports:
       - "8003:8000"
     environment:
+      POSTGRES_DB_URI: postgresql+psycopg://safarpay:safarpay_secret@postgres:5432/safarpay_db
       REDIS_URL: redis://redis:6379/0
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      JWT_ALGORITHM: HS256
       APP_NAME: safarpay
       LOG_LEVEL: INFO
+      # Location-specific tuning (overridable per environment)
+      LOCATION_UPDATE_RATE_LIMIT_WINDOW: "5"
+      LOCATION_UPDATE_RATE_LIMIT_MAX: "2"
+      LOCATION_REDIS_TTL: "75"
+      LOCATION_STALE_THRESHOLD_SECONDS: "75"
+      LOCATION_MAX_SPEED_KMH: "200"
+      LOCATION_MIN_ACCURACY_METERS: "50"
+      MAPBOX_ACCESS_TOKEN: ${MAPBOX_ACCESS_TOKEN:-}
     depends_on:
+      postgres:
+        condition: service_healthy
       redis:
         condition: service_healthy
+      kafka:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+      interval: 30s
+      timeout: 5s
+      retries: 3
     networks:
       - safarpay-net
 

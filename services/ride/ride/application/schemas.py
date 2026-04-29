@@ -9,7 +9,7 @@ so FastAPI can produce a clean OpenAPI schema and validate the union correctly.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Annotated, Literal, Union
+from typing import Annotated, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field, model_validator
@@ -25,7 +25,6 @@ from ..domain.models import (
     StopType,
     VehicleType,
 )
-
 
 # ============================================================
 # Stop schemas
@@ -154,7 +153,7 @@ class VerifyCodeRequest(BaseModel):
     driver_id: UUID | None = None
 
     @model_validator(mode="after")
-    def require_one_verifier(self) -> "VerifyCodeRequest":
+    def require_one_verifier(self) -> VerifyCodeRequest:
         if self.user_id is None and self.driver_id is None:
             raise ValueError("Provide either user_id or driver_id as the verifier.")
         if self.user_id and self.driver_id:
@@ -274,13 +273,7 @@ class GroceryDetailInput(BaseModel):
 
 
 ServiceDetailInput = Annotated[
-    Union[
-        CityRideDetailInput,
-        IntercityDetailInput,
-        FreightDetailInput,
-        CourierDetailInput,
-        GroceryDetailInput,
-    ],
+    CityRideDetailInput | IntercityDetailInput | FreightDetailInput | CourierDetailInput | GroceryDetailInput,
     Field(discriminator="service_type"),
 ]
 
@@ -301,7 +294,7 @@ class CreateRideRequest(BaseModel):
     auto_accept_driver: bool = True
 
     @model_validator(mode="after")
-    def validate_stop_types(self) -> "CreateRideRequest":
+    def validate_stop_types(self) -> CreateRideRequest:
         types = {s.stop_type for s in self.stops}
         if StopType.PICKUP not in types:
             raise ValueError("At least one PICKUP stop is required.")
@@ -313,7 +306,7 @@ class CreateRideRequest(BaseModel):
         return self
 
     @model_validator(mode="after")
-    def validate_detail_matches_service_type(self) -> "CreateRideRequest":
+    def validate_detail_matches_service_type(self) -> CreateRideRequest:
         expected = self.service_type.value
         actual = self.detail.service_type.value
         if expected != actual:
@@ -323,7 +316,7 @@ class CreateRideRequest(BaseModel):
         return self
 
     @model_validator(mode="after")
-    def validate_price_range(self) -> "CreateRideRequest":
+    def validate_price_range(self) -> CreateRideRequest:
         lo, hi = self.baseline_min_price, self.baseline_max_price
         if lo is not None and hi is not None and lo > hi:
             raise ValueError("baseline_min_price must not exceed baseline_max_price.")

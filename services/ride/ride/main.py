@@ -19,13 +19,13 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.responses import PlainTextResponse
-
 from sp.core.config import get_settings
 from sp.core.observability.logging import setup_logging
 from sp.core.observability.metrics import MetricsCollector
 from sp.core.observability.middleware import ObservabilityMiddleware
 from sp.infrastructure.cache.manager import get_cache_manager_factory
 from sp.infrastructure.db.engine import get_db_engine
+from sp.infrastructure.db.session import get_session_factory
 from sp.infrastructure.messaging.kafka import KafkaProducerWrapper
 from sp.infrastructure.messaging.publisher import EventPublisher
 
@@ -51,6 +51,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     app.state.db_engine = get_db_engine(
         settings.POSTGRES_DB_URI, settings.POSTGRES_POOL_SIZE
     )
+    app.state.session_factory = get_session_factory(settings)
 
     # ── Redis ─────────────────────────────────────────────────────────────────
     cache = get_cache_manager_factory(settings)
@@ -104,10 +105,31 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # URL is actually generated, not at startup — so this is safe to always init.
     app.state.storage = S3StorageProvider()
 
+    # ── Kafka consumer ────────────────────────────────────────────────────────
+    app.state.consumer = None
+    if settings.KAFKA_BOOTSTRAP_SERVERS:
+        from .infrastructure.kafka_consumer import RideKafkaConsumer
+        consumer = RideKafkaConsumer(
+            bootstrap_servers=settings.KAFKA_BOOTSTRAP_SERVERS,
+            session_factory=app.state.session_factory,
+            cache=app.state.cache,
+            ws=app.state.ws_manager,
+            publisher=app.state.publisher,
+        )
+        await consumer.start()
+        app.state.consumer = consumer
+
     # ── Ready ─────────────────────────────────────────────────────────────────
     yield
 
     # ── Teardown ──────────────────────────────────────────────────────────────
+    if getattr(app.state, "consumer", None):
+        try:
+            await app.state.consumer.stop()
+        except Exception as e:
+            import logging
+            logging.getLogger("ride.main").error("Failed to stop consumer: %s", e)
+
     try:
         await app.state.cache.close()
     except Exception as e:

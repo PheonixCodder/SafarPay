@@ -51,6 +51,8 @@ class PassengerEvent:
     RIDE_STARTED = "RIDE_STARTED"
     RIDE_COMPLETED = "RIDE_COMPLETED"
     RIDE_CANCELLED = "RIDE_CANCELLED"
+    # Forwarded from Location Service when passenger is connected via ride WS
+    DRIVER_LOCATION_UPDATED = "DRIVER_LOCATION_UPDATED"
 
 
 # ---------------------------------------------------------------------------

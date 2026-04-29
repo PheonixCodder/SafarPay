@@ -4,6 +4,7 @@ import enum
 import uuid
 from datetime import datetime
 
+from sp.infrastructure.db.base import Base, TimestampMixin
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
@@ -14,14 +15,14 @@ from sqlalchemy import (
     Numeric,
     String,
     Text,
-    Enum as SQLEnum,
     func,
 )
-from sqlalchemy.dialects.postgresql import UUID as PgUUID, ARRAY
+from sqlalchemy import (
+    Enum as SQLEnum,
+)
+from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-
-from sp.infrastructure.db.base import Base, TimestampMixin
-
 
 # =========================
 # ENUMS
@@ -169,27 +170,27 @@ class ServiceRequestORM(Base, TimestampMixin):
     is_scheduled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     is_risky: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
-    stops: Mapped[list["ServiceStopORM"]] = relationship(
+    stops: Mapped[list[ServiceStopORM]] = relationship(
         back_populates="service_request",
         cascade="all, delete-orphan",
         order_by="ServiceStopORM.sequence_order",
     )
 
-    proof_images: Mapped[list["ServiceProofImageORM"]] = relationship(
+    proof_images: Mapped[list[ServiceProofImageORM]] = relationship(
         back_populates="service_request",
         cascade="all, delete-orphan",
     )
 
-    verification_codes: Mapped[list["ServiceVerificationCodeORM"]] = relationship(
+    verification_codes: Mapped[list[ServiceVerificationCodeORM]] = relationship(
         back_populates="service_request",
         cascade="all, delete-orphan",
     )
 
-    city_ride: Mapped["CityRideDetailORM | None"] = relationship(back_populates="service_request", uselist=False)
-    intercity: Mapped["IntercityDetailORM | None"] = relationship(back_populates="service_request", uselist=False)
-    freight: Mapped["FreightDetailORM | None"] = relationship(back_populates="service_request", uselist=False)
-    courier: Mapped["CourierDetailORM | None"] = relationship(back_populates="service_request", uselist=False)
-    grocery: Mapped["GroceryDetailORM | None"] = relationship(back_populates="service_request", uselist=False)
+    city_ride: Mapped[CityRideDetailORM | None] = relationship(back_populates="service_request", uselist=False)
+    intercity: Mapped[IntercityDetailORM | None] = relationship(back_populates="service_request", uselist=False)
+    freight: Mapped[FreightDetailORM | None] = relationship(back_populates="service_request", uselist=False)
+    courier: Mapped[CourierDetailORM | None] = relationship(back_populates="service_request", uselist=False)
+    grocery: Mapped[GroceryDetailORM | None] = relationship(back_populates="service_request", uselist=False)
 
     __table_args__ = (
         CheckConstraint("baseline_min_price IS NULL OR baseline_min_price >= 0", name="ck_service_requests_baseline_min_price_non_negative"),
@@ -246,9 +247,9 @@ class ServiceStopORM(Base, TimestampMixin):
     arrived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
-    service_request: Mapped["ServiceRequestORM"] = relationship(back_populates="stops")
-    proof_images: Mapped[list["ServiceProofImageORM"]] = relationship(back_populates="stop")
-    verification_codes: Mapped[list["ServiceVerificationCodeORM"]] = relationship(back_populates="stop")
+    service_request: Mapped[ServiceRequestORM] = relationship(back_populates="stops")
+    proof_images: Mapped[list[ServiceProofImageORM]] = relationship(back_populates="stop")
+    verification_codes: Mapped[list[ServiceVerificationCodeORM]] = relationship(back_populates="stop")
 
     __table_args__ = (
         CheckConstraint("sequence_order > 0", name="ck_service_stops_sequence_order_positive"),
@@ -293,7 +294,7 @@ class FreightDetailORM(Base, TimestampMixin):
     commodity_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     estimated_load_hours: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
-    service_request: Mapped["ServiceRequestORM"] = relationship(back_populates="freight")
+    service_request: Mapped[ServiceRequestORM] = relationship(back_populates="freight")
 
 
 class CourierDetailORM(Base, TimestampMixin):
@@ -323,7 +324,7 @@ class CourierDetailORM(Base, TimestampMixin):
     declared_value: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
     special_handling_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    service_request: Mapped["ServiceRequestORM"] = relationship(back_populates="courier")
+    service_request: Mapped[ServiceRequestORM] = relationship(back_populates="courier")
 
 
 class CityRideDetailORM(Base, TimestampMixin):
@@ -370,7 +371,7 @@ class CityRideDetailORM(Base, TimestampMixin):
     estimated_price: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
     surge_multiplier_applied: Mapped[float | None] = mapped_column(Numeric(5, 2), nullable=True)
 
-    service_request: Mapped["ServiceRequestORM"] = relationship(back_populates="city_ride")
+    service_request: Mapped[ServiceRequestORM] = relationship(back_populates="city_ride")
 
 
 class IntercityDetailORM(Base, TimestampMixin):
@@ -430,8 +431,8 @@ class IntercityDetailORM(Base, TimestampMixin):
     matching_priority_score: Mapped[float | None] = mapped_column(Numeric(5, 2), nullable=True)
     demand_zone_id: Mapped[str | None] = mapped_column(String(120), nullable=True)
 
-    service_request: Mapped["ServiceRequestORM"] = relationship(back_populates="intercity")
-    passenger_groups: Mapped[list["IntercityPassengerGroupORM"]] = relationship(
+    service_request: Mapped[ServiceRequestORM] = relationship(back_populates="intercity")
+    passenger_groups: Mapped[list[IntercityPassengerGroupORM]] = relationship(
         back_populates="intercity_detail",
         cascade="all, delete-orphan",
     )
@@ -463,7 +464,7 @@ class IntercityPassengerGroupORM(Base, TimestampMixin):
     seat_preference: Mapped[str | None] = mapped_column(String(80), nullable=True)
     special_needs: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    intercity_detail: Mapped["IntercityDetailORM"] = relationship(back_populates="passenger_groups")
+    intercity_detail: Mapped[IntercityDetailORM] = relationship(back_populates="passenger_groups")
 
 
 class GroceryDetailORM(Base, TimestampMixin):
@@ -486,7 +487,7 @@ class GroceryDetailORM(Base, TimestampMixin):
     contactless_delivery: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     estimated_bag_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
-    service_request: Mapped["ServiceRequestORM"] = relationship(back_populates="grocery")
+    service_request: Mapped[ServiceRequestORM] = relationship(back_populates="grocery")
 
 
 # =========================
@@ -548,8 +549,8 @@ class ServiceProofImageORM(Base, TimestampMixin):
 
     uploaded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
-    service_request: Mapped["ServiceRequestORM"] = relationship(back_populates="proof_images")
-    stop: Mapped["ServiceStopORM | None"] = relationship(back_populates="proof_images")
+    service_request: Mapped[ServiceRequestORM] = relationship(back_populates="proof_images")
+    stop: Mapped[ServiceStopORM | None] = relationship(back_populates="proof_images")
 
 
 class ServiceVerificationCodeORM(Base, TimestampMixin):
@@ -593,5 +594,5 @@ class ServiceVerificationCodeORM(Base, TimestampMixin):
         nullable=True
     )
 
-    service_request: Mapped["ServiceRequestORM"] = relationship(back_populates="verification_codes")
-    stop: Mapped["ServiceStopORM | None"] = relationship(back_populates="verification_codes")
+    service_request: Mapped[ServiceRequestORM] = relationship(back_populates="verification_codes")
+    stop: Mapped[ServiceStopORM | None] = relationship(back_populates="verification_codes")

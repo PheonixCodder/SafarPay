@@ -16,7 +16,6 @@ from datetime import datetime, timezone
 from enum import Enum
 from uuid import UUID, uuid4
 
-
 # ---------------------------------------------------------------------------
 # Domain enums  (mirror ORM enum values — no ORM import)
 # ---------------------------------------------------------------------------
@@ -171,7 +170,7 @@ class Stop:
         latitude: float,
         longitude: float,
         **kwargs: object,
-    ) -> "Stop":
+    ) -> Stop:
         return cls(
             id=uuid4(),
             service_request_id=service_request_id,
@@ -229,7 +228,7 @@ class ProofImage:
         uploaded_by_user_id: UUID | None = None,
         uploaded_by_driver_id: UUID | None = None,
         **kwargs: object,
-    ) -> "ProofImage":
+    ) -> ProofImage:
         return cls(
             id=uuid4(),
             service_request_id=service_request_id,
@@ -280,7 +279,7 @@ class VerificationCode:
         expires_at: datetime | None = None,
         length: int = 6,
         max_attempts: int = 5,
-    ) -> "VerificationCode":
+    ) -> VerificationCode:
         """Generate a cryptographically random zero-padded numeric code."""
         code = str(secrets.randbelow(10**length)).zfill(length)
         return cls(
@@ -306,11 +305,11 @@ class VerificationCode:
         Raises domain exceptions for all failure modes.
         """
         from .exceptions import (
-            VerificationCodeAlreadyVerifiedError,
-            VerificationCodeExpiredError,
-            VerificationCodeExhaustedError,
-            VerificationCodeInvalidError,
             RideDomainError,
+            VerificationCodeAlreadyVerifiedError,
+            VerificationCodeExhaustedError,
+            VerificationCodeExpiredError,
+            VerificationCodeInvalidError,
         )
 
         if not (bool(user_id) ^ bool(driver_id)):
@@ -476,7 +475,7 @@ class ServiceRequest:
         baseline_max_price: float | None = None,
         scheduled_at: datetime | None = None,
         auto_accept_driver: bool = True,
-    ) -> "ServiceRequest":
+    ) -> ServiceRequest:
         return cls(
             id=uuid4(),
             passenger_id=passenger_id,
