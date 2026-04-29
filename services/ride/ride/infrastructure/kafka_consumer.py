@@ -9,9 +9,9 @@ from aiokafka import AIOKafkaConsumer
 from sp.infrastructure.cache.manager import CacheManager
 from sp.infrastructure.messaging.publisher import EventPublisher
 
-from .application.use_cases import InternalAssignDriverUseCase
-from .infrastructure.repositories import ServiceRequestRepository
-from .infrastructure.websocket_manager import WebSocketManager
+from ..application.use_cases import InternalAssignDriverUseCase
+from .repositories import ServiceRequestRepository
+from .websocket_manager import WebSocketManager
 
 logger = logging.getLogger("ride.kafka_consumer")
 
