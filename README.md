@@ -1,4 +1,4 @@
-# SafarPay Mobile App
+# SafarPay Mobile App Backend
 
 Refactored microservices architecture with shared infrastructure.
 
