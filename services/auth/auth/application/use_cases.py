@@ -220,6 +220,7 @@ class GoogleVerifyTokenUseCase:
         google_sub = claims["sub"]
         email = claims.get("email", "")
         name = claims.get("name", "")
+        picture = claims.get("picture", "")
 
         # 2. Check if this Google account already exists
         existing_account = await self.account_repo.find_by_provider(
@@ -238,6 +239,7 @@ class GoogleVerifyTokenUseCase:
                     role=UserRole.PASSENGER,
                     full_name=name,
                     email=email,
+                    profile_img=picture,
                     is_verified=False,  # not verified until phone is linked
                 )
             )

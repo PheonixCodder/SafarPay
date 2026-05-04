@@ -12,8 +12,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSock
 from sp.core.config import get_settings
 from sp.core.observability.logging import get_logger
 from sp.infrastructure.db.session import get_session_factory
-from sp.infrastructure.security.dependencies import CurrentUser
-from sp.infrastructure.security.jwt import verify_token
+from sp.infrastructure.security.dependencies import CurrentUser, CurrentDriver, OptionalDriverId, get_current_driver_ws, get_current_user_ws
+from sp.infrastructure.security.jwt import verify_token, TokenPayload
 from sqlalchemy import text
 
 from ..application.schemas import (
@@ -78,8 +78,6 @@ from ..domain.exceptions import (
 )
 from ..domain.models import RideStatus
 from ..infrastructure.dependencies import (
-    CurrentDriver,
-    OptionalDriverId,
     get_accept_ride_uc,
     get_add_stop_uc,
     get_cancel_ride_uc,
@@ -203,7 +201,13 @@ async def accept_ride(
     driver_id: CurrentDriver,
     uc: Annotated[AcceptRideUseCase, Depends(get_accept_ride_uc)],
 ) -> RideResponse:
-    """Accept a ride. Caller must be an authenticated driver; driver_id is derived from JWT."""
+    """Driver accepts a FIXED-price ride assignment.
+
+    ❌ NOT valid for BID_BASED or HYBRID pricing modes —
+    those require using the Bidding Service instead:
+      - POST /bidding/sessions/{id}/bids (drivers place bids)
+      - POST /bidding/sessions/{id}/accept (passengers accept bids)
+    """
     try:
         return await uc.execute(ride_id, body, driver_id)
     except Exception as exc:
@@ -316,7 +320,7 @@ async def verify_code(
 # ---------------------------------------------------------------------------
 # Proofs
 # ---------------------------------------------------------------------------
-
+# ** TODO Fix the OptionalDriverId and CurrentUser usage
 @router.post(
     "/rides/{ride_id}/proofs/upload-url",
     response_model=ProofUploadUrlResponse,
@@ -429,7 +433,7 @@ async def nearby_drivers(
 @router.websocket("/ws/drivers")
 async def ws_drivers(
     ws: WebSocket,
-    token: str = Query(...),
+    driver_id: Annotated[UUID, Depends(get_current_driver_ws)],
     manager: WebSocketManager = Depends(get_ws_manager),
 ) -> None:
     """
@@ -437,25 +441,6 @@ async def ws_drivers(
     Query param: token (JWT).
     Receives: NEW_JOB, JOB_CANCELLED, JOB_ASSIGNED, JOB_UPDATED
     """
-    settings = get_settings()
-    payload = verify_token(token, settings.JWT_SECRET, settings.JWT_ALGORITHM)
-    if not payload or payload.role != "driver":
-        await ws.close(code=status.WS_1008_POLICY_VIOLATION)
-        return
-
-    # Look up driver_id
-    factory = get_session_factory(settings)
-    async with factory() as session:
-        result = await session.execute(
-            text("SELECT id FROM verification.drivers WHERE user_id = :uid LIMIT 1"),
-            {"uid": payload.user_id},
-        )
-        row = result.fetchone()
-        if not row:
-            await ws.close(code=status.WS_1008_POLICY_VIOLATION)
-            return
-        driver_id = row[0]
-
     await manager.connect_driver(driver_id, ws)
     try:
         while True:
@@ -477,7 +462,7 @@ async def ws_drivers(
 @router.websocket("/ws/passengers")
 async def ws_passengers(
     ws: WebSocket,
-    token: str = Query(...),
+    current_user: Annotated[TokenPayload, Depends(get_current_user_ws)],
     ride_id: UUID | None = None,
     manager: WebSocketManager = Depends(get_ws_manager),
 ) -> None:
@@ -486,25 +471,11 @@ async def ws_passengers(
     Query param: token (JWT)
     Receives: RIDE_UPDATED, DRIVER_LOCATION
     """
-    settings = get_settings()
-    payload = verify_token(token, settings.JWT_SECRET, settings.JWT_ALGORITHM)
-    if not payload or payload.role != "passenger":
+    if current_user.role != "passenger":
         await ws.close(code=status.WS_1008_POLICY_VIOLATION)
         return
 
-    user_id = payload.user_id
-
-    # If ride_id is provided, verify passenger owns the ride
-    if ride_id:
-        factory = get_session_factory(settings)
-        async with factory() as session:
-            result = await session.execute(
-                text("SELECT id FROM service_request.service_requests WHERE id = :rid AND user_id = :uid LIMIT 1"),
-                {"rid": ride_id, "uid": user_id},
-            )
-            if not result.fetchone():
-                await ws.close(code=status.WS_1008_POLICY_VIOLATION)
-                return
+    user_id = current_user.user_id
 
     await manager.connect_passenger(user_id, ws)
     if ride_id:
@@ -522,3 +493,4 @@ async def ws_passengers(
             await manager.unsubscribe_from_ride(user_id, ride_id)
         await manager.disconnect_passenger(user_id, ws)
         logger.info("Passenger WS disconnected user_id=%s", user_id)
+

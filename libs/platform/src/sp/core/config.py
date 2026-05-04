@@ -62,6 +62,8 @@ class Settings(BaseSettings):
     S3_LICENSE_BUCKET: str = "safarpay-license-docs"
     S3_VEHICLE_BUCKET: str = "safarpay-vehicle-docs"
     S3_PROOF_BUCKET: str = "safarpay-ride-proofs"
+    S3_COMMUNICATION_BUCKET: str = "safarpay-communication-media"
+    WEBRTC_ICE_SERVERS_JSON: str | None = None
 
     # ── Messaging ─────────────────────────────────────────────────────────────
     KAFKA_BOOTSTRAP_SERVERS: str | None = None
@@ -87,6 +89,11 @@ class Settings(BaseSettings):
     NOTIFICATION_SERVICE_URL: str = "http://notification:8004"
     VERIFICATION_SERVICE_URL: str = "http://verification:8005"
     GEOSPATIAL_SERVICE_URL: str = "http://geospatial:8006"
+    COMMUNICATION_SERVICE_URL: str = "http://communication:8007"
+    GEOSPATIAL_DEFAULT_RADIUS_KM: float = 5.0
+    GEOSPATIAL_MAX_RADIUS_KM: float = 20.0
+    GEOSPATIAL_H3_RESOLUTION: int = 9
+    GEOSPATIAL_MAX_DRIVER_CANDIDATES: int = 20
 
 
 @lru_cache

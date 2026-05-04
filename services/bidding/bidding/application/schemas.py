@@ -45,13 +45,51 @@ class BiddingSessionResponse(BaseModel):
     expires_at: datetime | None
     closed_at: datetime | None
     bids: list[BidResponse]
+    counter_offers: list[CounterOfferInSession] | None = None
     stops: list[StopSchema] | None = None
     distance_km: float | None = None
     package_weight_kg: float | None = None
+    baseline_price: float | None = None
 
+
+class PassengerCounterOfferRequest(BaseModel):
+    counter_price: float = Field(..., gt=0, description="Passenger's counter price must be positive")
+    counter_eta_minutes: int | None = Field(None, gt=0, description="Counter ETA in minutes")
+
+
+class DriverAcceptCounterRequest(BaseModel):
+    counter_offer_id: UUID
+
+
+class CounterOfferResponse(BaseModel):
+    """Counter-offer for frontend display."""
+    id: UUID
+    session_id: UUID
+    price: float
+    eta_minutes: int | None = None
+    user_id: UUID | None = None
+    driver_id: UUID | None = None
+    bid_id: UUID | None = None
+    status: str
+    responded_at: datetime | None = None
+    reason: str | None = None
+    created_at: datetime
+
+
+class CounterOfferInSession(BaseModel):
+    """Simplified counter-offer for embedding in session response."""
+    id: UUID
+    price: float
+    eta_minutes: int | None = None
+    status: str
+    user_id: UUID | None = None
+    driver_id: UUID | None = None
+    bid_id: UUID | None = None
+    created_at: datetime
 
 
 class ItemBidsResponse(BaseModel):
     session_id: UUID
     bids: list[BidResponse]
     lowest_bid: float | None
+    counter_offers: list[CounterOfferInSession] | None = None

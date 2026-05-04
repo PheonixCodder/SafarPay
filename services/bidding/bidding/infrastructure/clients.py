@@ -14,6 +14,7 @@ from ..domain.interfaces import DriverEligibilityClientProtocol, RideServiceClie
 logger = logging.getLogger("bidding.clients")
 
 
+# ** TODO Fix all clients
 class ResilientHttpClient:
     """Base HTTP client with retries, timeout, and basic circuit breaker."""
 
@@ -71,7 +72,7 @@ class ResilientHttpClient:
 
         raise BiddingDomainError("Max retries exceeded")
 
-
+# ** TODO Fix all clients
 class RideServiceClient(ResilientHttpClient, RideServiceClientProtocol):
     def __init__(self, base_url: str) -> None:
         # Use a short timeout of 300ms as requested
@@ -85,7 +86,7 @@ class RideServiceClient(ResilientHttpClient, RideServiceClientProtocol):
             logger.error("Ride validation failed for %s: %s", ride_id, e)
             raise
 
-
+# ** TODO Fix all clients
 class DriverEligibilityClient(ResilientHttpClient, DriverEligibilityClientProtocol):
     def __init__(self, base_url: str) -> None:
         super().__init__(base_url, timeout=0.2, max_retries=2)

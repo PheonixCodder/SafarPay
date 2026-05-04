@@ -428,6 +428,7 @@ async def get_me(
         email=user.email,
         phone=user.phone,
         role=user.role.value,
+        profile_img=user.profile_img,
         is_active=user.is_active,
         is_verified=user.is_verified,
         is_onboarded=bool(user.phone and user.full_name),

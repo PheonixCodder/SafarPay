@@ -6,7 +6,7 @@ from datetime import datetime, date, timezone
 from typing import Any
 import enum
 from sp.infrastructure.db.base import Base, TimestampMixin
-from sqlalchemy import String, Text, ForeignKey, Integer, Boolean, Numeric, Date, Enum as SQLEnum, DateTime, Index
+from sqlalchemy import String, Text, ForeignKey, Integer, Boolean, Numeric, Date, Enum as SQLEnum, DateTime, Index, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID as PgUUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -97,12 +97,18 @@ class DocumentORM(Base, TimestampMixin):
 class DriverVehicleORM(Base, TimestampMixin):
     """Junction table for drivers and their cars."""
     __tablename__ = "driver_vehicles"
-    __table_args__ = {"schema": "verification"}
+    __table_args__ = (
+        UniqueConstraint("driver_id", "vehicle_type", name="uq_driver_vehicle_type"),
+        {"schema": "verification"}
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     driver_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("verification.drivers.id", ondelete="CASCADE"))
     vehicle_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("verification.vehicles.id", ondelete="CASCADE"))
-    
+    vehicle_type: Mapped[VehicleType] = mapped_column(
+        SQLEnum(VehicleType, name="vehicle_type", schema="verification"),
+        default=VehicleType.ECONOMY
+    )
     is_currently_selected: Mapped[bool] = mapped_column(Boolean, default=False)
     assigned_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
 

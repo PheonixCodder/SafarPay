@@ -68,8 +68,8 @@ class IdentityVerificationEngine:
             
             if self.metrics:
                 duration = asyncio.get_event_loop().time() - start_time
-                self.metrics.record_latency("identity_verification_duration", duration)
-                self.metrics.increment_counter(
+                self.metrics.histogram("identity_verification_duration", duration)
+                self.metrics.increment(
                     "identity_verification_total", 
                     {"status": "success" if result.success else "failure"}
                 )

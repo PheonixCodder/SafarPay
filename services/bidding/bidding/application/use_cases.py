@@ -1,6 +1,6 @@
 """Bidding use cases — orchestration, concurrency, and real-time."""
 from __future__ import annotations
-
+from ..domain.interfaces import RideServiceClientProtocol
 import logging
 import time
 from typing import Any
@@ -23,10 +23,11 @@ from ..domain.interfaces import (
     BiddingSessionRepositoryProtocol,
     BidRepositoryProtocol,
     WebhookClientProtocol,
+    CounterOfferRepositoryProtocol
 )
-from ..domain.models import Bid, BiddingSession, BiddingSessionStatus
+from ..domain.models import Bid, BiddingSession, BiddingSessionStatus, CounterOffer, BidStatus
 from ..infrastructure.websocket_manager import BiddingEvent, WebSocketManager
-from .schemas import BiddingSessionResponse, BidResponse, ItemBidsResponse, PlaceBidRequest
+from .schemas import BiddingSessionResponse, BidResponse, ItemBidsResponse, PlaceBidRequest, CounterOfferInSession
 
 logger = logging.getLogger("bidding.use_cases")
 
@@ -88,7 +89,10 @@ class CreateBiddingSessionUseCase:
         self._ws = ws
 
     async def execute(self, ride_id: UUID, ride_payload: dict[str, Any], driver_ids: list[UUID]) -> BiddingSessionResponse:
-        session = BiddingSession.create(service_request_id=ride_id)
+        session = BiddingSession.create(
+            service_request_id=ride_id,
+            baseline_price=ride_payload.get("baseline_price"),
+        )
         saved = await self._session_repo.save(session)
 
         # Notify drivers
@@ -97,9 +101,16 @@ class CreateBiddingSessionUseCase:
                 driver_id=d_id,
                 session_id=saved.id,
                 ride_payload=ride_payload,
-                idempotency_key=f"bidding_opp_{saved.id}_{d_id}"
+                idempotency_key=f"bidding_opp_{saved.id}_{d_id}",
             )
-            await self._ws.send_to_driver(d_id, BiddingEvent.NEW_BID, {"session_id": str(saved.id)})
+            await self._ws.send_to_driver(
+                d_id,
+                BiddingEvent.NEW_BID,
+                {
+                    "session_id": str(saved.id),
+                    "baseline_price": ride_payload.get("baseline_price"),
+                },
+            )
 
         logger.info("Created bidding session %s for ride %s", saved.id, ride_id)
         return _session_to_resp(saved)
@@ -299,7 +310,13 @@ class AcceptBidUseCase:
                 await self._session_repo.update_status(session.id, session.status.value)
                 await self._bid_repo.update_status(bid.id, bid.status.value)
 
-                payload = {"session_id": str(session_id), "bid_id": str(bid_id), "ride_id": str(session.service_request_id)}
+                payload = {
+                    "session_id": str(session_id),
+                    "bid_id": str(bid_id),
+                    "ride_id": str(session.service_request_id),
+                    "driver_id": str(bid.driver_id),
+                    "amount": bid.bid_amount,
+                }
 
                 if self._publisher:
                     await self._bid_repo.save_outbox_event(bid.id, "BID_ACCEPTED", payload)
@@ -407,9 +424,16 @@ class CancelSessionUseCase:
 
 
 class GetItemBidsUseCase:
-    def __init__(self, session_repo: BiddingSessionRepositoryProtocol, bid_repo: BidRepositoryProtocol, cache: CacheManager) -> None:
+    def __init__(
+        self,
+        session_repo: BiddingSessionRepositoryProtocol,
+        bid_repo: BidRepositoryProtocol,
+        counter_offer_repo: CounterOfferRepositoryProtocol,
+        cache: CacheManager,
+    ) -> None:
         self._session_repo = session_repo
         self._bid_repo = bid_repo
+        self._counter_offer_repo = counter_offer_repo
         self._cache = cache
 
     async def execute(self, session_id: UUID) -> ItemBidsResponse:
@@ -418,14 +442,33 @@ class GetItemBidsUseCase:
             raise BiddingSessionNotFoundError("Session not found")
 
         bids = await self._bid_repo.find_by_session(session_id)
+        counter_offers = await self._counter_offer_repo.find_active_by_session(session_id)
+
         redis = self._cache._assert_connected()
         lowest_raw = await redis.zrange(self._cache._key("bids", f"session:{session_id}"), 0, 0, withscores=True)
         lowest_bid = float(lowest_raw[0][1]) if lowest_raw else None
+
+        from ..domain.models import CounterOffer
+        from ..infrastructure.repositories import CounterOfferRepository
+        counter_offer_list = []
+        for co_orm in counter_offers:
+            co_domain = CounterOfferRepository._to_domain(CounterOfferRepository, co_orm)
+            counter_offer_list.append(CounterOfferInSession(
+                id=co_domain.id,
+                price=co_domain.price,
+                eta_minutes=co_domain.eta_minutes,
+                status=co_domain.status.value,
+                user_id=co_domain.user_id,
+                driver_id=co_domain.driver_id,
+                bid_id=co_domain.bid_id,
+                created_at=co_orm.created_at,
+            ))
 
         return ItemBidsResponse(
             session_id=session_id,
             bids=[_bid_to_resp(b) for b in bids],
             lowest_bid=lowest_bid,
+            counter_offers=counter_offer_list,
         )
 
 
@@ -456,3 +499,186 @@ class ExpireSessionsUseCase:
 
         return expired_count
 
+
+class PassengerCounterOfferUseCase:
+    """Allow passenger to submit counter-offer during negotiation (HYBRID mode)."""
+
+    def __init__(
+        self,
+        session_repo: BiddingSessionRepositoryProtocol,
+        bid_repo: BidRepositoryProtocol,
+        counter_offer_repo: CounterOfferRepositoryProtocol,
+        ws: WebSocketManager,
+        publisher: EventPublisher | None = None,
+    ) -> None:
+        self._session_repo = session_repo
+        self._bid_repo = bid_repo
+        self._counter_offer_repo = counter_offer_repo
+        self._ws = ws
+        self._publisher = publisher
+
+    async def execute(
+        self,
+        session_id: UUID,
+        passenger_id: UUID,
+        counter_price: float,
+        counter_eta_minutes: int | None = None,
+    ) -> BidResponse:
+        """
+        Submit a passenger counter-bid.
+
+        For HYBRID mode: Passenger can negotiate by submitting their own price.
+        All nearby drivers receive this via WebSocket and can accept it.
+        """
+        # 1. Validate session exists and is OPEN
+        session = await self._session_repo.find_by_id(session_id)
+        if not session or session.status != BiddingSessionStatus.OPEN:
+            raise BiddingSessionNotFoundError("Session not found or closed")
+
+        # 2. Create actual Bid record for tracking
+        bid = Bid.create(
+            service_request_id=session.service_request_id,
+            bidding_session_id=session.id,
+            driver_id=UUID(int=0),  # Placeholder - will be overwritten when accepted
+            bid_amount=counter_price,
+            currency="PKR",
+            eta_minutes=counter_eta_minutes,
+            message="Passenger counter-offer",
+        )
+
+        # 3. Save bid and counter-offer
+        saved = await self._bid_repo.save(bid)
+
+        # Note: counter_offer_repo.save would be called here
+        await self._counter_offer_repo.save(
+            CounterOffer.create(
+                session_id=session_id,
+                price=counter_price,
+                eta_minutes=counter_eta_minutes,
+                bid_id=saved.id,
+                passenger_id=passenger_id,
+            )
+        )
+
+        # 4. Broadcast to all nearby drivers
+        payload = {
+            "session_id": str(session_id),
+            "passenger_id": str(passenger_id),
+            "bid_id": str(saved.id),
+            "counter_price": counter_price,
+            "counter_eta_minutes": counter_eta_minutes,
+            "event": "passenger_counter_bid",
+        }
+
+        await self._ws.broadcast_to_session(
+            session_id,
+            BiddingEvent.PASSENGER_COUNTER_BID,
+            payload,
+        )
+
+        logger.info(
+            "Passenger=%s counter-bid session=%s price=%s",
+            passenger_id, session_id, counter_price,
+        )
+
+        return _bid_to_resp(saved)
+
+
+class DriverAcceptCounterOfferUseCase:
+    """Driver accepts passenger's counter-offer (HYBRID mode)."""
+
+    def __init__(
+        self,
+        session_repo: BiddingSessionRepositoryProtocol,
+        bid_repo: BidRepositoryProtocol,
+        counter_offer_repo: Any,
+        cache: CacheManager,
+        ws: WebSocketManager,
+        publisher: EventPublisher | None = None,
+    ) -> None:
+        self._session_repo = session_repo
+        self._bid_repo = bid_repo
+        self._counter_offer_repo = counter_offer_repo
+        self._cache = cache
+        self._ws = ws
+        self._publisher = publisher
+
+    async def execute(
+        self,
+        session_id: UUID,
+        bid_id: UUID,
+        counter_offer_id: UUID,
+        driver_id: UUID,
+    ) -> BidResponse:
+        """
+        Driver accepts passenger's counter-offer.
+
+        This is the 'I'll take it!' moment for drivers in HYBRID mode.
+        First driver to accept wins (mutex locked via Redis).
+        """
+        # 1. Acquire Redis lock on session
+        redis = self._cache._assert_connected()
+        lock_key = f"lock:session:{session_id}"
+
+        acquired = await redis.set(lock_key, "locked", nx=True, ex=30)
+        if not acquired:
+            raise LockAcquisitionError(
+                "Another driver is already accepting this counter-offer"
+            )
+
+        try:
+            # 2. Validate session exists and is OPEN
+            session = await self._session_repo.find_by_id(session_id)
+            if not session or session.status != BiddingSessionStatus.OPEN:
+                raise BiddingClosedError("Session is no longer open")
+
+            # 3. Get the existing counter bid
+            bid = await self._bid_repo.find_by_id(bid_id)
+            if not bid:
+                raise BidNotFoundError("Bid not found")
+
+            # 4. Close session and mark bid as ACCEPTED
+            session.close()
+            bid.accept()
+
+            # 5. Persist all changes atomically
+            async with self._bid_repo._session.begin_nested():
+                await self._session_repo.update_status(session.id, session.status.value)
+                await self._bid_repo.update_status(bid.id, BidStatus.ACCEPTED.value)
+
+                # 6. Publish BID_ACCEPTED event (triggers ride assignment via Kafka)
+                payload = {
+                    "session_id": str(session_id),
+                    "bid_id": str(bid.id),
+                    "driver_id": str(driver_id),
+                    "ride_id": str(session.service_request_id),
+                    "amount": bid.bid_amount,
+                }
+                if self._publisher:
+                    await self._bid_repo.save_outbox_event(
+                        bid.id, "BID_ACCEPTED", payload
+                    )
+
+            # 7. Broadcast to passenger and all drivers
+            await self._ws.broadcast_to_session(
+                session_id,
+                BiddingEvent.BID_ACCEPTED,
+                payload,
+            )
+            await self._ws.broadcast_to_session(
+                session_id,
+                BiddingEvent.SESSION_CLOSED,
+                payload,
+            )
+
+            logger.info(
+                "Driver=%s accepted passenger counter-offer bid=%s session=%s",
+                driver_id, bid.id, session_id,
+            )
+
+            return _bid_to_resp(bid)
+
+        except Exception:
+            raise
+        finally:
+            await self._cache.delete_if_equals("bids", lock_key, "locked")

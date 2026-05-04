@@ -1,10 +1,10 @@
 """Bidding domain interfaces."""
 from __future__ import annotations
 
-from typing import Any, Protocol
+from typing import Protocol, Any
 from uuid import UUID
 
-from .models import Bid, BiddingSession
+from .models import Bid, BiddingSession, CounterOffer
 
 
 class BidRepositoryProtocol(Protocol):
@@ -59,6 +59,11 @@ class RideServiceClientProtocol(Protocol):
     async def validate_ride(self, ride_id: UUID, passenger_id: UUID) -> dict[str, Any]:
         """Validates that a ride exists, belongs to the passenger, and is OPEN. Returns ride metadata including baseline_price."""
         ...
+
+
+class CounterOfferRepositoryProtocol(Protocol):
+    async def save(self, counter_offer: CounterOffer) -> CounterOffer: ...
+    async def find_by_id(self, counter_offer_id: UUID) -> CounterOffer | None: ...
 
 
 class DriverEligibilityClientProtocol(Protocol):

@@ -351,11 +351,15 @@ class DriverCandidate:
     """A driver candidate returned from the geospatial / matching service."""
 
     driver_id: UUID
+    latitude: float
+    longitude: float
     distance_km: float
     vehicle_type: str
     rating: float | None = None
     priority_score: float = 0.0
     estimated_arrival_minutes: float | None = None
+    composite_score: float = 0.0
+    h3_cell: str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -489,3 +493,107 @@ class ServiceRequest:
             is_scheduled=scheduled_at is not None,
             auto_accept_driver=auto_accept_driver,
         )
+
+
+
+@dataclass
+class CityRideDetail:
+    service_request_id: UUID
+    passenger_count: int = 1
+    is_ac: bool = False
+    preferred_vehicle_type: VehicleType | None = None
+    driver_gender_preference: DriverGenderPreference = DriverGenderPreference.NO_PREFERENCE
+    is_shared_ride: bool = False
+    max_co_passengers: int | None = None
+    allowed_fuel_types: list[FuelType] | None = None
+    is_smoking_allowed: bool = False
+    is_pet_allowed: bool = False
+    requires_wheelchair_access: bool = False
+    max_wait_time_minutes: int | None = None
+    requires_otp_start: bool = True
+    requires_otp_end: bool = True
+    estimated_price: float | None = None
+    surge_multiplier_applied: float | None = None
+
+
+@dataclass
+class IntercityDetail:
+    service_request_id: UUID
+    passenger_count: int
+    luggage_count: int = 0
+    child_count: int = 0
+    senior_count: int = 0
+    allowed_fuel_types: list[FuelType] | None = None
+    preferred_departure_time: datetime | None = None
+    departure_time_flexibility_minutes: int | None = None
+    is_round_trip: bool = False
+    return_time: datetime | None = None
+    trip_distance_km: float | None = None
+    estimated_duration_minutes: int | None = None
+    route_polyline: str | None = None
+    vehicle_type_requested: VehicleType | None = None
+    min_vehicle_capacity: int | None = None
+    requires_luggage_carrier: bool = False
+    estimated_price: float | None = None
+    price_per_km: float | None = None
+    toll_estimate: float | None = None
+    fuel_surcharge: float | None = None
+    total_stops: int = 0  # operational cache
+    is_multi_city_trip: bool = False
+    requires_identity_verification: bool = False
+    emergency_contact_name: str | None = None
+    emergency_contact_number: str | None = None
+    matching_priority_score: float | None = None
+    demand_zone_id: str | None = None
+    passenger_groups: list['IntercityPassengerGroup'] = field(default_factory=list)
+
+
+@dataclass
+class IntercityPassengerGroup:
+    id: UUID
+    intercity_service_request_id: UUID
+    passenger_count: int
+    luggage_count: int = 0
+    full_name: str | None = None
+    phone_number: str | None = None
+    seat_preference: str | None = None
+    special_needs: str | None = None
+
+
+@dataclass
+class FreightDetail:
+    service_request_id: UUID
+    cargo_weight: float
+    cargo_type: str
+    vehicle_type: VehicleType
+    requires_loader: bool = False
+    is_fragile: bool = False
+    requires_temperature_control: bool = False
+    declared_value: float | None = None
+    commodity_notes: str | None = None
+    estimated_load_hours: int | None = None
+
+
+@dataclass
+class CourierDetail:
+    service_request_id: UUID
+    item_description: str
+    recipient_name: str
+    recipient_phone: str
+    item_weight: float | None = None
+    total_parcels: int = 1
+    recipient_email: str | None = None
+    is_fragile: bool = False
+    requires_signature: bool = False
+    declared_value: float | None = None
+    special_handling_notes: str | None = None
+
+
+@dataclass
+class GroceryDetail:
+    service_request_id: UUID
+    store_id: UUID
+    total_items: int = 0
+    special_notes: str | None = None
+    contactless_delivery: bool = False
+    estimated_bag_count: int | None = None

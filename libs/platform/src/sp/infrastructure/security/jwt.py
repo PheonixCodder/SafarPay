@@ -81,6 +81,41 @@ def create_tokens(
     }
 
 
+def create_service_token(
+    service_name: str,
+    secret: str,
+    algorithm: str = "HS256",
+    expiration_hours: int = 24,
+) -> str:
+    """Create a long-lived JWT for service-to-service authentication.
+
+    The token uses a deterministic UUID derived from the service name so it
+    can be identified in logs. The ``role`` is set to ``"service"`` which
+    downstream endpoints should accept for internal calls.
+
+    Args:
+        service_name: Logical name of the calling service (e.g. "geospatial").
+        secret: Shared JWT signing secret.
+        algorithm: JWT algorithm (default HS256).
+        expiration_hours: Token TTL — defaults to 24 h (renewed at app restart).
+    """
+    import uuid as _uuid
+
+    # Deterministic UUID-5 from service name for traceability
+    svc_id = _uuid.uuid5(_uuid.NAMESPACE_DNS, f"{service_name}.safarpay.internal")
+    session_id = _uuid.uuid5(_uuid.NAMESPACE_DNS, f"{service_name}.session.safarpay.internal")
+    now = datetime.now(timezone.utc)
+    payload = {
+        "user_id": str(svc_id),
+        "email": f"{service_name}@internal.safarpay",
+        "role": "service",
+        "session_id": str(session_id),
+        "iat": now,
+        "exp": now + timedelta(hours=expiration_hours),
+    }
+    return jwt.encode(payload, secret, algorithm=algorithm)
+
+
 def verify_token(
     token: str,
     secret: str,
