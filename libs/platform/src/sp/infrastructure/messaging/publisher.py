@@ -30,11 +30,15 @@ class EventPublisher:
 
     async def publish(self, event: BaseEvent) -> bool:
         """Serialize and publish a typed event. Returns True on success."""
+        return await self.publish_to_topic(self.topic, event)
+
+    async def publish_to_topic(self, topic: str, event: BaseEvent) -> bool:
+        """Serialize and publish a typed event to an explicit Kafka topic."""
         if not self._producer:
             logger.warning(
                 "No Kafka producer. Event dropped: type=%s topic=%s",
                 event.event_type,
-                self.topic,
+                topic,
             )
             return False
 
@@ -48,7 +52,7 @@ class EventPublisher:
             headers.append(("correlation_id", event.correlation_id.encode()))
 
         return await self._producer.send(
-            topic=self.topic,
+            topic=topic,
             value=payload,
             key=str(event.event_id),
             headers=headers,

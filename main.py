@@ -5,7 +5,7 @@ from sp.core.observability.logging import setup_logging
 app = FastAPI(title="SafarPay Auth Service")
 
 # Setup logging
-setup_logging()
+setup_logging("auth")
 
 # Include auth routes
 app.include_router(auth_router)
