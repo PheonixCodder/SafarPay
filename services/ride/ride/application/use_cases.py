@@ -32,6 +32,7 @@ if TYPE_CHECKING:
     )
 
 from ..domain.exceptions import (
+    InvalidStateTransitionError,
     RideNotFoundError,
     StopNotFoundError,
     UnauthorisedRideAccessError,
@@ -47,10 +48,12 @@ from ..domain.interfaces import (
 )
 from ..domain.models import (
     DriverCandidate,
+    PricingMode,
     ProofImage,
     RideStatus,
     ServiceRequest,
     Stop,
+    StopType,
     VerificationCode,
 )
 from ..infrastructure.websocket_manager import DriverEvent, PassengerEvent, WebSocketManager
@@ -229,12 +232,30 @@ class CreateRideUseCase:
         detail_data = cmd.detail.model_dump(mode="python")
         ride = await self._repo.create_full(ride, stops, detail_data)
 
+        # Enter MATCHING state so ride can be accepted (FIXED mode) or enter bidding (BID/HYBRID)
+        ride.begin_matching()
+
         await _cache_ride(self._cache, ride)
+        # Extract matching data for geospatial service
+        pickup_stop = next((s for s in stops if s.stop_type == StopType.PICKUP), None)
+        dropoff_stop = next((s for s in stops if s.stop_type == StopType.DROPOFF), None)
+        vehicle_type = getattr(cmd.detail, "preferred_vehicle_type", None)
+        if hasattr(cmd.detail, "vehicle_type_requested"):
+             vehicle_type = cmd.detail.vehicle_type_requested
+        elif hasattr(cmd.detail, "vehicle_type"):
+             vehicle_type = cmd.detail.vehicle_type
+
         await _publish(self._pub, ServiceRequestCreatedEvent(payload={
             "ride_id": str(ride.id),
             "passenger_id": str(ride.passenger_id),
             "service_type": ride.service_type.value,
             "category": ride.category.value,
+            "pickup_latitude": pickup_stop.latitude if pickup_stop else 0.0,
+            "pickup_longitude": pickup_stop.longitude if pickup_stop else 0.0,
+            "dropoff_latitude": dropoff_stop.latitude if dropoff_stop else None,
+            "dropoff_longitude": dropoff_stop.longitude if dropoff_stop else None,
+            "vehicle_type": vehicle_type.value if vehicle_type else None,
+            "matching_radius_km": 5.0,
         }))
         await self._ws.broadcast_to_passenger(
             passenger_id, PassengerEvent.RIDE_CREATED,
@@ -340,6 +361,12 @@ class AcceptRideUseCase:
 
     async def execute(self, ride_id: UUID, cmd: AcceptRideRequest, driver_id: UUID) -> RideResponse:
         ride = await _load_ride_or_404(self._repo, ride_id)
+        # FIXED mode only - BID_BASED/HYBRID must go through bidding service
+        if ride.pricing_mode != PricingMode.FIXED:
+            raise InvalidStateTransitionError(
+                f"Direct accept not allowed for {ride.pricing_mode.value} pricing. "
+                f"Use the Bidding Service (POST /bidding/sessions/{{id}}/bids) instead."
+            )
         ride.accept(driver_id)
         await self._repo.update_status(
             ride.id, ride.status,
@@ -348,7 +375,11 @@ class AcceptRideUseCase:
         )
         await _cache_ride(self._cache, ride)
         await _publish(self._pub, ServiceRequestAcceptedEvent(payload={
-            "ride_id": str(ride.id), "driver_id": str(driver_id),
+            "ride_id": str(ride.id),
+            "passenger_user_id": str(ride.passenger_id),
+            "driver_id": str(driver_id),
+            "pricing_mode": ride.pricing_mode.value,
+            "final_price": ride.final_price,
         }))
         await self._ws.broadcast_to_passenger(
             ride.passenger_id, PassengerEvent.DRIVER_ASSIGNED,
@@ -390,6 +421,8 @@ class InternalAssignDriverUseCase:
         await _publish(self._pub, ServiceRequestAcceptedEvent(payload={
             "ride_id": str(ride.id), "driver_id": str(driver_id),
             "passenger_user_id": str(ride.passenger_id),  # consumed by Location Service
+            "pricing_mode": ride.pricing_mode.value,
+            "final_price": ride.final_price,
         }))
 
         await self._ws.broadcast_to_passenger(
@@ -560,7 +593,7 @@ class MarkStopArrivedUseCase:
         if ride.assigned_driver_id != driver_id:
             raise UnauthorisedRideAccessError("Driver is not assigned to this ride.")
         stop.mark_arrived()
-        await self._stop_repo.update_arrived_at(stop_id, stop.arrived_at)  # type: ignore[arg-type]
+        await self._stop_repo.update_arrived_at(stop_id, stop.arrived_at)
         if ride.status == RideStatus.ACCEPTED:
             ride.driver_arriving()
             await self._repo.update_status(ride.id, ride.status)
@@ -595,7 +628,7 @@ class MarkStopCompletedUseCase:
         if ride.assigned_driver_id != driver_id:
             raise UnauthorisedRideAccessError("Driver is not assigned to this ride.")
         stop.mark_completed()
-        await self._stop_repo.update_completed_at(stop_id, stop.completed_at)  # type: ignore[arg-type]
+        await self._stop_repo.update_completed_at(stop_id, stop.completed_at)
         await _publish(self._pub, ServiceStopCompletedEvent(payload={
             "stop_id": str(stop_id), "ride_id": str(ride.id),
         }))

@@ -49,58 +49,61 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     app.state.identity_engine = IdentityVerificationEngine(metrics_collector=app.state.metrics)
 
     # Messaging
-    producer = KafkaProducerWrapper(settings.KAFKA_BOOTSTRAP_SERVERS)
-    app.state.publisher = EventPublisher("verification.events", producer)
+    if settings.KAFKA_BOOTSTRAP_SERVERS:
+        producer = KafkaProducerWrapper(settings.KAFKA_BOOTSTRAP_SERVERS)
+        app.state.publisher = EventPublisher("verification.events", producer)
 
-    consumer = KafkaConsumerWrapper(
-        settings.KAFKA_BOOTSTRAP_SERVERS, 
-        group_id="verification-service",
-        topics=["auth.events", "verification.events"]
-    )
+        consumer = KafkaConsumerWrapper(
+            settings.KAFKA_BOOTSTRAP_SERVERS, 
+            group_id="verification-service",
+            topics=["auth.events", "verification.events"]
+        )
     
-    subscriber = EventSubscriber(consumer)
-    
-    async def review_handler(event):
-        driver_id_str = event.payload.get("driver_id")
-        if not driver_id_str: return
-        driver_id = uuid.UUID(driver_id_str)
+        subscriber = EventSubscriber(consumer)
         
-        factory = app.state.session_factory
-        # Correctly manage session lifecycle in background task
-        async with factory() as session:
-            try:
-                driver_repo = DriverRepository(session)
-                rejection_repo = VerificationRejectionRepository(session)
-                use_cases = VerificationUseCases(
-                    driver_repo=driver_repo,
-                    vehicle_repo=VehicleRepository(session),
-                    document_repo=DocumentRepository(session),
-                    driver_vehicle_repo=DriverVehicleRepository(session),
-                    storage_provider=S3StorageProvider(),
-                    rejection_resolver=RejectionResolver(rejection_repo),
-                    identity_engine=app.state.identity_engine,
-                    event_publisher=app.state.publisher,
-                    rejection_repo=rejection_repo,
-                    cache_manager=app.state.cache,
-                )
-                await use_cases.execute_verification_review(driver_id)
-                await session.commit()
-            except Exception:
-                await session.rollback()
-                raise
+        async def review_handler(event):
+            driver_id_str = event.payload.get("driver_id")
+            if not driver_id_str: return
+            driver_id = uuid.UUID(driver_id_str)
             
-    subscriber.register("verification.review_requested", review_handler)
-    app.state.subscriber_task = asyncio.create_task(subscriber.start())
+            factory = app.state.session_factory
+            # Correctly manage session lifecycle in background task
+            async with factory() as session:
+                try:
+                    driver_repo = DriverRepository(session)
+                    rejection_repo = VerificationRejectionRepository(session)
+                    use_cases = VerificationUseCases(
+                        driver_repo=driver_repo,
+                        vehicle_repo=VehicleRepository(session),
+                        document_repo=DocumentRepository(session),
+                        driver_vehicle_repo=DriverVehicleRepository(session),
+                        storage_provider=S3StorageProvider(),
+                        rejection_resolver=RejectionResolver(rejection_repo),
+                        identity_engine=app.state.identity_engine,
+                        event_publisher=app.state.publisher,
+                        rejection_repo=rejection_repo,
+                        cache_manager=app.state.cache,
+                    )
+                    await use_cases.execute_verification_review(driver_id)
+                    await session.commit()
+                except Exception:
+                    await session.rollback()
+                    raise
+                
+        subscriber.register("verification.review_requested", review_handler)
+        app.state.subscriber_task = asyncio.create_task(subscriber.start())
 
     yield
     
-    app.state.subscriber_task.cancel()
-    try:
-        await app.state.subscriber_task
-    except asyncio.CancelledError:
-        pass
-    await subscriber.stop()
-    await app.state.publisher.close()
+    if settings.KAFKA_BOOTSTRAP_SERVERS:
+        app.state.subscriber_task.cancel()
+        try:
+            await app.state.subscriber_task
+        except asyncio.CancelledError:
+            pass
+        await subscriber.stop()
+    if settings.KAFKA_BOOTSTRAP_SERVERS:
+        await app.state.publisher.close()
     await app.state.cache.close()
     await app.state.db_engine.dispose()
 

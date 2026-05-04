@@ -15,7 +15,7 @@ from ..domain.interfaces import (
     VerificationRejectionRepositoryProtocol,
 )
 from ..domain.models import Driver, Vehicle, Document, DriverVehicle, VerificationRejection
-from .orm_models import DriverORM, VehicleORM, DocumentORM, DriverVehicleORM, VerificationRejectionORM
+from .orm_models import DriverORM, VehicleORM, DocumentORM, DriverVehicleORM, VerificationRejectionORM, VehicleType
 
 
 class DriverRepository(DriverRepositoryProtocol):
@@ -227,6 +227,7 @@ class DriverVehicleRepository(DriverVehicleRepositoryProtocol):
             id=orm.id,
             driver_id=orm.driver_id,
             vehicle_id=orm.vehicle_id,
+            vehicle_type=orm.vehicle_type,
             is_currently_selected=orm.is_currently_selected,
             assigned_at=orm.assigned_at,
             created_at=orm.created_at,
@@ -250,9 +251,13 @@ class DriverVehicleRepository(DriverVehicleRepositoryProtocol):
         return self._to_domain(orm) if orm else None
 
     async def link_driver_vehicle(
-        self, driver_id: UUID, vehicle_id: UUID
+        self, driver_id: UUID, vehicle_id: UUID, vehicle_type: VehicleType
     ) -> DriverVehicle:
-        orm = DriverVehicleORM(driver_id=driver_id, vehicle_id=vehicle_id)
+        orm = DriverVehicleORM(
+            driver_id=driver_id, 
+            vehicle_id=vehicle_id,
+            vehicle_type=vehicle_type
+        )
         self._session.add(orm)
         await self._session.flush()
         return self._to_domain(orm)

@@ -86,6 +86,7 @@ class DriverVehicle:
     id: uuid.UUID
     driver_id: uuid.UUID
     vehicle_id: uuid.UUID
+    vehicle_type: VehicleType = VehicleType.ECONOMY
     is_currently_selected: bool = False
     assigned_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     created_at: datetime | None = None

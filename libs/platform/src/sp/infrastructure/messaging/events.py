@@ -141,6 +141,12 @@ class DriverStatusChangedEvent(BaseEvent):
     # payload: {driver_id, status: ONLINE|OFFLINE|ON_RIDE, ride_id}
 
 
+class GeofenceViolationEvent(BaseEvent):
+    """Published by Geospatial Service when a driver/passenger violates a restricted zone."""
+    event_type: Literal["geofence.violation"] = "geofence.violation"
+    # payload: {actor_id, actor_role, zone_id, zone_type, lat, lng, recorded_at}
+
+
 # ── Registry for deserialisation in subscriber ────────────────────────────────
 
 EVENT_REGISTRY: dict[str, type[BaseEvent]] = {
@@ -169,4 +175,5 @@ EVENT_REGISTRY: dict[str, type[BaseEvent]] = {
     "driver.location.updated": DriverLocationUpdatedEvent,
     "passenger.location.updated": PassengerLocationUpdatedEvent,
     "driver.status.changed": DriverStatusChangedEvent,
+    "geofence.violation": GeofenceViolationEvent,
 }

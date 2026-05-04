@@ -20,6 +20,7 @@ members = [
     "services/geospatial",
     "services/notification",
     "services/verification",
+    "services/communication",
 ]
 
 [dependency-groups]
@@ -53,6 +54,7 @@ root_packages = [
     "notification",
     "verification",
     "geospatial",
+    "communication",
 ]
 
 [[tool.importlinter.contracts]]
@@ -80,6 +82,7 @@ source_modules = [
     "notification.domain",
     "verification.domain",
     "geospatial.domain",
+    "communication.domain",
 ]
 forbidden_modules = [
     "sp",
@@ -101,6 +104,7 @@ modules = [
     "notification",
     "verification",
     "geospatial",
+    "communication",
 ]
 
 # ── Pytest config ─────────────────────────────────────────────────────────────

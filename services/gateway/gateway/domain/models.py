@@ -38,4 +38,7 @@ def build_upstream_registry(settings) -> dict[str, UpstreamService]:
         "geospatial": UpstreamService(
             "geospatial", settings.GEOSPATIAL_SERVICE_URL, timeout_seconds=20.0
         ),
+        "communication": UpstreamService(
+            "communication", settings.COMMUNICATION_SERVICE_URL, timeout_seconds=20.0
+        ),
     }

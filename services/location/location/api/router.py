@@ -33,7 +33,7 @@ from uuid import UUID
 import pydantic
 from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect, status
 from sp.core.config import get_settings
-from sp.infrastructure.security.dependencies import CurrentUser
+from sp.infrastructure.security.dependencies import CurrentUser, CurrentDriver, get_current_driver_ws
 from sp.infrastructure.security.jwt import verify_token
 
 from ..application.schemas import (
@@ -119,16 +119,17 @@ def _handle_domain(exc: LocationDomainError) -> HTTPException:
     summary="HTTP fallback GPS update for drivers",
 )
 async def update_driver_location_http(
-    driver_id: UUID,
+    path_driver_id: UUID,
     req: LocationUpdateRequest,
+    current_driver: CurrentDriver,
     current_user: CurrentUser,
     uc: Annotated[UpdateDriverLocationUseCase, Depends(get_update_driver_location_uc)],
 ) -> None:
     """HTTP fallback for when the driver WebSocket is unavailable."""
-    if str(current_user.user_id) != str(driver_id) and current_user.role != "admin":
+    if str(current_driver) != str(path_driver_id) and current_user.role != "admin":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
     try:
-        await uc.execute(driver_id=driver_id, req=req)
+        await uc.execute(driver_id=path_driver_id, req=req)
     except LocationDomainError as exc:
         raise _handle_domain(exc) from exc
 
@@ -139,14 +140,11 @@ async def update_driver_location_http(
     summary="Get current driver location",
 )
 async def get_driver_location(
-    driver_id: UUID,
-    current_user: CurrentUser,
+    current_driver: CurrentDriver,
     uc: Annotated[GetCurrentDriverLocationUseCase, Depends(get_current_driver_location_uc)],
 ) -> DriverLocationResponse:
-    if str(current_user.user_id) != str(driver_id) and current_user.role != "admin":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
     try:
-        return await uc.execute(driver_id)
+        return await uc.execute(current_driver)
     except LocationDomainError as exc:
         raise _handle_domain(exc) from exc
 
@@ -157,15 +155,16 @@ async def get_driver_location(
     summary="Set driver ONLINE or OFFLINE",
 )
 async def set_driver_status(
-    driver_id: UUID,
-    req: DriverStatusRequest,
+    path_driver_id: UUID,
+    current_driver: CurrentDriver,
     current_user: CurrentUser,
+    req: DriverStatusRequest,
     uc: Annotated[SetDriverStatusUseCase, Depends(get_set_driver_status_uc)],
 ) -> StatusResponse:
-    if str(current_user.user_id) != str(driver_id) and current_user.role != "admin":
+    if str(current_driver) != str(path_driver_id) and current_user.role != "admin":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
     try:
-        return await uc.execute(driver_id=driver_id, req=req)
+        return await uc.execute(driver_id=path_driver_id, req=req)
     except LocationDomainError as exc:
         raise _handle_domain(exc) from exc
 
@@ -278,10 +277,10 @@ async def reverse_geocode(
 @router.websocket("/ws/drivers/location")
 async def ws_driver_location(
     websocket: WebSocket,
-    token: str = Query(..., description="JWT access token — intentional WS exception"),
+    ws_manager: WebSocketManager = Depends(get_ws_manager),
     uc: UpdateDriverLocationUseCase = Depends(get_update_driver_location_uc),
     set_status_uc: SetDriverStatusUseCase = Depends(get_set_driver_status_uc),
-    ws_manager: WebSocketManager = Depends(get_ws_manager),
+    current_driver: CurrentDriver = Depends(get_current_driver_ws),
 ) -> None:
     """Driver connects, sends GPS pings every ~5 seconds.
 
@@ -293,13 +292,7 @@ async def ws_driver_location(
 
     On disconnect: driver is marked OFFLINE and removed from Redis Geo set.
     """
-    settings = get_settings()
-    payload = verify_token(token, settings.JWT_SECRET, settings.JWT_ALGORITHM)
-    if not payload or payload.role not in {"driver", "admin"}:
-        await websocket.close(code=1008, reason="Unauthorized")
-        return
-
-    driver_id = payload.user_id
+    driver_id = current_driver
     await ws_manager.connect_driver(driver_id, websocket)
     logger.info("driver=%s | WS connected", driver_id)
 

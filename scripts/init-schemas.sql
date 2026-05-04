@@ -11,6 +11,7 @@ CREATE SCHEMA IF NOT EXISTS bidding;
 CREATE SCHEMA IF NOT EXISTS verification;
 CREATE SCHEMA IF NOT EXISTS geospatial;
 CREATE SCHEMA IF NOT EXISTS location;
+CREATE SCHEMA IF NOT EXISTS communication;
 
 -- Grant privileges
 GRANT ALL ON SCHEMA auth         TO safarpay;
@@ -18,3 +19,4 @@ GRANT ALL ON SCHEMA bidding      TO safarpay;
 GRANT ALL ON SCHEMA verification TO safarpay;
 GRANT ALL ON SCHEMA geospatial   TO safarpay;
 GRANT ALL ON SCHEMA location     TO safarpay;
+GRANT ALL ON SCHEMA communication TO safarpay;

@@ -98,6 +98,9 @@ class RideBiddingSessionORM(Base, TimestampMixin):
 
     max_bids_allowed: Mapped[int | None] = mapped_column(Integer)
     min_driver_rating: Mapped[float | None] = mapped_column(Numeric(3, 2))
+    baseline_price: Mapped[float | None] = mapped_column(  # For HYBRID mode — initial suggested price
+        Numeric(12, 2), nullable=True
+    )
 
     # Relationships
     bids: Mapped[list[RideBidORM]] = relationship(

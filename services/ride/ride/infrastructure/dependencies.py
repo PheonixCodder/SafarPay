@@ -1,6 +1,7 @@
 """Ride service DI providers — wire every use case from app.state."""
 from __future__ import annotations
 
+from sp.infrastructure.security.dependencies import get_current_user_ws
 from typing import Annotated
 from uuid import UUID
 
@@ -63,61 +64,6 @@ def get_publisher(request: Request) -> EventPublisher | None:
 
 def get_ws_manager(request: Request) -> WebSocketManager:
     return request.app.state.ws_manager
-
-
-# ---------------------------------------------------------------------------
-# Driver identity helper
-# ---------------------------------------------------------------------------
-
-async def get_current_driver(
-    current_user: Annotated[TokenPayload, Depends(get_current_user)],
-    session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> UUID:
-    """Resolve the authenticated user's driver_id from verification.drivers.
-
-    Chains off get_current_user so the JWT is always verified first.
-    Raises HTTP 403 when the user has no driver profile, ensuring driver-scoped
-    routes cannot be called by plain passengers or unregistered users.
-    """
-    result = await session.execute(
-        text("SELECT id FROM verification.drivers WHERE user_id = :uid LIMIT 1"),
-        {"uid": current_user.user_id},
-    )
-    row = result.fetchone()
-    if row is None:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Caller has no driver profile — driver account required.",
-        )
-    return row[0]  # type: ignore[return-value]
-
-
-# Convenience alias — mirrors the CurrentUser pattern from sp.infrastructure.security
-CurrentDriver = Annotated[UUID, Depends(get_current_driver)]
-
-
-async def get_optional_driver_id(
-    current_user: Annotated[TokenPayload, Depends(get_current_user)],
-    session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> UUID | None:
-    """Return the driver_id for the authenticated user, or None if they have no driver profile.
-
-    Used by proof endpoints that can be called by either a passenger or the assigned
-    driver: the caller's driver_id (not their auth user_id) must be compared against
-    ride.assigned_driver_id / proof.uploaded_by_driver_id which stores the driver UUID
-    from verification.drivers.id.  When the caller is a passenger this returns None and
-    the passenger-path check uses current_user.user_id instead.
-    """
-    result = await session.execute(
-        text("SELECT id FROM verification.drivers WHERE user_id = :uid LIMIT 1"),
-        {"uid": current_user.user_id},
-    )
-    row = result.fetchone()
-    return row[0] if row else None  # type: ignore[return-value]
-
-
-# Annotated alias for optional-driver injection
-OptionalDriverId = Annotated[UUID | None, Depends(get_optional_driver_id)]
 
 
 def get_webhook(request: Request) -> WebhookClientProtocol:

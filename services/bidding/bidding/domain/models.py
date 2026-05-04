@@ -109,6 +109,7 @@ class BiddingSession:
     closed_at: datetime | None = None
     max_bids_allowed: int | None = None
     min_driver_rating: float | None = None
+    baseline_price: float | None = None
 
     @classmethod
     def create(
@@ -135,3 +136,49 @@ class BiddingSession:
     def expire(self) -> None:
         self.status = BiddingSessionStatus.EXPIRED
         self.closed_at = datetime.now(timezone.utc)
+
+
+@dataclass
+class CounterOffer:
+    id: UUID
+    session_id: UUID
+    price: float
+    eta_minutes: int | None = None
+    user_id: UUID | None = None
+    driver_id: UUID | None = None
+    bid_id: UUID | None = None
+    status: CounterOfferStatus = CounterOfferStatus.PENDING
+    responded_at: datetime | None = None
+    reason: str | None = None
+
+    @classmethod
+    def create(
+        cls,
+        session_id: UUID,
+        price: float,
+        eta_minutes: int | None = None,
+        user_id: UUID | None = None,
+        driver_id: UUID | None = None,
+        bid_id: UUID | None = None,
+    ) -> CounterOffer:
+        return cls(
+            id=uuid4(),
+            session_id=session_id,
+            price=price,
+            eta_minutes=eta_minutes,
+            user_id=user_id,
+            driver_id=driver_id,
+            bid_id=bid_id,
+        )
+
+    def accept(self) -> None:
+        self.status = CounterOfferStatus.ACCEPTED
+        self.responded_at = datetime.now(timezone.utc)
+
+    def reject(self) -> None:
+        self.status = CounterOfferStatus.REJECTED
+        self.responded_at = datetime.now(timezone.utc)
+
+    def expire(self) -> None:
+        self.status = CounterOfferStatus.EXPIRED
+        self.responded_at = datetime.now(timezone.utc)

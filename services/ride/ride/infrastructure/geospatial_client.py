@@ -61,12 +61,8 @@ class GeospatialClient:
             "radius_km": radius_km,
             "limit": limit,
         }
-        if category:
-            params["category"] = category
         if vehicle_type:
             params["vehicle_type"] = vehicle_type
-        if fuel_types:
-            params["fuel_types"] = ",".join(fuel_types)
 
         try:
             resp = await self._client.get("/api/v1/drivers/nearby", params=params)
@@ -88,11 +84,15 @@ class GeospatialClient:
     def _to_domain(raw: dict[str, Any]) -> DriverCandidate:
         return DriverCandidate(
             driver_id=UUID(raw["driver_id"]),
+            latitude=float(raw.get("latitude", 0.0)),
+            longitude=float(raw.get("longitude", 0.0)),
             distance_km=float(raw.get("distance_km", 0)),
             vehicle_type=raw.get("vehicle_type", "OTHER"),
             rating=raw.get("rating"),
             priority_score=float(raw.get("priority_score", 0)),
             estimated_arrival_minutes=raw.get("estimated_arrival_minutes"),
+            composite_score=float(raw.get("composite_score", 0.0)),
+            h3_cell=raw.get("h3_cell"),
         )
 
 

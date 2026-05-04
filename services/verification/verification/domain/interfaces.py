@@ -5,6 +5,7 @@ from uuid import UUID
 from .models import (
     Driver,
     Vehicle,
+    VehicleType,
     Document,
     DriverVehicle,
     VerificationRejection,
@@ -46,7 +47,7 @@ class DriverVehicleRepositoryProtocol(Protocol):
         self, driver_id: UUID
     ) -> DriverVehicle | None: ...
     async def link_driver_vehicle(
-        self, driver_id: UUID, vehicle_id: UUID
+        self, driver_id: UUID, vehicle_id: UUID, vehicle_type: VehicleType
     ) -> DriverVehicle: ...
     async def set_active_vehicle(self, driver_id: UUID, vehicle_id: UUID) -> None: ...
 
