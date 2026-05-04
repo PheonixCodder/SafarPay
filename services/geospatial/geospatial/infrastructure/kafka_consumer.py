@@ -78,7 +78,10 @@ class GeospatialKafkaConsumer:
                         await self._process_message(msg)
                     except Exception as exc:
                         logger.error("Error processing msg: %s", exc)
-                        
+
+                if messages:
+                    self._consumer.commit()
+
                 await asyncio.sleep(0.01)
         except asyncio.CancelledError:
             pass

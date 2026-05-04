@@ -39,7 +39,7 @@ def upgrade() -> None:
 
     # Ensure PostGIS is available (safe to call multiple times)
     op.execute("CREATE EXTENSION IF NOT EXISTS postgis")
-    op.execute('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"')
+    op.execute("CREATE EXTENSION IF NOT EXISTS pgcrypto")
 
     # ── location_history ───────────────────────────────────────────────────
     op.create_table(

@@ -25,9 +25,9 @@ from ..domain.interfaces import (
     WebhookClientProtocol,
     CounterOfferRepositoryProtocol
 )
-from ..domain.models import Bid, BiddingSession, BiddingSessionStatus, CounterOffer
+from ..domain.models import Bid, BiddingSession, BiddingSessionStatus, CounterOffer, BidStatus
 from ..infrastructure.websocket_manager import BiddingEvent, WebSocketManager
-from .schemas import BiddingSessionResponse, BidResponse, ItemBidsResponse, PlaceBidRequest, CounterOffer
+from .schemas import BiddingSessionResponse, BidResponse, ItemBidsResponse, PlaceBidRequest, CounterOfferInSession
 
 logger = logging.getLogger("bidding.use_cases")
 
