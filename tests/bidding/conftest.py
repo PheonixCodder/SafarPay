@@ -1,28 +1,11 @@
 from __future__ import annotations
 
-# ruff: noqa: E402,I001
-
-import sys
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 from typing import Any
 from uuid import UUID, uuid4
 
 import pytest
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
-from sp.infrastructure.security.dependencies import get_current_driver, get_current_user
-from sp.infrastructure.security.jwt import TokenPayload
-
-ROOT = Path(__file__).resolve().parents[2]
-BIDDING_SRC = ROOT / "services" / "bidding"
-if str(BIDDING_SRC) not in sys.path:
-    sys.path.insert(0, str(BIDDING_SRC))
-loaded_bidding = sys.modules.get("bidding")
-if loaded_bidding is not None and str(BIDDING_SRC) not in str(getattr(loaded_bidding, "__file__", "")):
-    del sys.modules["bidding"]
-
 from bidding.api.router import router as bidding_router
 from bidding.domain.models import (
     Bid,
@@ -33,7 +16,10 @@ from bidding.domain.models import (
     CounterOfferStatus,
     PricingMode,
 )
-
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+from sp.infrastructure.security.dependencies import get_current_driver, get_current_user
+from sp.infrastructure.security.jwt import TokenPayload
 
 PASSENGER_ID = UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
 OTHER_PASSENGER_ID = UUID("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")

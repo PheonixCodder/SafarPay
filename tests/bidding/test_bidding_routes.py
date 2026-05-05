@@ -1,14 +1,9 @@
 from __future__ import annotations
 
-# ruff: noqa: E402,I001
-
-import sys
-from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
 import pytest
-from fastapi import FastAPI
 from bidding.application.use_cases import _bid_to_resp
 from bidding.domain.exceptions import (
     BiddingClosedError,
@@ -28,11 +23,8 @@ from bidding.infrastructure.dependencies import (
     get_place_bid_uc,
     get_withdraw_bid_uc,
 )
+from fastapi import FastAPI
 from sp.infrastructure.security.dependencies import get_current_driver, get_current_user
-
-ROOT = Path(__file__).resolve().parents[2]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
 
 from tests.bidding.conftest import (
     DRIVER_ID,

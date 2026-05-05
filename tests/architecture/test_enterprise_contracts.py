@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import inspect
-import sys
 from importlib import import_module
 from pathlib import Path
+from typing import cast
 
 try:
     import tomllib
@@ -11,14 +11,9 @@ except ModuleNotFoundError:  # pragma: no cover - Python < 3.11
     import tomli as tomllib
 
 from sp.infrastructure.db.base import Base, TimestampMixin
+from sqlalchemy import Table
 
 ROOT = Path(__file__).resolve().parents[2]
-
-for service_dir in (ROOT / "services").iterdir():
-    if service_dir.is_dir():
-        service_path = str(service_dir)
-        if service_path not in sys.path:
-            sys.path.insert(0, service_path)
 
 SERVICE_PACKAGES = {
     "auth",
@@ -109,4 +104,5 @@ def test_all_service_orm_models_use_shared_base_and_timestamp_policy() -> None:
 
     metadata_tables = set(Base.metadata.tables)
     for orm_class in orm_classes:
-        assert orm_class.__table__.key in metadata_tables
+        table = cast(Table, orm_class.__table__)
+        assert table.key in metadata_tables

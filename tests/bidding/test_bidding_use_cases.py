@@ -1,11 +1,7 @@
 from __future__ import annotations
 
-# ruff: noqa: E402,I001
-
 import json
-import sys
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 from typing import Any, cast
 from uuid import uuid4
 
@@ -32,17 +28,13 @@ from bidding.domain.exceptions import (
 from bidding.domain.models import BiddingSessionStatus, BidStatus, CounterOfferStatus, PricingMode
 from bidding.infrastructure.websocket_manager import BiddingEvent
 
-ROOT = Path(__file__).resolve().parents[2]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
-
 from tests.bidding.conftest import (
     DRIVER_ID,
     OTHER_DRIVER_ID,
     OTHER_PASSENGER_ID,
     PASSENGER_ID,
-    FakeBidRepo,
     FakeBiddingWebSockets,
+    FakeBidRepo,
     FakeCache,
     FakeCounterRepo,
     FakeRideClient,

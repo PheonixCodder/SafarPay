@@ -1,20 +1,10 @@
 from __future__ import annotations
 
-# ruff: noqa: E402,I001
-
-import sys
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 from typing import Any, cast
 
 import pytest
 from fastapi import FastAPI
-from sp.infrastructure.security.dependencies import get_current_driver, get_current_user
-
-ROOT = Path(__file__).resolve().parents[2]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
-
 from location.application.use_cases import (
     _driver_to_response,
     _passenger_to_response,
@@ -38,6 +28,7 @@ from location.infrastructure.dependencies import (
 )
 from location.infrastructure.kafka_consumer import LocationKafkaConsumer
 from location.infrastructure.rate_limiter import LocationRateLimiter
+from sp.infrastructure.security.dependencies import get_current_driver, get_current_user
 
 from tests.location.conftest import (
     DRIVER_ID,
@@ -226,11 +217,13 @@ async def test_location_kafka_consumer_maintains_participant_cache_and_driver_st
     consumer = LocationKafkaConsumer("localhost:9092", cast(Any, store), cast(Any, ws))
 
     await consumer._dispatch({
-        "event_type": "service.request.accepted",
-        "payload": {
-            "ride_id": str(RIDE_ID),
-            "driver_id": str(DRIVER_ID),
-            "passenger_user_id": str(PASSENGER_ID),
+        "value": {
+            "event_type": "service.request.accepted",
+            "payload": {
+                "ride_id": str(RIDE_ID),
+                "driver_id": str(DRIVER_ID),
+                "passenger_user_id": str(PASSENGER_ID),
+            },
         },
     })
     assert ws.subscribed == [(RIDE_ID, PASSENGER_ID)]
@@ -238,11 +231,15 @@ async def test_location_kafka_consumer_maintains_participant_cache_and_driver_st
     assert store.status_updates[0] == (DRIVER_ID, DriverStatus.ON_RIDE, RIDE_ID)
 
     await consumer._dispatch({
-        "event_type": "service.request.completed",
-        "payload": {"ride_id": str(RIDE_ID), "driver_id": str(DRIVER_ID)},
+        "value": {
+            "event_type": "service.request.completed",
+            "payload": {"ride_id": str(RIDE_ID), "driver_id": str(DRIVER_ID)},
+        },
     })
     assert ws.unsubscribed_all == [RIDE_ID]
     assert RIDE_ID not in store.participants
     assert store.status_updates[-1] == (DRIVER_ID, DriverStatus.ONLINE, None)
 
-    await consumer._dispatch({"event_type": "service.request.accepted", "payload": {"ride_id": "bad"}})
+    await consumer._dispatch({
+        "value": {"event_type": "service.request.accepted", "payload": {"ride_id": "bad"}}
+    })

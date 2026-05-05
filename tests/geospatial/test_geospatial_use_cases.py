@@ -1,19 +1,10 @@
 from __future__ import annotations
 
-# ruff: noqa: E402,I001
-
-import sys
 from datetime import datetime, time, timezone
-from pathlib import Path
 from typing import Any, cast
 from uuid import uuid4
 
 import pytest
-
-ROOT = Path(__file__).resolve().parents[2]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
-
 from geospatial.application.use_cases import (
     CalculateETAUseCase,
     CalculateSurgeMultiplierUseCase,

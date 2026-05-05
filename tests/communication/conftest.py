@@ -1,17 +1,26 @@
 from __future__ import annotations
 
-# ruff: noqa: E402,I001
-
-import sys
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 from typing import Any
 from uuid import UUID, uuid4
 
 import pytest
+from communication.api.router import router as communication_router
+from communication.domain.models import (
+    Conversation,
+    ConversationParticipant,
+    ConversationStatus,
+    MediaType,
+    MediaUploadStatus,
+    Message,
+    MessageMedia,
+    ParticipantRole,
+    VoiceCall,
+)
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from sp.core.config import Settings
 from sp.infrastructure.db.session import get_async_session
 from sp.infrastructure.security.dependencies import (
     get_current_user,
@@ -19,27 +28,6 @@ from sp.infrastructure.security.dependencies import (
     get_optional_driver_id,
 )
 from sp.infrastructure.security.jwt import TokenPayload
-
-ROOT = Path(__file__).resolve().parents[2]
-COMMUNICATION_SRC = ROOT / "services" / "communication"
-if str(COMMUNICATION_SRC) not in sys.path:
-    sys.path.insert(0, str(COMMUNICATION_SRC))
-loaded_communication = sys.modules.get("communication")
-if loaded_communication is not None and str(COMMUNICATION_SRC) not in str(getattr(loaded_communication, "__file__", "")):
-    del sys.modules["communication"]
-
-from communication.api.router import router as communication_router
-from communication.domain.models import (
-    Conversation,
-    ConversationParticipant,
-    ConversationStatus,
-    MediaUploadStatus,
-    MediaType,
-    Message,
-    MessageMedia,
-    ParticipantRole,
-    VoiceCall,
-)
 
 PASSENGER_ID = UUID("11111111-1111-1111-1111-111111111111")
 DRIVER_USER_ID = UUID("22222222-2222-2222-2222-222222222222")
@@ -380,7 +368,7 @@ async def noop_lifespan(app: FastAPI):
 def communication_app() -> FastAPI:
     app = FastAPI(lifespan=noop_lifespan)
     app.include_router(communication_router, prefix="/api/v1")
-    app.state.settings = type("Settings", (), {"WEBRTC_ICE_SERVERS_JSON": None})()
+    app.state.settings = Settings()
     app.dependency_overrides[get_current_user] = lambda: token(PASSENGER_ID)
     app.dependency_overrides[get_current_user_ws] = lambda: token(PASSENGER_ID)
     app.dependency_overrides[get_optional_driver_id] = lambda: None

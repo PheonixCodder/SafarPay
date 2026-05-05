@@ -1,34 +1,15 @@
 from __future__ import annotations
 
-# ruff: noqa: E402,I001
-
-import sys
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 from typing import Any
 from uuid import UUID, uuid4
 
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from sp.infrastructure.security.dependencies import (
-    get_current_driver,
-    get_current_user,
-    get_optional_driver_id,
-)
-from sp.infrastructure.security.jwt import TokenPayload
-
-ROOT = Path(__file__).resolve().parents[2]
-RIDE_SRC = ROOT / "services" / "ride"
-if str(RIDE_SRC) not in sys.path:
-    sys.path.insert(0, str(RIDE_SRC))
-loaded_ride = sys.modules.get("ride")
-if loaded_ride is not None and str(RIDE_SRC) not in str(getattr(loaded_ride, "__file__", "")):
-    del sys.modules["ride"]
-
-from ride.api.router import router as ride_router  # noqa: E402
-from ride.domain.models import (  # noqa: E402
+from ride.api.router import router as ride_router
+from ride.domain.models import (
     DriverCandidate,
     PricingMode,
     ProofImage,
@@ -41,7 +22,12 @@ from ride.domain.models import (  # noqa: E402
     StopType,
     VerificationCode,
 )
-
+from sp.infrastructure.security.dependencies import (
+    get_current_driver,
+    get_current_user,
+    get_optional_driver_id,
+)
+from sp.infrastructure.security.jwt import TokenPayload
 
 PASSENGER_ID = UUID("11111111-1111-1111-1111-111111111111")
 OTHER_USER_ID = UUID("22222222-2222-2222-2222-222222222222")

@@ -1,32 +1,13 @@
 from __future__ import annotations
 
-# ruff: noqa: E402,I001
-
-import sys
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 from typing import Any
 from uuid import UUID, uuid4
 
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from sp.infrastructure.security.dependencies import (
-    get_current_driver,
-    get_current_user,
-    get_optional_driver_id,
-)
-from sp.infrastructure.security.jwt import TokenPayload
-
-ROOT = Path(__file__).resolve().parents[2]
-LOCATION_SRC = ROOT / "services" / "location"
-if str(LOCATION_SRC) not in sys.path:
-    sys.path.insert(0, str(LOCATION_SRC))
-loaded_location = sys.modules.get("location")
-if loaded_location is not None and str(LOCATION_SRC) not in str(getattr(loaded_location, "__file__", "")):
-    del sys.modules["location"]
-
 from location.api.router import router as location_router
 from location.domain.models import (
     ActorType,
@@ -38,7 +19,12 @@ from location.domain.models import (
     LocationUpdate,
     PassengerLocation,
 )
-
+from sp.infrastructure.security.dependencies import (
+    get_current_driver,
+    get_current_user,
+    get_optional_driver_id,
+)
+from sp.infrastructure.security.jwt import TokenPayload
 
 PASSENGER_ID = UUID("11111111-aaaa-1111-aaaa-111111111111")
 OTHER_USER_ID = UUID("22222222-aaaa-2222-aaaa-222222222222")
@@ -202,6 +188,9 @@ class FakeLocationStore:
 
     async def delete_ride_participants(self, ride_id: UUID) -> None:
         self.participants.pop(ride_id, None)
+
+    async def reserve_inbox_event(self, event_id: UUID, *, ttl: int = 604800) -> bool:
+        return True
 
 
 class FakeHistory:

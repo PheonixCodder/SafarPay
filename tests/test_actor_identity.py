@@ -3,7 +3,6 @@ from __future__ import annotations
 from uuid import uuid4
 
 import pytest
-
 from location.application.use_cases import GetRideLocationsUseCase
 from location.domain.exceptions import UnauthorisedLocationAccessError
 from location.domain.models import ActorType

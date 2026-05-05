@@ -17,8 +17,8 @@ class _StubDeepFace:
 
 deepface_module = types.ModuleType("deepface")
 cast(Any, deepface_module).DeepFace = _StubDeepFace
-sys.modules.setdefault("deepface", deepface_module)
+sys.modules["deepface"] = deepface_module
 
 paddleocr_module = types.ModuleType("paddleocr")
 cast(Any, paddleocr_module).PaddleOCR = lambda *args, **kwargs: None
-sys.modules.setdefault("paddleocr", paddleocr_module)
+sys.modules["paddleocr"] = paddleocr_module

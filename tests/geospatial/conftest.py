@@ -1,28 +1,13 @@
 from __future__ import annotations
 
-# ruff: noqa: E402,I001
-
-import sys
 from contextlib import asynccontextmanager
-from datetime import datetime, time, timezone
-from pathlib import Path
+from datetime import datetime, time, timedelta, timezone
 from typing import Any
 from uuid import UUID, uuid4
 
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from sp.infrastructure.security.dependencies import get_current_user
-from sp.infrastructure.security.jwt import TokenPayload
-
-ROOT = Path(__file__).resolve().parents[2]
-GEOSPATIAL_SRC = ROOT / "services" / "geospatial"
-if str(GEOSPATIAL_SRC) not in sys.path:
-    sys.path.insert(0, str(GEOSPATIAL_SRC))
-loaded_geospatial = sys.modules.get("geospatial")
-if loaded_geospatial is not None and str(GEOSPATIAL_SRC) not in str(getattr(loaded_geospatial, "__file__", "")):
-    del sys.modules["geospatial"]
-
 from geospatial.api.router import router as geospatial_router
 from geospatial.domain.models import (
     Coordinates,
@@ -33,7 +18,8 @@ from geospatial.domain.models import (
     SurgeResult,
     ZoneType,
 )
-
+from sp.infrastructure.security.dependencies import get_current_user
+from sp.infrastructure.security.jwt import TokenPayload
 
 ADMIN_ID = UUID("aaaaaaaa-bbbb-1111-bbbb-aaaaaaaaaaaa")
 USER_ID = UUID("bbbbbbbb-bbbb-2222-bbbb-bbbbbbbbbbbb")
@@ -50,7 +36,7 @@ def token(user_id: UUID = ADMIN_ID, role: str = "admin") -> TokenPayload:
         role=role,
         session_id=uuid4(),
         iat=now,
-        exp=now.replace(year=now.year + 1),
+        exp=now + timedelta(days=365),
     )
 
 

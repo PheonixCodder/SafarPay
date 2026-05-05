@@ -1,10 +1,6 @@
 from __future__ import annotations
 
-# ruff: noqa: E402,I001
-
-import sys
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
@@ -31,6 +27,7 @@ from ride.infrastructure.dependencies import (
     get_add_stop_uc,
     get_cancel_ride_uc,
     get_complete_ride_uc,
+    get_create_ride_uc,
     get_gen_code_uc,
     get_gen_proof_url_uc,
     get_get_ride_uc,
@@ -42,13 +39,8 @@ from ride.infrastructure.dependencies import (
     get_start_ride_uc,
     get_upload_proof_uc,
     get_verify_code_uc,
-    get_create_ride_uc,
 )
 from sp.infrastructure.security.dependencies import get_current_user, get_optional_driver_id
-
-ROOT = Path(__file__).resolve().parents[2]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
 
 from tests.ride.conftest import (
     DRIVER_ID,

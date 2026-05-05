@@ -1,9 +1,5 @@
 from __future__ import annotations
 
-# ruff: noqa: E402,I001
-
-import sys
-from pathlib import Path
 from typing import Any, cast
 from uuid import uuid4
 
@@ -46,10 +42,6 @@ from ride.domain.exceptions import (
     VerificationCodeNotFoundError,
 )
 from ride.domain.models import PricingMode, ProofType, RideStatus, StopType
-
-ROOT = Path(__file__).resolve().parents[2]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
 
 from tests.ride.conftest import (
     DRIVER_ID,

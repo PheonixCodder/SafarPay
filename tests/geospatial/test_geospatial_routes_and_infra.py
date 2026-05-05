@@ -1,21 +1,11 @@
 from __future__ import annotations
 
-# ruff: noqa: E402,I001
-
-import sys
-from pathlib import Path
 from typing import Any, cast
 from uuid import uuid4
 
 import httpx
 import pytest
 from fastapi import FastAPI
-from sp.infrastructure.security.dependencies import get_current_user
-
-ROOT = Path(__file__).resolve().parents[2]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
-
 from geospatial.application.use_cases import FindNearbyDriversUseCase
 from geospatial.domain.exceptions import RoutingError
 from geospatial.domain.models import Coordinates, DriverCandidate, MatchingCriteria, SurgeResult
@@ -28,6 +18,7 @@ from geospatial.infrastructure.dependencies import (
 )
 from geospatial.infrastructure.location_client import LocationClient
 from geospatial.infrastructure.mapbox_client import MapboxClient
+from sp.infrastructure.security.dependencies import get_current_user
 
 from tests.geospatial.conftest import (
     DRIVER_ID,

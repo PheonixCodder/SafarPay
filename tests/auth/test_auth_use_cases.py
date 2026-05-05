@@ -28,7 +28,7 @@ from sp.infrastructure.security.jwt import create_verification_token, verify_tok
 
 
 def settings() -> Settings:
-    return Settings(JWT_SECRET="test-secret-for-auth-suite-32-bytes", JWT_ALGORITHM="HS256")
+    return Settings()
 
 
 class FakeOTPProvider:
