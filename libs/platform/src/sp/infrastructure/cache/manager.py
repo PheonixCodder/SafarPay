@@ -11,7 +11,8 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any
+from collections.abc import Awaitable
+from typing import Any, cast
 
 import redis.asyncio as aioredis
 
@@ -110,7 +111,7 @@ class CacheManager:
             return 0
         end
         """
-        result = await redis.eval(script, 1, full_key, expected_value)
+        result = await cast(Awaitable[Any], redis.eval(script, 1, full_key, expected_value))
         return bool(result)
 
     async def increment(

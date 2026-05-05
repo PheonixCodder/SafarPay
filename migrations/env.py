@@ -21,7 +21,7 @@ from alembic import context
 # Each import has a side effect: it registers the ORM class with Base.metadata.
 # Alembic discovers them through Base.metadata.sorted_tables.
 from auth.infrastructure.orm_models import UserORM  # noqa: F401
-from bidding.infrastructure.orm_models import BidORM  # noqa: F401
+from bidding.infrastructure.orm_models import RideBidORM, RideBiddingSessionORM  # noqa: F401
 from geospatial.infrastructure.orm_models import PlaceORM  # noqa: F401
 
 # ── Settings ───────────────────────────────────────────────────────────────
