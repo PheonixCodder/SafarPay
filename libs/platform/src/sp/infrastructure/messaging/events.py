@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 from typing import Any, Literal
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 
 class BaseEvent(BaseModel):
@@ -28,6 +28,140 @@ class BaseEvent(BaseModel):
     idempotency_key: str = Field(default_factory=lambda: str(uuid4()))
     correlation_id: str | None = None
     payload: dict[str, Any] = Field(default_factory=dict)
+
+
+class EventPayload(BaseModel):
+    """Base payload contract: known fields are enforced, extra fields are allowed."""
+
+    model_config = ConfigDict(extra="allow")
+
+
+class UserRegisteredPayload(EventPayload):
+    user_id: UUID
+
+
+class UserLoggedInPayload(EventPayload):
+    user_id: UUID
+
+
+class BidPlacedPayload(EventPayload):
+    bid_id: UUID
+    bidding_session_id: UUID
+    service_request_id: UUID
+    driver_id: UUID
+
+
+class BidAcceptedPayload(EventPayload):
+    bid_id: UUID
+    bidding_session_id: UUID
+    service_request_id: UUID
+    driver_id: UUID
+    passenger_user_id: UUID
+
+
+class NotificationRequestedPayload(EventPayload):
+    recipient_id: UUID
+
+
+class DocumentVerifiedPayload(EventPayload):
+    document_id: UUID
+
+
+class VerificationReviewRequestedPayload(EventPayload):
+    user_id: UUID
+    driver_id: UUID
+
+
+class ServiceRequestCreatedPayload(EventPayload):
+    ride_id: UUID
+    passenger_user_id: UUID
+    service_type: str
+    pricing_mode: str
+
+
+class ServiceRequestUpdatedPayload(EventPayload):
+    ride_id: UUID
+
+
+class ServiceRequestCancelledPayload(EventPayload):
+    ride_id: UUID
+    passenger_user_id: UUID
+
+
+class ServiceRequestAcceptedPayload(EventPayload):
+    ride_id: UUID
+    passenger_user_id: UUID
+    driver_id: UUID
+
+
+class ServiceRequestStartedPayload(EventPayload):
+    ride_id: UUID
+
+
+class ServiceRequestCompletedPayload(EventPayload):
+    ride_id: UUID
+    passenger_user_id: UUID
+
+
+class ServiceStopPayload(EventPayload):
+    ride_id: UUID
+    stop_id: UUID
+
+
+class ServiceProofUploadedPayload(EventPayload):
+    ride_id: UUID
+    proof_id: UUID
+    proof_type: str
+
+
+class ServiceVerificationPayload(EventPayload):
+    ride_id: UUID
+    code_id: UUID
+
+
+class DriverMatchingRequestedPayload(EventPayload):
+    candidate_count: int
+
+
+class DriverMatchingCompletedPayload(EventPayload):
+    ride_id: UUID
+    dispatched_to: int
+
+
+class DriverAvailabilityUpdatedPayload(EventPayload):
+    driver_id: UUID
+
+
+class DriverLocationUpdatedPayload(EventPayload):
+    driver_id: UUID
+    lat: float
+    lng: float
+
+
+class PassengerLocationUpdatedPayload(EventPayload):
+    user_id: UUID
+    lat: float
+    lng: float
+
+
+class DriverStatusChangedPayload(EventPayload):
+    driver_id: UUID
+    status: str
+
+
+class GeofenceViolationPayload(EventPayload):
+    actor_id: UUID
+    actor_role: str
+    zone_id: UUID
+    zone_type: str
+    lat: float
+    lng: float
+
+
+class WebhookFailedPayload(EventPayload):
+    original_payload: dict[str, Any]
+    error: str
+    retry_count: int
 
 
 # ── Auth events ───────────────────────────────────────────────────────────────
@@ -147,6 +281,10 @@ class GeofenceViolationEvent(BaseEvent):
     # payload: {actor_id, actor_role, zone_id, zone_type, lat, lng, recorded_at}
 
 
+class WebhookFailedEvent(BaseEvent):
+    event_type: Literal["webhook.failed"] = "webhook.failed"
+
+
 # ── Registry for deserialisation in subscriber ────────────────────────────────
 
 EVENT_REGISTRY: dict[str, type[BaseEvent]] = {
@@ -176,4 +314,56 @@ EVENT_REGISTRY: dict[str, type[BaseEvent]] = {
     "passenger.location.updated": PassengerLocationUpdatedEvent,
     "driver.status.changed": DriverStatusChangedEvent,
     "geofence.violation": GeofenceViolationEvent,
+    "webhook.failed": WebhookFailedEvent,
 }
+
+
+PAYLOAD_REGISTRY: dict[str, type[EventPayload]] = {
+    "user.registered": UserRegisteredPayload,
+    "user.logged_in": UserLoggedInPayload,
+    "bid.placed": BidPlacedPayload,
+    "bid.accepted": BidAcceptedPayload,
+    "notification.requested": NotificationRequestedPayload,
+    "document.verified": DocumentVerifiedPayload,
+    "verification.review_requested": VerificationReviewRequestedPayload,
+    "service.request.created": ServiceRequestCreatedPayload,
+    "service.request.updated": ServiceRequestUpdatedPayload,
+    "service.request.cancelled": ServiceRequestCancelledPayload,
+    "service.request.accepted": ServiceRequestAcceptedPayload,
+    "service.request.started": ServiceRequestStartedPayload,
+    "service.request.completed": ServiceRequestCompletedPayload,
+    "service.stop.arrived": ServiceStopPayload,
+    "service.stop.completed": ServiceStopPayload,
+    "service.proof.uploaded": ServiceProofUploadedPayload,
+    "service.verification.generated": ServiceVerificationPayload,
+    "service.verification.verified": ServiceVerificationPayload,
+    "driver.matching.requested": DriverMatchingRequestedPayload,
+    "driver.matching.completed": DriverMatchingCompletedPayload,
+    "driver.availability.updated": DriverAvailabilityUpdatedPayload,
+    "driver.location.updated": DriverLocationUpdatedPayload,
+    "passenger.location.updated": PassengerLocationUpdatedPayload,
+    "driver.status.changed": DriverStatusChangedPayload,
+    "geofence.violation": GeofenceViolationPayload,
+    "webhook.failed": WebhookFailedPayload,
+}
+
+
+class EventPayloadValidationError(ValueError):
+    """Raised when a known event has an invalid payload contract."""
+
+
+def validate_event_payload(event: BaseEvent) -> None:
+    """Validate the payload for known event types.
+
+    Unknown event types are allowed for forward compatibility, but known events
+    must carry the payload fields their consumers rely on.
+    """
+    payload_model = PAYLOAD_REGISTRY.get(event.event_type)
+    if not payload_model:
+        return
+    try:
+        payload_model.model_validate(event.payload)
+    except ValidationError as exc:
+        raise EventPayloadValidationError(
+            f"Invalid payload for event_type={event.event_type}: {exc}"
+        ) from exc

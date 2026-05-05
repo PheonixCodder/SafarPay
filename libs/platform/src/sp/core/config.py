@@ -90,6 +90,7 @@ class Settings(BaseSettings):
     VERIFICATION_SERVICE_URL: str = "http://verification:8005"
     GEOSPATIAL_SERVICE_URL: str = "http://geospatial:8006"
     COMMUNICATION_SERVICE_URL: str = "http://communication:8007"
+    RIDE_SERVICE_URL: str = "http://ride:8008"
     GEOSPATIAL_DEFAULT_RADIUS_KM: float = 5.0
     GEOSPATIAL_MAX_RADIUS_KM: float = 20.0
     GEOSPATIAL_H3_RESOLUTION: int = 9

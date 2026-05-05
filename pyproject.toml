@@ -21,6 +21,7 @@ members = [
     "services/notification",
     "services/verification",
     "services/communication",
+    "services/ride",
 ]
 
 [dependency-groups]
@@ -56,6 +57,7 @@ root_packages = [
     "verification",
     "geospatial",
     "communication",
+    "ride",
 ]
 
 [[tool.importlinter.contracts]]
@@ -71,6 +73,7 @@ forbidden_modules = [
     "notification",
     "verification",
     "geospatial",
+    "ride",
 ]
 
 [[tool.importlinter.contracts]]
@@ -84,6 +87,7 @@ source_modules = [
     "verification.domain",
     "geospatial.domain",
     "communication.domain",
+    "ride.domain",
 ]
 forbidden_modules = [
     "sp",
@@ -106,12 +110,26 @@ modules = [
     "verification",
     "geospatial",
     "communication",
+    "ride",
 ]
 
 # ── Pytest config ─────────────────────────────────────────────────────────────
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+pythonpath = [
+    ".",
+    "libs/platform/src",
+    "services/auth",
+    "services/bidding",
+    "services/communication",
+    "services/gateway",
+    "services/geospatial",
+    "services/location",
+    "services/notification",
+    "services/ride",
+    "services/verification",
+]
 
 # ── Mypy config ───────────────────────────────────────────────────────────────
 [tool.mypy]

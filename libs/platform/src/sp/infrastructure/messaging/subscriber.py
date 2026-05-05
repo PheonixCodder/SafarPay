@@ -9,7 +9,7 @@ import asyncio
 import logging
 from collections.abc import Callable
 
-from .events import EVENT_REGISTRY, BaseEvent
+from .events import EVENT_REGISTRY, BaseEvent, validate_event_payload
 from .kafka import KafkaConsumerWrapper
 
 logger = logging.getLogger("platform.messaging.subscriber")
@@ -66,6 +66,7 @@ class EventSubscriber:
         event_class = EVENT_REGISTRY.get(event_type, BaseEvent)
         try:
             event = event_class.model_validate(value)
+            validate_event_payload(event)
         except Exception as exc:
             logger.error("Deserialisation failed for %s: %s", event_type, exc)
             await self._consumer.send_to_dlq(raw_msg["topic"], value, str(exc))
