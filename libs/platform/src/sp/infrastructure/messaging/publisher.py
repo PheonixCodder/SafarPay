@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import logging
 
-from .events import BaseEvent
+from .events import BaseEvent, validate_event_payload
 from .kafka import KafkaProducerWrapper
 
 logger = logging.getLogger("platform.messaging.publisher")
@@ -34,6 +34,8 @@ class EventPublisher:
 
     async def publish_to_topic(self, topic: str, event: BaseEvent) -> bool:
         """Serialize and publish a typed event to an explicit Kafka topic."""
+        validate_event_payload(event)
+
         if not self._producer:
             logger.warning(
                 "No Kafka producer. Event dropped: type=%s topic=%s",

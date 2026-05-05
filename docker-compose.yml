@@ -99,13 +99,14 @@ services:
       JWT_ALGORITHM: HS256
       APP_NAME: safarpay
       LOG_LEVEL: INFO
-      AUTH_SERVICE_URL: http://auth:8001
-      BIDDING_SERVICE_URL: http://bidding:8002
-      LOCATION_SERVICE_URL: http://location:8003
-      NOTIFICATION_SERVICE_URL: http://notification:8004
-      VERIFICATION_SERVICE_URL: http://verification:8005
-      GEOSPATIAL_SERVICE_URL: http://geospatial:8006
-      COMMUNICATION_SERVICE_URL: http://communication:8007
+      AUTH_SERVICE_URL: http://auth:8000
+      BIDDING_SERVICE_URL: http://bidding:8000
+      LOCATION_SERVICE_URL: http://location:8000
+      NOTIFICATION_SERVICE_URL: http://notification:8000
+      VERIFICATION_SERVICE_URL: http://verification:8000
+      GEOSPATIAL_SERVICE_URL: http://geospatial:8000
+      COMMUNICATION_SERVICE_URL: http://communication:8000
+      RIDE_SERVICE_URL: http://ride:8000
     depends_on:
       redis:
         condition: service_healthy
@@ -166,6 +167,8 @@ services:
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
       APP_NAME: safarpay
       LOG_LEVEL: INFO
+      RIDE_SERVICE_URL: http://ride:8000
+      VERIFICATION_SERVICE_URL: http://verification:8000
     depends_on:
       postgres:
         condition: service_healthy
@@ -280,7 +283,7 @@ services:
       APP_NAME: safarpay
       LOG_LEVEL: INFO
       MAPBOX_ACCESS_TOKEN: ${MAPBOX_ACCESS_TOKEN:-}
-      LOCATION_SERVICE_URL: http://location:8003
+      LOCATION_SERVICE_URL: http://location:8000
     depends_on:
       postgres:
         condition: service_healthy
@@ -312,6 +315,42 @@ services:
       LOG_LEVEL: INFO
       S3_COMMUNICATION_BUCKET: ${S3_COMMUNICATION_BUCKET:-safarpay-communication-media}
       WEBRTC_ICE_SERVERS_JSON: ${WEBRTC_ICE_SERVERS_JSON:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - safarpay-net
+
+  ride:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE_NAME: ride
+    container_name: safarpay-ride
+    ports:
+      - "8008:8000"
+    environment:
+      POSTGRES_DB_URI: postgresql+psycopg://safarpay:safarpay_secret@postgres:5432/safarpay_db
+      REDIS_URL: redis://redis:6379/0
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      JWT_ALGORITHM: HS256
+      APP_NAME: safarpay
+      LOG_LEVEL: INFO
+      GEOSPATIAL_SERVICE_URL: http://geospatial:8000
+      NOTIFICATION_SERVICE_URL: http://notification:8000
     depends_on:
       postgres:
         condition: service_healthy

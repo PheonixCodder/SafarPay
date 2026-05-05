@@ -9,6 +9,8 @@ from .events import (
     UserLoggedInEvent,
     UserRegisteredEvent,
 )
+from .inbox import message_event_id, process_inbox_message
+from .outbox import GenericOutboxWorker
 from .publisher import EventPublisher
 from .subscriber import EventSubscriber
 
@@ -22,4 +24,7 @@ __all__ = [
     "DocumentVerifiedEvent",
     "EventPublisher",
     "EventSubscriber",
+    "GenericOutboxWorker",
+    "message_event_id",
+    "process_inbox_message",
 ]

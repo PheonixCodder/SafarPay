@@ -20,9 +20,12 @@ from alembic import context
 # ── Import ALL ORM models to register them in Base.metadata ───────────────
 # Each import has a side effect: it registers the ORM class with Base.metadata.
 # Alembic discovers them through Base.metadata.sorted_tables.
-from auth.infrastructure.orm_models import UserORM  # noqa: F401
-from bidding.infrastructure.orm_models import RideBidORM, RideBiddingSessionORM  # noqa: F401
-from geospatial.infrastructure.orm_models import PlaceORM  # noqa: F401
+from auth.infrastructure import orm_models as auth_orm_models  # noqa: F401
+from bidding.infrastructure import orm_models as bidding_orm_models  # noqa: F401
+from communication.infrastructure import orm_models as communication_orm_models  # noqa: F401
+from geospatial.infrastructure import orm_models as geospatial_orm_models  # noqa: F401
+from location.infrastructure import orm_models as location_orm_models  # noqa: F401
+from ride.infrastructure import orm_models as ride_orm_models  # noqa: F401
 
 # ── Settings ───────────────────────────────────────────────────────────────
 from sp.core.config import get_settings
@@ -31,7 +34,7 @@ from sp.core.config import get_settings
 from sp.infrastructure.db.base import Base  # noqa: F401
 from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import create_async_engine
-from verification.infrastructure.orm_models import DocumentORM  # noqa: F401
+from verification.infrastructure import orm_models as verification_orm_models  # noqa: F401
 
 settings = get_settings()
 
