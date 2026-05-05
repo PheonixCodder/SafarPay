@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Annotated
 
 from fastapi import Depends, Request
+from sp.core.config import Settings, get_settings
 from sp.infrastructure.cache.manager import CacheManager
 from sp.infrastructure.db.session import get_async_session
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -40,6 +41,7 @@ from .repositories import (
 from .websocket_manager import WebSocketManager
 
 DBSession = Annotated[AsyncSession, Depends(get_async_session)]
+AppSettings = Annotated[Settings, Depends(get_settings)]
 
 
 def get_cache(request: Request) -> CacheManager:
@@ -54,24 +56,24 @@ def get_storage(request: Request) -> StorageProviderProtocol:
     return request.app.state.storage
 
 
-def get_conversation_repo(session: DBSession) -> ConversationRepositoryProtocol:
-    return ConversationRepository(session)
+def get_conversation_repo(session: DBSession, settings: AppSettings) -> ConversationRepositoryProtocol:
+    return ConversationRepository(session, settings.COMMUNICATION_EVENTS_TOPIC)
 
 
 def get_participant_repo(session: DBSession) -> ParticipantRepositoryProtocol:
     return ParticipantRepository(session)
 
 
-def get_message_repo(session: DBSession) -> MessageRepositoryProtocol:
-    return MessageRepository(session)
+def get_message_repo(session: DBSession, settings: AppSettings) -> MessageRepositoryProtocol:
+    return MessageRepository(session, settings.COMMUNICATION_EVENTS_TOPIC)
 
 
-def get_media_repo(session: DBSession) -> MediaRepositoryProtocol:
-    return MediaRepository(session)
+def get_media_repo(session: DBSession, settings: AppSettings) -> MediaRepositoryProtocol:
+    return MediaRepository(session, settings.COMMUNICATION_EVENTS_TOPIC)
 
 
-def get_call_repo(session: DBSession) -> CallRepositoryProtocol:
-    return CallRepository(session)
+def get_call_repo(session: DBSession, settings: AppSettings) -> CallRepositoryProtocol:
+    return CallRepository(session, settings.COMMUNICATION_EVENTS_TOPIC)
 
 
 def get_access_uc(

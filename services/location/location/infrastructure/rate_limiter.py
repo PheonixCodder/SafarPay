@@ -26,7 +26,8 @@ from __future__ import annotations
 import logging
 from uuid import UUID
 
-from sp.infrastructure.cache.manager import CacheManager
+from ..domain.interfaces import CacheIncrementProtocol
+from ..domain.models import ActorType
 
 logger = logging.getLogger("location.rate_limiter")
 
@@ -44,7 +45,7 @@ class LocationRateLimiter:
 
     def __init__(
         self,
-        cache: CacheManager,
+        cache: CacheIncrementProtocol,
         window_seconds: int = _WINDOW_SECONDS,
         max_pings_online: int = _MAX_PINGS_ONLINE,
         max_pings_on_ride: int = _MAX_PINGS_ON_RIDE,
@@ -54,7 +55,13 @@ class LocationRateLimiter:
         self._max_online = max_pings_online
         self._max_on_ride = max_pings_on_ride
 
-    async def allow(self, actor_id: UUID, *, is_on_ride: bool = False) -> bool:
+    async def allow(
+        self,
+        actor_id: UUID,
+        *,
+        actor_type: ActorType,
+        is_on_ride: bool = False,
+    ) -> bool:
         """Return True if the ping is within the rate limit, False otherwise.
 
         Uses CacheManager.increment() which is atomic (Redis INCR + conditional
@@ -74,13 +81,17 @@ class LocationRateLimiter:
 
         count = await self._cache.increment(
             namespace=namespace,
-            key=str(actor_id),
+            key=f"{actor_type.value.lower()}:{actor_id}",
             ttl=self._window,
         )
         allowed = count <= max_allowed
         if not allowed:
             logger.warning(
                 "Rate limit exceeded actor=%s is_on_ride=%s count=%d max=%d window=%ds",
-                actor_id, is_on_ride, count, max_allowed, self._window,
+                f"{actor_type.value.lower()}:{actor_id}",
+                is_on_ride,
+                count,
+                max_allowed,
+                self._window,
             )
         return allowed

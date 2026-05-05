@@ -20,7 +20,7 @@ from sqlalchemy import (
 from sqlalchemy import (
     Enum as SQLEnum,
 )
-from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -596,3 +596,45 @@ class ServiceVerificationCodeORM(Base, TimestampMixin):
 
     service_request: Mapped[ServiceRequestORM] = relationship(back_populates="verification_codes")
     stop: Mapped[ServiceStopORM | None] = relationship(back_populates="verification_codes")
+
+
+class RideOutboxEventORM(Base, TimestampMixin):
+    __tablename__ = "outbox_events"
+    __table_args__ = (
+        Index("ix_ride_outbox_pending", "processed_at", "created_at"),
+        Index("ix_ride_outbox_type", "event_type"),
+        {"schema": "service_request"},
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    event_type: Mapped[str] = mapped_column(String(160), nullable=False)
+    aggregate_id: Mapped[str | None] = mapped_column(String(120), index=True)
+    aggregate_type: Mapped[str | None] = mapped_column(String(80))
+    topic: Mapped[str] = mapped_column(String(160), nullable=False, default="ride-events")
+    payload: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    correlation_id: Mapped[str | None] = mapped_column(String(120))
+    idempotency_key: Mapped[str | None] = mapped_column(String(180), unique=True)
+    processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    error_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    last_error: Mapped[str | None] = mapped_column(Text)
+
+
+class RideInboxMessageORM(Base, TimestampMixin):
+    __tablename__ = "inbox_messages"
+    __table_args__ = (
+        Index("ix_ride_inbox_source_offset", "source_topic", "source_partition", "source_offset", unique=True),
+        Index("ix_ride_inbox_pending", "processed_at", "received_at"),
+        {"schema": "service_request"},
+    )
+
+    event_id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True)
+    event_type: Mapped[str] = mapped_column(String(160), nullable=False, index=True)
+    source_topic: Mapped[str] = mapped_column(String(160), nullable=False)
+    source_partition: Mapped[int | None] = mapped_column(Integer)
+    source_offset: Mapped[int | None] = mapped_column(Integer)
+    aggregate_id: Mapped[str | None] = mapped_column(String(120), index=True)
+    payload: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    error_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    last_error: Mapped[str | None] = mapped_column(Text)

@@ -16,10 +16,13 @@ from sp.core.observability.metrics import MetricsCollector
 from sp.core.observability.middleware import ObservabilityMiddleware
 from sp.infrastructure.cache.manager import get_cache_manager_factory
 from sp.infrastructure.db.engine import get_db_engine
+from sp.infrastructure.db.session import get_session_factory
 from sp.infrastructure.messaging.kafka import KafkaProducerWrapper
+from sp.infrastructure.messaging.outbox import GenericOutboxWorker
 from sp.infrastructure.messaging.publisher import EventPublisher
 
 from .api.router import router
+from .infrastructure.orm_models import AuthOutboxEventORM
 
 SERVICE_NAME = "auth"
 
@@ -33,6 +36,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     app.state.db_engine = get_db_engine(
         settings.POSTGRES_DB_URI, settings.POSTGRES_POOL_SIZE
     )
+    app.state.session_factory = get_session_factory(settings)
 
     # Cache — lifespan-managed Redis pool
     cache = get_cache_manager_factory(settings)
@@ -44,16 +48,26 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     # Messaging — optional (Kafka may not run in dev)
     app.state.publisher = None
+    app.state.outbox_worker = None
     if settings.KAFKA_BOOTSTRAP_SERVERS:
         producer = KafkaProducerWrapper(
             settings.KAFKA_BOOTSTRAP_SERVERS,
             client_id=f"{SERVICE_NAME}-producer",
         )
         app.state.publisher = EventPublisher(topic="auth-events", producer=producer)
+        app.state.outbox_worker = GenericOutboxWorker(
+            app.state.session_factory,
+            app.state.publisher,
+            AuthOutboxEventORM,
+            default_topic="auth-events",
+        )
+        await app.state.outbox_worker.start()
 
     yield  # ← service runs here
 
     # Shutdown — clean resource teardown
+    if app.state.outbox_worker:
+        await app.state.outbox_worker.stop()
     await app.state.cache.close()
     await app.state.db_engine.dispose()
     if app.state.publisher:

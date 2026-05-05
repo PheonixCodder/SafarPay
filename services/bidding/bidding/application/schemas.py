@@ -2,9 +2,24 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class WebhookPayload(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+
+class BiddingOpportunityPayload(WebhookPayload):
+    session_id: UUID
+    ride: dict[str, Any]
+
+
+class BiddingRidePayload(WebhookPayload):
+    session_id: UUID
+    ride_id: UUID
 
 
 class StopSchema(BaseModel):
@@ -58,7 +73,7 @@ class PassengerCounterOfferRequest(BaseModel):
 
 
 class DriverAcceptCounterRequest(BaseModel):
-    counter_offer_id: UUID
+    pass
 
 
 class CounterOfferResponse(BaseModel):
@@ -90,6 +105,11 @@ class CounterOfferInSession(BaseModel):
 
 class ItemBidsResponse(BaseModel):
     session_id: UUID
+    service_request_id: UUID
+    status: str
+    pricing_mode: str | None = None
+    passenger_user_id: UUID | None = None
+    baseline_price: float | None = None
     bids: list[BidResponse]
     lowest_bid: float | None
     counter_offers: list[CounterOfferInSession] | None = None

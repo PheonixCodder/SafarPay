@@ -9,7 +9,18 @@ import uuid
 from datetime import datetime, timezone
 
 from sp.infrastructure.db.base import Base, TimestampMixin
-from sqlalchemy import Boolean, String, ForeignKey, DateTime, Text, Integer, UniqueConstraint
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    text,
+)
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -91,3 +102,27 @@ class VerificationORM(Base, TimestampMixin):
     verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     attempt_count: Mapped[int] = mapped_column(Integer, default=0)
 
+
+class AuthOutboxEventORM(Base, TimestampMixin):
+    __tablename__ = "outbox_events"
+    __table_args__ = (
+        Index(
+            "ix_auth_outbox_pending",
+            "processed_at",
+            "created_at",
+            postgresql_where=text("processed_at IS NULL AND error_count < 5"),
+        ),
+        {"schema": "auth"},
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    event_type: Mapped[str] = mapped_column(String(160), nullable=False, index=True)
+    aggregate_id: Mapped[str | None] = mapped_column(String(120), index=True)
+    aggregate_type: Mapped[str | None] = mapped_column(String(80))
+    topic: Mapped[str] = mapped_column(String(160), nullable=False, default="auth-events")
+    payload: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    correlation_id: Mapped[str | None] = mapped_column(String(120))
+    idempotency_key: Mapped[str | None] = mapped_column(String(180), unique=True)
+    processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    error_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    last_error: Mapped[str | None] = mapped_column(Text)

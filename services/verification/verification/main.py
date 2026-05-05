@@ -1,8 +1,10 @@
 """Verification service entry point."""
 from __future__ import annotations
 
+import asyncio
+import uuid
 from collections.abc import AsyncGenerator
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 
 from fastapi import FastAPI, Request
 from fastapi.responses import PlainTextResponse
@@ -11,24 +13,28 @@ from sp.core.observability.logging import setup_logging
 from sp.core.observability.metrics import MetricsCollector
 from sp.core.observability.middleware import ObservabilityMiddleware
 from sp.infrastructure.cache.manager import get_cache_manager_factory
-import asyncio
-import uuid
-from sqlalchemy.ext.asyncio import AsyncSession
 from sp.infrastructure.db.engine import get_db_engine
-from sp.infrastructure.db.session import get_async_session, get_session_factory
-from sp.infrastructure.messaging.kafka import KafkaProducerWrapper, KafkaConsumerWrapper
+from sp.infrastructure.db.session import get_session_factory
+from sp.infrastructure.messaging.inbox import process_inbox_message
+from sp.infrastructure.messaging.kafka import KafkaConsumerWrapper, KafkaProducerWrapper
+from sp.infrastructure.messaging.outbox import GenericOutboxWorker
 from sp.infrastructure.messaging.publisher import EventPublisher
 from sp.infrastructure.messaging.subscriber import EventSubscriber
 
 from .api.router import router
 from .application.services.identity_verification_engine import IdentityVerificationEngine
+from .application.services.rejection_resolver import RejectionResolver
 from .application.use_cases import VerificationUseCases
+from .infrastructure.orm_models import VerificationInboxMessageORM, VerificationOutboxEventORM
+from .infrastructure.outbox_publisher import VerificationOutboxPublisher
 from .infrastructure.repositories import (
-    DriverRepository, VehicleRepository, DocumentRepository, 
-    DriverVehicleRepository, VerificationRejectionRepository
+    DocumentRepository,
+    DriverRepository,
+    DriverVehicleRepository,
+    VehicleRepository,
+    VerificationRejectionRepository,
 )
 from .infrastructure.storage import S3StorageProvider
-from .application.services.rejection_resolver import RejectionResolver
 
 SERVICE_NAME = "verification"
 
@@ -51,57 +57,71 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Messaging
     if settings.KAFKA_BOOTSTRAP_SERVERS:
         producer = KafkaProducerWrapper(settings.KAFKA_BOOTSTRAP_SERVERS)
-        app.state.publisher = EventPublisher("verification.events", producer)
+        app.state.publisher = EventPublisher(settings.VERIFICATION_EVENTS_TOPIC, producer)
+        app.state.outbox_worker = GenericOutboxWorker(
+            app.state.session_factory,
+            app.state.publisher,
+            VerificationOutboxEventORM,
+            default_topic=settings.VERIFICATION_EVENTS_TOPIC,
+        )
+        await app.state.outbox_worker.start()
 
         consumer = KafkaConsumerWrapper(
-            settings.KAFKA_BOOTSTRAP_SERVERS, 
-            group_id="verification-service",
-            topics=["auth.events", "verification.events"]
+            settings.KAFKA_BOOTSTRAP_SERVERS,
+            group_id=settings.VERIFICATION_CONSUMER_GROUP,
+            topics=[
+                settings.AUTH_EVENTS_TOPIC,
+                settings.AUTH_EVENTS_LEGACY_TOPIC,
+                settings.VERIFICATION_EVENTS_TOPIC,
+            ],
         )
-    
+
         subscriber = EventSubscriber(consumer)
-        
-        async def review_handler(event):
+
+        async def review_handler(event, raw_msg):
             driver_id_str = event.payload.get("driver_id")
-            if not driver_id_str: return
+            if not driver_id_str:
+                return
             driver_id = uuid.UUID(driver_id_str)
-            
+
             factory = app.state.session_factory
             # Correctly manage session lifecycle in background task
             async with factory() as session:
                 try:
-                    driver_repo = DriverRepository(session)
-                    rejection_repo = VerificationRejectionRepository(session)
-                    use_cases = VerificationUseCases(
-                        driver_repo=driver_repo,
-                        vehicle_repo=VehicleRepository(session),
-                        document_repo=DocumentRepository(session),
-                        driver_vehicle_repo=DriverVehicleRepository(session),
-                        storage_provider=S3StorageProvider(),
-                        rejection_resolver=RejectionResolver(rejection_repo),
-                        identity_engine=app.state.identity_engine,
-                        event_publisher=app.state.publisher,
-                        rejection_repo=rejection_repo,
-                        cache_manager=app.state.cache,
-                    )
-                    await use_cases.execute_verification_review(driver_id)
+                    async def handle() -> None:
+                        driver_repo = DriverRepository(session)
+                        rejection_repo = VerificationRejectionRepository(session)
+                        use_cases = VerificationUseCases(
+                            driver_repo=driver_repo,
+                            vehicle_repo=VehicleRepository(session),
+                            document_repo=DocumentRepository(session),
+                            driver_vehicle_repo=DriverVehicleRepository(session),
+                            storage_provider=S3StorageProvider(),
+                            rejection_resolver=RejectionResolver(rejection_repo),
+                            identity_engine=app.state.identity_engine,
+                            event_publisher=VerificationOutboxPublisher(session),
+                            rejection_repo=rejection_repo,
+                            cache_manager=app.state.cache,
+                        )
+                        await use_cases.execute_verification_review(driver_id)
+
+                    await process_inbox_message(session, VerificationInboxMessageORM, raw_msg, handle)
                     await session.commit()
                 except Exception:
                     await session.rollback()
                     raise
-                
+
         subscriber.register("verification.review_requested", review_handler)
         app.state.subscriber_task = asyncio.create_task(subscriber.start())
 
     yield
-    
+
     if settings.KAFKA_BOOTSTRAP_SERVERS:
         app.state.subscriber_task.cancel()
-        try:
+        with suppress(asyncio.CancelledError):
             await app.state.subscriber_task
-        except asyncio.CancelledError:
-            pass
         await subscriber.stop()
+        await app.state.outbox_worker.stop()
     if settings.KAFKA_BOOTSTRAP_SERVERS:
         await app.state.publisher.close()
     await app.state.cache.close()

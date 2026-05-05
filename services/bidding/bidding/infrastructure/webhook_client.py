@@ -1,13 +1,15 @@
 """Webhook client for dispatching bidding opportunities to drivers."""
 from __future__ import annotations
+
 import asyncio
-import json
 import logging
 from typing import Any
 from uuid import UUID
-from sp.infrastructure.messaging.publisher import EventPublisher
-import httpx
 
+import httpx
+from sp.infrastructure.messaging.publisher import EventPublisher
+
+from ..application.schemas import BiddingOpportunityPayload, BiddingRidePayload
 from ..domain.interfaces import WebhookClientProtocol
 
 logger = logging.getLogger("bidding.webhook")
@@ -45,7 +47,10 @@ class WebhookClient(WebhookClientProtocol):
     ) -> bool:
         return await self._post(
             f"/internal/drivers/{driver_id}/bidding/opportunities",
-            payload={"session_id": str(session_id), "ride": ride_payload},
+            payload=BiddingOpportunityPayload(
+                session_id=session_id,
+                ride=ride_payload,
+            ).model_dump(mode="json"),
             idempotency_key=idempotency_key,
         )
 
@@ -59,7 +64,10 @@ class WebhookClient(WebhookClientProtocol):
     ) -> bool:
         return await self._post(
             f"/internal/drivers/{driver_id}/bidding/accepted",
-            payload={"session_id": str(session_id), "ride_id": str(ride_id)},
+            payload=BiddingRidePayload(
+                session_id=session_id,
+                ride_id=ride_id,
+            ).model_dump(mode="json"),
             idempotency_key=idempotency_key,
         )
 
@@ -73,7 +81,10 @@ class WebhookClient(WebhookClientProtocol):
     ) -> bool:
         return await self._post(
             f"/internal/drivers/{driver_id}/bidding/cancelled",
-            payload={"session_id": str(session_id), "ride_id": str(ride_id)},
+            payload=BiddingRidePayload(
+                session_id=session_id,
+                ride_id=ride_id,
+            ).model_dump(mode="json"),
             idempotency_key=idempotency_key,
         )
 
@@ -103,16 +114,16 @@ class WebhookClient(WebhookClientProtocol):
 
         if self._publisher:
             from sp.infrastructure.messaging.events import BaseEvent
-            class WebhookFailedEvent(BaseEvent):
-                event_type = "webhook.failed"
             dlq_payload = {
                 "event_type": "webhook.failed",
                 "original_payload": payload,
                 "error": last_error,
                 "retry_count": max_attempts
             }
-            # Manually publish to DLQ topic
-            await self._publisher._producer.send_and_wait("bidding-webhook-dlq.v1", json.dumps(dlq_payload).encode())
+            await self._publisher.publish_to_topic(
+                "bidding-webhook-dlq.v1",
+                BaseEvent(event_type="webhook.failed", payload=dlq_payload)
+            )
 
         return False
 

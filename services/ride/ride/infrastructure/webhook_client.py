@@ -19,11 +19,28 @@ from typing import Any
 from uuid import UUID
 
 import httpx
+from pydantic import BaseModel, ConfigDict
 
 logger = logging.getLogger("ride.webhook")
 
 _RETRY_STATUSES = {429, 500, 502, 503, 504}
 _ALLOWED_MIME = {"image/jpeg", "image/png", "image/webp"}
+
+
+class WebhookPayload(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+
+class RideJobPayload(WebhookPayload):
+    driver_id: UUID
+    ride_id: UUID
+
+
+class RideCancellationPayload(WebhookPayload):
+    driver_id: UUID
+    ride_id: UUID
+    reason: str | None = None
+
 
 # TODO implement Webhook client
 class WebhookClient:
@@ -133,6 +150,7 @@ class WebhookClient:
             "ride_id": str(ride_id),
             **payload,
         }
+        body = RideJobPayload.model_validate(body).model_dump(mode="json")
         return await self._post_with_retry(
             f"/internal/ride-jobs/{driver_id}",
             body,
@@ -153,6 +171,7 @@ class WebhookClient:
             "ride_id": str(ride_id),
             "reason": reason,
         }
+        body = RideCancellationPayload.model_validate(body).model_dump(mode="json")
         return await self._post_with_retry(
             f"/internal/ride-cancellations/{driver_id}",
             body,

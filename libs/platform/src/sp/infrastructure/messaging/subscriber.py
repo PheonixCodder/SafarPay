@@ -6,6 +6,7 @@ Start the consume loop as an asyncio background task during lifespan:
 from __future__ import annotations
 
 import asyncio
+import inspect
 import logging
 from collections.abc import Callable
 
@@ -75,7 +76,11 @@ class EventSubscriber:
         # Retry loop with exponential back-off
         for attempt in range(1, self._max_retries + 1):
             try:
-                await handler(event)
+                params = inspect.signature(handler).parameters
+                if len(params) >= 2:
+                    await handler(event, raw_msg)
+                else:
+                    await handler(event)
                 return
             except Exception as exc:
                 logger.warning(

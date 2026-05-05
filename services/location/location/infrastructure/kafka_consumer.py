@@ -15,8 +15,11 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from contextlib import suppress
 from uuid import UUID
 
+from sp.core.config import Settings
+from sp.infrastructure.messaging.inbox import message_event_id
 from sp.infrastructure.messaging.kafka import KafkaConsumerWrapper
 
 from ..domain.models import DriverStatus
@@ -38,9 +41,13 @@ class LocationKafkaConsumer:
         bootstrap_servers: str,
         store: RedisLocationStore,
         ws_manager: WebSocketManager,
+        settings: Settings | None = None,
     ) -> None:
         self._store = store
         self._ws_manager = ws_manager
+        self._inbox_ttl = (
+            settings.LOCATION_INBOX_TTL_SECONDS if settings else 604800
+        )
         self._consumer = KafkaConsumerWrapper(
             bootstrap_servers=bootstrap_servers,
             group_id=_GROUP,
@@ -58,10 +65,8 @@ class LocationKafkaConsumer:
     async def stop(self) -> None:
         if self._task:
             self._task.cancel()
-            try:
+            with suppress(asyncio.CancelledError):
                 await self._task
-            except asyncio.CancelledError:
-                pass
         self._consumer.close()
         logger.info("LocationKafkaConsumer stopped")
 
@@ -76,7 +81,7 @@ class LocationKafkaConsumer:
                 had_error = False
                 for msg in messages:
                     try:
-                        await self._dispatch(msg["value"])
+                        await self._dispatch(msg)
                     except Exception as exc:  # noqa: BLE001
                         had_error = True
                         logger.exception(
@@ -84,16 +89,35 @@ class LocationKafkaConsumer:
                             msg.get("offset"), exc,
                         )
                 if messages and not had_error:
-                    self._consumer.commit()
+                    await self._consumer.commit_safe()
             except asyncio.CancelledError:
                 raise
             except Exception as exc:  # noqa: BLE001
                 logger.exception("LocationKafkaConsumer loop error: %s", exc)
                 await asyncio.sleep(2)
 
-    async def _dispatch(self, payload: dict) -> None:
+    async def _dispatch(self, msg: dict) -> None:
+        payload = msg.get("value", {})
+        if not isinstance(payload, dict):
+            return
         event_type: str = payload.get("event_type", "")
-        data: dict = payload.get("payload", {})
+        data = payload.get("payload", {})
+        if not isinstance(data, dict):
+            logger.warning("Kafka event payload must be an object: %s", event_type)
+            return
+        if event_type in {
+            "service.request.accepted",
+            "service.request.completed",
+            "service.request.cancelled",
+        }:
+            event_id = message_event_id(msg)
+            reserved = await self._store.reserve_inbox_event(
+                event_id,
+                ttl=self._inbox_ttl,
+            )
+            if not reserved:
+                logger.info("Skipping duplicate location event_id=%s", event_id)
+                return
 
         match event_type:
             case "service.request.accepted":
@@ -145,21 +169,42 @@ class LocationKafkaConsumer:
         """Clear ride subscriptions; return driver to ONLINE; remove participant cache."""
         try:
             ride_id = UUID(data["ride_id"])
-            driver_id_str = data.get("driver_id") or data.get("assigned_driver_id", "")
-            driver_id = UUID(driver_id_str)
         except (KeyError, ValueError) as exc:
             logger.error("ride ended event: bad payload — %s", exc)
             return
+
+        driver_id = None
+        driver_id_str = data.get("driver_id") or data.get("assigned_driver_id")
+        if driver_id_str:
+            try:
+                driver_id = UUID(driver_id_str)
+            except ValueError:
+                logger.warning(
+                    "ride_id=%s | ride ended event has invalid driver id: %s",
+                    ride_id,
+                    driver_id_str,
+                )
+
+        if driver_id is None:
+            participants = await self._store.get_ride_participants(ride_id)
+            if participants:
+                driver_id = participants[0]
 
         # 1. Clear WebSocket subscriptions
         self._ws_manager.unsubscribe_all_from_ride(ride_id)
 
         # 2. Return driver to ONLINE
-        await self._store.set_driver_status(
-            driver_id=driver_id,
-            status=DriverStatus.ONLINE,
-            ride_id=None,
-        )
+        if driver_id:
+            await self._store.set_driver_status(
+                driver_id=driver_id,
+                status=DriverStatus.ONLINE,
+                ride_id=None,
+            )
+        else:
+            logger.warning(
+                "ride_id=%s | ended without driver id; skipped driver status update",
+                ride_id,
+            )
 
         # 3. Delete participant auth cache
         await self._store.delete_ride_participants(ride_id)

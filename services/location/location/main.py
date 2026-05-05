@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import AsyncGenerator
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 
 from fastapi import FastAPI, Request
 from fastapi.responses import PlainTextResponse
@@ -87,6 +87,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             bootstrap_servers=settings.KAFKA_BOOTSTRAP_SERVERS,
             store=redis_store,
             ws_manager=ws_manager,
+            settings=settings,
         )
         await kafka_consumer.start()
 
@@ -118,10 +119,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     # Graceful shutdown
     _cleanup_task.cancel()
-    try:
+    with suppress(asyncio.CancelledError):
         await _cleanup_task
-    except asyncio.CancelledError:
-        pass
     if kafka_consumer:
         await kafka_consumer.stop()
     if producer:

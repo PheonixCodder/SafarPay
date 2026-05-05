@@ -5,6 +5,7 @@ All raw SQL is wrapped in sqlalchemy.text() for async driver compatibility.
 from __future__ import annotations
 
 import logging
+from typing import Any, cast
 from uuid import UUID
 
 from sqlalchemy import text
@@ -112,7 +113,7 @@ class SpatialRepository(SpatialRepositoryProtocol):
         """)
         result = await self._session.execute(stmt, {"id": zone_id})
         await self._session.commit()
-        return result.rowcount > 0  # type: ignore[return-value]
+        return cast(Any, result).rowcount > 0
 
     async def get_surge_for_point(
         self, latitude: float, longitude: float,

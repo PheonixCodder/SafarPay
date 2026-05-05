@@ -1,17 +1,12 @@
 """Ride service DI providers — wire every use case from app.state."""
 from __future__ import annotations
 
-from sp.infrastructure.security.dependencies import get_current_user_ws
 from typing import Annotated
-from uuid import UUID
 
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Depends, Request
 from sp.infrastructure.cache.manager import CacheManager
 from sp.infrastructure.db.session import get_async_session
 from sp.infrastructure.messaging.publisher import EventPublisher
-from sp.infrastructure.security.dependencies import get_current_user
-from sp.infrastructure.security.jwt import TokenPayload
-from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..application.use_cases import (
@@ -41,6 +36,7 @@ from ..domain.interfaces import (
     VerificationCodeRepositoryProtocol,
     WebhookClientProtocol,
 )
+from .outbox_publisher import RideOutboxPublisher
 from .repositories import (
     ProofImageRepository,
     ServiceRequestRepository,
@@ -60,6 +56,13 @@ def get_cache(request: Request) -> CacheManager:
 
 def get_publisher(request: Request) -> EventPublisher | None:
     return getattr(request.app.state, "publisher", None)
+
+
+def get_outbox_publisher(repo: ServiceRequestRepositoryProtocol) -> RideOutboxPublisher | EventPublisher | None:
+    session = getattr(repo, "_session", None)
+    if session is None:
+        return None
+    return RideOutboxPublisher(session)
 
 
 def get_ws_manager(request: Request) -> WebSocketManager:
@@ -112,7 +115,7 @@ def get_code_repo(
 # ---------------------------------------------------------------------------
 
 def get_create_ride_uc(request: Request, repo: Annotated[ServiceRequestRepositoryProtocol, Depends(get_ride_repo)]) -> CreateRideUseCase:
-    return CreateRideUseCase(repo=repo, cache=get_cache(request), ws=get_ws_manager(request), publisher=get_publisher(request))
+    return CreateRideUseCase(repo=repo, cache=get_cache(request), ws=get_ws_manager(request), publisher=get_outbox_publisher(repo))
 
 
 def get_get_ride_uc(repo: Annotated[ServiceRequestRepositoryProtocol, Depends(get_ride_repo)], request: Request) -> GetRideUseCase:
@@ -124,43 +127,43 @@ def get_list_rides_uc(repo: Annotated[ServiceRequestRepositoryProtocol, Depends(
 
 
 def get_cancel_ride_uc(request: Request, repo: Annotated[ServiceRequestRepositoryProtocol, Depends(get_ride_repo)]) -> CancelRideUseCase:
-    return CancelRideUseCase(repo=repo, cache=get_cache(request), ws=get_ws_manager(request), publisher=get_publisher(request))
+    return CancelRideUseCase(repo=repo, cache=get_cache(request), ws=get_ws_manager(request), publisher=get_outbox_publisher(repo))
 
 
 def get_accept_ride_uc(request: Request, repo: Annotated[ServiceRequestRepositoryProtocol, Depends(get_ride_repo)]) -> AcceptRideUseCase:
-    return AcceptRideUseCase(repo=repo, cache=get_cache(request), ws=get_ws_manager(request), publisher=get_publisher(request))
+    return AcceptRideUseCase(repo=repo, cache=get_cache(request), ws=get_ws_manager(request), publisher=get_outbox_publisher(repo))
 
 
 def get_start_ride_uc(request: Request, repo: Annotated[ServiceRequestRepositoryProtocol, Depends(get_ride_repo)], code_repo: Annotated[VerificationCodeRepositoryProtocol, Depends(get_code_repo)]) -> StartRideUseCase:
-    return StartRideUseCase(repo=repo, code_repo=code_repo, cache=get_cache(request), ws=get_ws_manager(request), publisher=get_publisher(request))
+    return StartRideUseCase(repo=repo, code_repo=code_repo, cache=get_cache(request), ws=get_ws_manager(request), publisher=get_outbox_publisher(repo))
 
 
 def get_complete_ride_uc(request: Request, repo: Annotated[ServiceRequestRepositoryProtocol, Depends(get_ride_repo)], code_repo: Annotated[VerificationCodeRepositoryProtocol, Depends(get_code_repo)]) -> CompleteRideUseCase:
-    return CompleteRideUseCase(repo=repo, code_repo=code_repo, cache=get_cache(request), ws=get_ws_manager(request), publisher=get_publisher(request))
+    return CompleteRideUseCase(repo=repo, code_repo=code_repo, cache=get_cache(request), ws=get_ws_manager(request), publisher=get_outbox_publisher(repo))
 
 
 def get_add_stop_uc(request: Request, repo: Annotated[ServiceRequestRepositoryProtocol, Depends(get_ride_repo)], stop_repo: Annotated[StopRepositoryProtocol, Depends(get_stop_repo)]) -> AddStopUseCase:
-    return AddStopUseCase(repo=repo, stop_repo=stop_repo, ws=get_ws_manager(request), publisher=get_publisher(request))
+    return AddStopUseCase(repo=repo, stop_repo=stop_repo, ws=get_ws_manager(request), publisher=get_outbox_publisher(repo))
 
 
 def get_mark_arrived_uc(request: Request, repo: Annotated[ServiceRequestRepositoryProtocol, Depends(get_ride_repo)], stop_repo: Annotated[StopRepositoryProtocol, Depends(get_stop_repo)]) -> MarkStopArrivedUseCase:
-    return MarkStopArrivedUseCase(repo=repo, stop_repo=stop_repo, ws=get_ws_manager(request), publisher=get_publisher(request))
+    return MarkStopArrivedUseCase(repo=repo, stop_repo=stop_repo, ws=get_ws_manager(request), publisher=get_outbox_publisher(repo))
 
 
 def get_mark_completed_uc(request: Request, repo: Annotated[ServiceRequestRepositoryProtocol, Depends(get_ride_repo)], stop_repo: Annotated[StopRepositoryProtocol, Depends(get_stop_repo)]) -> MarkStopCompletedUseCase:
-    return MarkStopCompletedUseCase(repo=repo, stop_repo=stop_repo, ws=get_ws_manager(request), publisher=get_publisher(request))
+    return MarkStopCompletedUseCase(repo=repo, stop_repo=stop_repo, ws=get_ws_manager(request), publisher=get_outbox_publisher(repo))
 
 
 def get_gen_code_uc(repo: Annotated[ServiceRequestRepositoryProtocol, Depends(get_ride_repo)], code_repo: Annotated[VerificationCodeRepositoryProtocol, Depends(get_code_repo)], request: Request) -> GenerateVerificationCodeUseCase:
-    return GenerateVerificationCodeUseCase(repo=repo, code_repo=code_repo, publisher=get_publisher(request))
+    return GenerateVerificationCodeUseCase(repo=repo, code_repo=code_repo, publisher=get_outbox_publisher(repo))
 
 
 def get_verify_code_uc(repo: Annotated[ServiceRequestRepositoryProtocol, Depends(get_ride_repo)], code_repo: Annotated[VerificationCodeRepositoryProtocol, Depends(get_code_repo)], request: Request) -> VerifyVerificationCodeUseCase:
-    return VerifyVerificationCodeUseCase(repo=repo, code_repo=code_repo, publisher=get_publisher(request))
+    return VerifyVerificationCodeUseCase(repo=repo, code_repo=code_repo, publisher=get_outbox_publisher(repo))
 
 
 def get_upload_proof_uc(repo: Annotated[ServiceRequestRepositoryProtocol, Depends(get_ride_repo)], proof_repo: Annotated[ProofImageRepositoryProtocol, Depends(get_proof_repo)], request: Request) -> UploadProofUseCase:
-    return UploadProofUseCase(repo=repo, proof_repo=proof_repo, publisher=get_publisher(request))
+    return UploadProofUseCase(repo=repo, proof_repo=proof_repo, publisher=get_outbox_publisher(repo))
 
 
 def get_nearby_drivers_uc(request: Request) -> FindNearbyDriversUseCase:

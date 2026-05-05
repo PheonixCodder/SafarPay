@@ -7,6 +7,7 @@ from datetime import datetime
 
 from sp.infrastructure.db.base import Base, TimestampMixin
 from sqlalchemy import (
+    BigInteger,
     CheckConstraint,
     DateTime,
     ForeignKey,
@@ -75,12 +76,12 @@ class SignalType(enum.Enum):
 
 
 class CommunicationEventType(enum.Enum):
-    CONVERSATION_OPENED = "CONVERSATION_OPENED"
-    CONVERSATION_CLOSED = "CONVERSATION_CLOSED"
-    MESSAGE_SENT = "MESSAGE_SENT"
-    MEDIA_MESSAGE_SENT = "MEDIA_MESSAGE_SENT"
-    CALL_STARTED = "CALL_STARTED"
-    CALL_UPDATED = "CALL_UPDATED"
+    CONVERSATION_OPENED = "communication.conversation.opened"
+    CONVERSATION_CLOSED = "communication.conversation.closed"
+    MESSAGE_SENT = "communication.message.sent"
+    MEDIA_MESSAGE_SENT = "communication.media_message.sent"
+    CALL_STARTED = "communication.call.started"
+    CALL_UPDATED = "communication.call.updated"
 
 
 class ConversationORM(Base, TimestampMixin):
@@ -318,7 +319,7 @@ class CallSignalingEventORM(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
 
-class CommunicationEventORM(Base):
+class CommunicationEventORM(Base, TimestampMixin):
     __tablename__ = "communication_events"
     __table_args__ = (
         Index("ix_communication_events_pending", "processed_at", "created_at"),
@@ -326,12 +327,36 @@ class CommunicationEventORM(Base):
     )
 
     id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    event_type: Mapped[CommunicationEventType] = mapped_column(
-        SQLEnum(CommunicationEventType, name="communication_event_type_enum", schema="communication"),
-        nullable=False,
-    )
+    event_type: Mapped[str] = mapped_column(String(160), nullable=False, index=True)
     aggregate_id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), nullable=False, index=True)
+    aggregate_type: Mapped[str | None] = mapped_column(String(80))
+    topic: Mapped[str] = mapped_column(String(160), nullable=False, default="communication-events")
     payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    correlation_id: Mapped[str | None] = mapped_column(String(120))
+    idempotency_key: Mapped[str | None] = mapped_column(String(180), unique=True)
     processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     error_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class CommunicationInboxMessageORM(Base, TimestampMixin):
+    __tablename__ = "inbox_messages"
+    __table_args__ = (
+        Index("ix_communication_inbox_source_offset", "source_topic", "source_partition", "source_offset", unique=True),
+        Index("ix_communication_inbox_pending", "processed_at", "received_at"),
+        Index("ix_communication_inbox_type", "event_type"),
+        Index("ix_communication_inbox_aggregate", "aggregate_id"),
+        {"schema": "communication"},
+    )
+
+    event_id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True)
+    event_type: Mapped[str] = mapped_column(String(160), nullable=False)
+    source_topic: Mapped[str] = mapped_column(String(160), nullable=False)
+    source_partition: Mapped[int | None] = mapped_column(Integer)
+    source_offset: Mapped[int | None] = mapped_column(BigInteger)
+    aggregate_id: Mapped[str | None] = mapped_column(String(120))
+    payload: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    error_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)

@@ -41,4 +41,7 @@ def build_upstream_registry(settings) -> dict[str, UpstreamService]:
         "communication": UpstreamService(
             "communication", settings.COMMUNICATION_SERVICE_URL, timeout_seconds=20.0
         ),
+        "ride": UpstreamService(
+            "ride", settings.RIDE_SERVICE_URL, timeout_seconds=20.0
+        ),
     }

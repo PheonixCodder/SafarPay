@@ -66,6 +66,8 @@ from .schemas import (
     GenerateVerificationCodeRequest,
     NearbyDriversResponse,
     ProofImageResponse,
+    ProofImageWithUrlResponse,
+    ProofUploadUrlResponse,
     RideResponse,
     RideSummaryResponse,
     StopResponse,
@@ -248,8 +250,13 @@ class CreateRideUseCase:
         await _publish(self._pub, ServiceRequestCreatedEvent(payload={
             "ride_id": str(ride.id),
             "passenger_id": str(ride.passenger_id),
+            "passenger_user_id": str(ride.passenger_id),
             "service_type": ride.service_type.value,
             "category": ride.category.value,
+            "pricing_mode": ride.pricing_mode.value,
+            "baseline_min_price": float(ride.baseline_min_price) if ride.baseline_min_price is not None else None,
+            "baseline_max_price": float(ride.baseline_max_price) if ride.baseline_max_price is not None else None,
+            "auto_accept_driver": ride.auto_accept_driver,
             "pickup_latitude": pickup_stop.latitude if pickup_stop else 0.0,
             "pickup_longitude": pickup_stop.longitude if pickup_stop else 0.0,
             "dropoff_latitude": dropoff_stop.latitude if dropoff_stop else None,
@@ -328,7 +335,11 @@ class CancelRideUseCase:
         )
         await self._cache.delete(_RIDE_CACHE_NS, str(ride_id))
         await _publish(self._pub, ServiceRequestCancelledEvent(payload={
-            "ride_id": str(ride.id), "reason": cmd.reason,
+            "ride_id": str(ride.id),
+            "passenger_user_id": str(ride.passenger_id),
+            "assigned_driver_id": str(ride.assigned_driver_id) if ride.assigned_driver_id else None,
+            "driver_id": str(ride.assigned_driver_id) if ride.assigned_driver_id else None,
+            "reason": cmd.reason,
         }))
         await self._ws.broadcast_to_passenger(
             ride.passenger_id, PassengerEvent.RIDE_CANCELLED,
@@ -520,7 +531,11 @@ class CompleteRideUseCase:
         )
         await self._cache.delete(_RIDE_CACHE_NS, str(ride_id))
         await _publish(self._pub, ServiceRequestCompletedEvent(payload={
-            "ride_id": str(ride.id), "final_price": cmd.final_price,
+            "ride_id": str(ride.id),
+            "passenger_user_id": str(ride.passenger_id),
+            "assigned_driver_id": str(ride.assigned_driver_id) if ride.assigned_driver_id else None,
+            "driver_id": str(ride.assigned_driver_id) if ride.assigned_driver_id else None,
+            "final_price": cmd.final_price,
         }))
         await self._ws.broadcast_to_passenger(
             ride.passenger_id, PassengerEvent.RIDE_COMPLETED,
@@ -593,6 +608,8 @@ class MarkStopArrivedUseCase:
         if ride.assigned_driver_id != driver_id:
             raise UnauthorisedRideAccessError("Driver is not assigned to this ride.")
         stop.mark_arrived()
+        if stop.arrived_at is None:
+            raise StopNotFoundError(f"Stop {stop_id} arrival timestamp was not set.")
         await self._stop_repo.update_arrived_at(stop_id, stop.arrived_at)
         if ride.status == RideStatus.ACCEPTED:
             ride.driver_arriving()
@@ -628,6 +645,8 @@ class MarkStopCompletedUseCase:
         if ride.assigned_driver_id != driver_id:
             raise UnauthorisedRideAccessError("Driver is not assigned to this ride.")
         stop.mark_completed()
+        if stop.completed_at is None:
+            raise StopNotFoundError(f"Stop {stop_id} completion timestamp was not set.")
         await self._stop_repo.update_completed_at(stop_id, stop.completed_at)
         await _publish(self._pub, ServiceStopCompletedEvent(payload={
             "stop_id": str(stop_id), "ride_id": str(ride.id),

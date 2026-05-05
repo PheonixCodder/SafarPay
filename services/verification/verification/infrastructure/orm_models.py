@@ -2,16 +2,28 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, date, timezone
+from datetime import date, datetime, timezone
 from typing import Any
-import enum
+
 from sp.infrastructure.db.base import Base, TimestampMixin
-from sqlalchemy import String, Text, ForeignKey, Integer, Boolean, Numeric, Date, Enum as SQLEnum, DateTime, Index, UniqueConstraint
-from sqlalchemy.dialects.postgresql import UUID as PgUUID, JSONB
+from sqlalchemy import (
+    Boolean,
+    Date,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    Numeric,
+    String,
+    Text,
+    UniqueConstraint,
+)
+from sqlalchemy import Enum as SQLEnum
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-
-from ..domain.models import VerificationStatus, VehicleType, EntityType, DocumentType
+from ..domain.models import DocumentType, EntityType, VehicleType, VerificationStatus
 
 
 class DriverORM(Base, TimestampMixin):
@@ -22,7 +34,7 @@ class DriverORM(Base, TimestampMixin):
     id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     # Link to Auth User
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("auth.users.id", ondelete="CASCADE"), unique=True)
-    
+
     verification_status: Mapped[VerificationStatus] = mapped_column(
         SQLEnum(VerificationStatus, name="verification_status", schema="verification"),
         default=VerificationStatus.PENDING
@@ -124,7 +136,7 @@ class VerificationRejectionORM(Base, TimestampMixin):
     id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     driver_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("verification.drivers.id"), index=True)
     document_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("verification.documents.id"), index=True)
-    
+
     rejection_reason_code: Mapped[str] = mapped_column(String(50))  # e.g., DOC_BLURRY
     admin_comment: Mapped[str | None] = mapped_column(Text)
     is_resolved: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -144,3 +156,44 @@ class DriverStatsORM(Base):
     acceptance_rate: Mapped[float] = mapped_column(Numeric(5, 2), default=0.0)
     cancellation_rate: Mapped[float] = mapped_column(Numeric(5, 2), default=0.0)
     driver: Mapped[DriverORM] = relationship(back_populates="stats")
+
+
+class VerificationOutboxEventORM(Base, TimestampMixin):
+    __tablename__ = "outbox_events"
+    __table_args__ = (
+        Index("ix_verification_outbox_pending", "processed_at", "created_at"),
+        {"schema": "verification"},
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    event_type: Mapped[str] = mapped_column(String(160), nullable=False, index=True)
+    aggregate_id: Mapped[str | None] = mapped_column(String(120), index=True)
+    aggregate_type: Mapped[str | None] = mapped_column(String(80))
+    topic: Mapped[str] = mapped_column(String(160), nullable=False, default="verification.events")
+    payload: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    correlation_id: Mapped[str | None] = mapped_column(String(120))
+    idempotency_key: Mapped[str | None] = mapped_column(String(180), unique=True)
+    processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    error_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    last_error: Mapped[str | None] = mapped_column(Text)
+
+
+class VerificationInboxMessageORM(Base, TimestampMixin):
+    __tablename__ = "inbox_messages"
+    __table_args__ = (
+        Index("ix_verification_inbox_source_offset", "source_topic", "source_partition", "source_offset", unique=True),
+        Index("ix_verification_inbox_pending", "processed_at", "received_at"),
+        {"schema": "verification"},
+    )
+
+    event_id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True)
+    event_type: Mapped[str] = mapped_column(String(160), nullable=False, index=True)
+    source_topic: Mapped[str] = mapped_column(String(160), nullable=False)
+    source_partition: Mapped[int | None] = mapped_column(Integer)
+    source_offset: Mapped[int | None] = mapped_column(Integer)
+    aggregate_id: Mapped[str | None] = mapped_column(String(120), index=True)
+    payload: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    error_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    last_error: Mapped[str | None] = mapped_column(Text)

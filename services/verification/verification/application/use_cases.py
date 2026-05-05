@@ -32,7 +32,7 @@ from verification.domain.exceptions import (
     InvalidDocumentStateError,
     MLProcessingError,
 )
-from sp.infrastructure.messaging.events import VerificationReviewRequestedEvent
+from sp.infrastructure.messaging.events import BaseEvent, VerificationReviewRequestedEvent
 from .schemas import (
     IdentitySubmissionRequest,
     LicenseSubmissionRequest,
@@ -141,7 +141,7 @@ class VerificationUseCases:
 
         return await self._generate_presigned_url(bucket_name, key)
 
-    async def request_verification_review(self, user_id: uuid.UUID) -> dict[str, Any]:
+    async def request_verification_review(self, user_id: uuid.UUID) -> ReviewSubmissionResponse:
         """Trigger a review of all submitted documents."""
         driver = await self.driver_repo.find_by_user_id(user_id)
         if not driver:
@@ -295,6 +295,12 @@ class VerificationUseCases:
                     
                 driver.verification_status = VerificationStatus.VERIFIED
                 await self.driver_repo.update(driver)
+                await self.event_publisher.publish(
+                    BaseEvent(
+                        event_type="driver.verification.approved",
+                        payload={"driver_id": str(driver.id), "user_id": str(driver.user_id)},
+                    )
+                )
             else:
                 identity_doc_types = [
                     DocumentType.ID_FRONT, DocumentType.ID_BACK,
@@ -313,13 +319,19 @@ class VerificationUseCases:
                     
                 driver.verification_status = VerificationStatus.REJECTED
                 await self.driver_repo.update(driver)
+                await self.event_publisher.publish(
+                    BaseEvent(
+                        event_type="driver.verification.rejected",
+                        payload={"driver_id": str(driver.id), "user_id": str(driver.user_id)},
+                    )
+                )
                 
                 # Insert rejections linked to documents
                 for error in result.errors:
-                    doc_type: DocumentType | None = error.get("document_type")
+                    error_doc_type: DocumentType | None = error.get("document_type")
                     doc_id = None
-                    if doc_type and doc_type in all_docs:
-                        doc_id = all_docs[doc_type].id
+                    if error_doc_type and error_doc_type in all_docs:
+                        doc_id = all_docs[error_doc_type].id
 
                     rej = VerificationRejection(
                         id=uuid.uuid4(),
@@ -354,6 +366,12 @@ class VerificationUseCases:
 
             driver.verification_status = VerificationStatus.REJECTED
             await self.driver_repo.update(driver)
+            await self.event_publisher.publish(
+                BaseEvent(
+                    event_type="driver.verification.rejected",
+                    payload={"driver_id": str(driver.id), "user_id": str(driver.user_id)},
+                )
+            )
         except Exception as e:
             logger.exception(f"[{trace_id}] Verification infra failed for driver {driver.id}: {e}")
             driver.verification_status = VerificationStatus.PENDING

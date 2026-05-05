@@ -25,6 +25,7 @@ from sp.core.observability.middleware import ObservabilityMiddleware
 from sp.infrastructure.db.engine import get_db_engine
 from sp.infrastructure.db.session import get_session_factory
 from sp.infrastructure.messaging.kafka import KafkaProducerWrapper
+from sp.infrastructure.messaging.outbox import GenericOutboxWorker
 from sp.infrastructure.messaging.publisher import EventPublisher
 from sqlalchemy import text
 
@@ -34,6 +35,7 @@ from .infrastructure.h3_index import H3IndexAdapter
 from .infrastructure.kafka_consumer import GeospatialKafkaConsumer
 from .infrastructure.location_client import LocationClient
 from .infrastructure.mapbox_client import MapboxClient
+from .infrastructure.orm_models import GeospatialOutboxEventORM
 
 SERVICE_NAME = "geospatial"
 
@@ -68,6 +70,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     producer: KafkaProducerWrapper | None = None
     publisher: EventPublisher | None = None
     consumer: GeospatialKafkaConsumer | None = None
+    outbox_worker: GenericOutboxWorker | None = None
 
     if settings.KAFKA_BOOTSTRAP_SERVERS:
         producer = KafkaProducerWrapper(
@@ -78,6 +81,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             topic="geospatial-events",
             producer=producer,
         )
+        outbox_worker = GenericOutboxWorker(
+            session_factory,
+            publisher,
+            GeospatialOutboxEventORM,
+            default_topic="geospatial-events",
+        )
+        await outbox_worker.start()
 
         # 5. Build use cases for the Kafka consumer
         find_nearby_uc = FindNearbyDriversUseCase(
@@ -114,6 +124,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info("Geospatial Service shutting down...")
     if consumer:
         await consumer.stop()
+    if outbox_worker:
+        await outbox_worker.stop()
     if producer:
         await producer.close()
     await routing_client.close()

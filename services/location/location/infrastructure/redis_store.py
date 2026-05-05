@@ -29,18 +29,17 @@ Redis commands used:
 """
 from __future__ import annotations
 
-import json
 import logging
+from collections.abc import Awaitable
 from datetime import datetime, timezone
+from typing import Any, cast
 from uuid import UUID
 
 import redis.asyncio as aioredis
 from sp.infrastructure.cache.manager import CacheManager
 
-from ..domain.interfaces import LocationStoreProtocol
 from ..domain.models import (
     ActorType,
-    Coordinates,
     DriverLocation,
     DriverStatus,
     LocationUpdate,
@@ -92,6 +91,16 @@ class RedisLocationStore:
     def _ride_key(self, ride_id: UUID) -> str:
         return self._cache._key("location", f"ride:{ride_id}")
 
+    async def reserve_inbox_event(self, event_id: UUID, *, ttl: int = 604800) -> bool:
+        """Reserve a consumed low-volume lifecycle event for idempotency."""
+        return await self._cache.set(
+            "location",
+            f"inbox:{event_id}",
+            "processed",
+            ttl=ttl,
+            nx=True,
+        )
+
     # ------------------------------------------------------------------
     # Driver operations
     # ------------------------------------------------------------------
@@ -126,13 +135,13 @@ class RedisLocationStore:
             "updated_at", update.recorded_at.isoformat(),
             "ride_id", str(ride_id) if ride_id else "",
         ]
-        await redis.eval(_HSET_EXPIRE_SCRIPT, 1, hash_key, *args)
+        await cast(Awaitable[Any], redis.eval(_HSET_EXPIRE_SCRIPT, 1, hash_key, *args))
         logger.debug("Driver %s location updated lat=%s lng=%s", driver_id, update.latitude, update.longitude)
 
     async def get_driver_location(self, driver_id: UUID) -> DriverLocation | None:
         """Return current driver state or None if key expired / not found."""
         redis = self._redis()
-        data = await redis.hgetall(self._driver_key(driver_id))
+        data = await cast(Awaitable[dict[Any, Any]], redis.hgetall(self._driver_key(driver_id)))
         if not data:
             return None
         return self._parse_driver(driver_id, data)
@@ -163,7 +172,7 @@ class RedisLocationStore:
             "ride_id", str(ride_id) if ride_id else "",
             "updated_at", datetime.now(timezone.utc).isoformat(),
         ]
-        await redis.eval(_HSET_EXPIRE_SCRIPT, 1, hash_key, *args)
+        await cast(Awaitable[Any], redis.eval(_HSET_EXPIRE_SCRIPT, 1, hash_key, *args))
 
         # If going OFFLINE, remove from geo set so they don't appear in nearby queries
         if status == DriverStatus.OFFLINE:
@@ -189,11 +198,11 @@ class RedisLocationStore:
             "updated_at", update.recorded_at.isoformat(),
             "ride_id", str(ride_id) if ride_id else "",
         ]
-        await redis.eval(_HSET_EXPIRE_SCRIPT, 1, hash_key, *args)
+        await cast(Awaitable[Any], redis.eval(_HSET_EXPIRE_SCRIPT, 1, hash_key, *args))
 
     async def get_passenger_location(self, user_id: UUID) -> PassengerLocation | None:
         redis = self._redis()
-        data = await redis.hgetall(self._passenger_key(user_id))
+        data = await cast(Awaitable[dict[Any, Any]], redis.hgetall(self._passenger_key(user_id)))
         if not data:
             return None
         return self._parse_passenger(user_id, data)
@@ -221,7 +230,7 @@ class RedisLocationStore:
             "driver_id", str(driver_id),
             "passenger_user_id", str(passenger_user_id),
         ]
-        await redis.eval(_HSET_EXPIRE_SCRIPT, 1, key, *args)
+        await cast(Awaitable[Any], redis.eval(_HSET_EXPIRE_SCRIPT, 1, key, *args))
         logger.debug(
             "Ride %s participants cached (atomic) driver=%s passenger=%s",
             ride_id, driver_id, passenger_user_id,
@@ -232,7 +241,7 @@ class RedisLocationStore:
     ) -> tuple[UUID, UUID] | None:
         """Return (driver_id, passenger_user_id) for a ride, or None if not cached."""
         redis = self._redis()
-        data = await redis.hgetall(self._ride_key(ride_id))
+        data = await cast(Awaitable[dict[Any, Any]], redis.hgetall(self._ride_key(ride_id)))
         if not data:
             return None
         try:
@@ -298,7 +307,7 @@ class RedisLocationStore:
 
         drivers: list[DriverLocation] = []
         stale_ids: list[str] = []
-        for driver_id, data in zip(driver_ids, hashes):
+        for driver_id, data in zip(driver_ids, hashes, strict=False):
             if not data:
                 # Hash expired but geo member remains — schedule for cleanup
                 stale_ids.append(str(driver_id))

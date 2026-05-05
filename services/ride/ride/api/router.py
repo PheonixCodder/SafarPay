@@ -479,7 +479,7 @@ async def ws_passengers(
 
     await manager.connect_passenger(user_id, ws)
     if ride_id:
-        await manager.subscribe_to_ride(user_id, ride_id)
+        manager.subscribe_to_ride(ride_id, ws)
 
     try:
         while True:
@@ -490,7 +490,6 @@ async def ws_passengers(
         pass
     finally:
         if ride_id:
-            await manager.unsubscribe_from_ride(user_id, ride_id)
+            manager.unsubscribe_from_ride(ride_id, ws)
         await manager.disconnect_passenger(user_id, ws)
         logger.info("Passenger WS disconnected user_id=%s", user_id)
-

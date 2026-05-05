@@ -18,7 +18,11 @@ from bidding.domain.models import (
 )
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from sp.infrastructure.security.dependencies import get_current_driver, get_current_user
+from sp.infrastructure.security.dependencies import (
+    get_current_driver,
+    get_current_user,
+    get_optional_driver_id,
+)
 from sp.infrastructure.security.jwt import TokenPayload
 
 PASSENGER_ID = UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
@@ -340,6 +344,7 @@ def bidding_app() -> FastAPI:
     app.include_router(bidding_router, prefix="/api/v1/bidding")
     app.dependency_overrides[get_current_user] = lambda: token()
     app.dependency_overrides[get_current_driver] = lambda: DRIVER_ID
+    app.dependency_overrides[get_optional_driver_id] = lambda: DRIVER_ID
     return app
 
 

@@ -40,6 +40,7 @@ from ..domain.interfaces import (
     LocationEventPublisherProtocol,
     LocationHistoryProtocol,
     LocationRateLimiterProtocol,
+    RideLocationStoreProtocol,
     LocationStoreProtocol,
 )
 from ..domain.models import (
@@ -47,7 +48,6 @@ from ..domain.models import (
     DriverStatus,
     LocationUpdate,
 )
-from ..infrastructure.redis_store import RedisLocationStore
 from ..infrastructure.websocket_manager import WebSocketManager
 from .schemas import (
     AddressResponse,
@@ -186,7 +186,11 @@ class UpdateDriverLocationUseCase:
 
         # 1. Context-aware rate limit
         is_on_ride = ride_id is not None
-        if not await self._limiter.allow(driver_id, is_on_ride=is_on_ride):
+        if not await self._limiter.allow(
+            driver_id,
+            actor_type=ActorType.DRIVER,
+            is_on_ride=is_on_ride,
+        ):
             if self._metrics:
                 self._metrics.increment("location_fraud_rejected_total", labels={"reason": "rate_limit", "actor": "driver"})
             raise RateLimitExceededError(
@@ -297,7 +301,11 @@ class UpdatePassengerLocationUseCase:
         correlation = f"passenger={user_id} ride={ride_id}"
         is_on_ride = ride_id is not None
 
-        if not await self._limiter.allow(user_id, is_on_ride=is_on_ride):
+        if not await self._limiter.allow(
+            user_id,
+            actor_type=ActorType.PASSENGER,
+            is_on_ride=is_on_ride,
+        ):
             if self._metrics:
                 self._metrics.increment("location_fraud_rejected_total", labels={"reason": "rate_limit", "actor": "passenger"})
             raise RateLimitExceededError(
@@ -390,13 +398,14 @@ class GetRideLocationsUseCase:
     participant_ids is no longer accepted from the caller.
     """
 
-    def __init__(self, store: RedisLocationStore) -> None:
+    def __init__(self, store: RideLocationStoreProtocol) -> None:
         self._store = store
 
     async def execute(
         self,
         ride_id: UUID,
-        caller_id: UUID,
+        caller_user_id: UUID,
+        caller_driver_id: UUID | None = None,
     ) -> RideLocationsResponse:
         # Fetch authoritative participant IDs from Redis
         participants = await self._store.get_ride_participants(ride_id)
@@ -406,9 +415,9 @@ class GetRideLocationsUseCase:
             )
 
         driver_id, passenger_user_id = participants
-        if caller_id not in {driver_id, passenger_user_id}:
+        if caller_user_id != passenger_user_id and caller_driver_id != driver_id:
             raise UnauthorisedLocationAccessError(
-                f"Caller {caller_id} is not a participant of ride {ride_id}"
+                f"Caller {caller_user_id} is not a participant of ride {ride_id}"
             )
 
         driver_loc, passenger_loc = await asyncio.gather(

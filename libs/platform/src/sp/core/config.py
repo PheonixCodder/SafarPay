@@ -68,6 +68,14 @@ class Settings(BaseSettings):
     # ── Messaging ─────────────────────────────────────────────────────────────
     KAFKA_BOOTSTRAP_SERVERS: str | None = None
     MAX_RETRY_ATTEMPTS: int = 3
+    AUTH_EVENTS_TOPIC: str = "auth-events"
+    AUTH_EVENTS_LEGACY_TOPIC: str = "auth.events"
+    BIDDING_EVENTS_TOPIC: str = "bidding-events"
+    COMMUNICATION_EVENTS_TOPIC: str = "communication-events"
+    GEOSPATIAL_EVENTS_TOPIC: str = "geospatial-events"
+    RIDE_EVENTS_TOPIC: str = "ride-events"
+    VERIFICATION_EVENTS_TOPIC: str = "verification.events"
+    VERIFICATION_CONSUMER_GROUP: str = "verification-service"
 
     # ── Observability ─────────────────────────────────────────────────────────
     OTEL_ENDPOINT: str | None = None
@@ -77,6 +85,7 @@ class Settings(BaseSettings):
     LOCATION_UPDATE_RATE_LIMIT_MAX: int = 2         # max pings allowed per window (ONLINE)
     LOCATION_UPDATE_RATE_LIMIT_MAX_ON_RIDE: int = 3 # max pings allowed per window (ON_RIDE)
     LOCATION_REDIS_TTL: int = 75                    # driver/passenger Hash TTL (seconds)
+    LOCATION_INBOX_TTL_SECONDS: int = 604800        # consumed Kafka lifecycle dedupe TTL
     LOCATION_STALE_THRESHOLD_SECONDS: int = 75      # mark actor stale after N seconds
     LOCATION_STALE_GRACE_SECONDS: int = 10          # jitter buffer added to stale threshold
     LOCATION_MAX_SPEED_KMH: float = 200.0           # fraud: discard above this speed

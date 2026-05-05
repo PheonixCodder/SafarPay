@@ -19,13 +19,14 @@ from uuid import UUID
 
 from .models import (
     ActorType,
+    Address,
+    Coordinates,
     DriverLocation,
     DriverStatus,
     LocationHistory,
     LocationUpdate,
     PassengerLocation,
 )
-
 
 # ---------------------------------------------------------------------------
 # Live location store (Redis)
@@ -90,6 +91,10 @@ class LocationStoreProtocol(Protocol):
         """Return the passenger's current live state or None if expired."""
         ...
 
+    async def get_ride_participants(self, ride_id: UUID) -> tuple[UUID, UUID] | None:
+        """Return (driver_id, passenger_user_id) for an active ride, if cached."""
+        ...
+
     async def get_drivers_in_radius(
         self,
         latitude: float,
@@ -103,6 +108,20 @@ class LocationStoreProtocol(Protocol):
         Only ONLINE drivers are returned (ON_RIDE and OFFLINE are excluded).
         Called exclusively by the Geospatial Service via GetNearbyDriversUseCase.
         """
+        ...
+
+
+@runtime_checkable
+class RideLocationStoreProtocol(Protocol):
+    """Read subset needed by ride location lookups."""
+
+    async def get_ride_participants(self, ride_id: UUID) -> tuple[UUID, UUID] | None:
+        ...
+
+    async def get_driver_location(self, driver_id: UUID) -> DriverLocation | None:
+        ...
+
+    async def get_passenger_location(self, user_id: UUID) -> PassengerLocation | None:
         ...
 
 
@@ -163,7 +182,13 @@ class LocationRateLimiterProtocol(Protocol):
     Default: max 2 pings per 5-second sliding window.
     """
 
-    async def allow(self, actor_id: UUID, *, is_on_ride: bool = False) -> bool:
+    async def allow(
+        self,
+        actor_id: UUID,
+        *,
+        actor_type: ActorType,
+        is_on_ride: bool = False,
+    ) -> bool:
         """Return True if this ping is within the allowed rate, False otherwise.
 
         Args:
@@ -174,6 +199,14 @@ class LocationRateLimiterProtocol(Protocol):
         Never raises — callers check the return value and raise
         RateLimitExceededError themselves so they control the log level.
         """
+        ...
+
+
+@runtime_checkable
+class CacheIncrementProtocol(Protocol):
+    """Minimal cache port required by the location rate limiter."""
+
+    async def increment(self, namespace: str, key: str, ttl: int) -> int:
         ...
 
 
@@ -231,10 +264,10 @@ class LocationEventPublisherProtocol(Protocol):
 class GeocodingClientProtocol(Protocol):
     """Port for geocoding and reverse-geocoding via an external map provider."""
 
-    async def geocode(self, address: str) -> list[tuple[float, float]]:
+    async def geocode(self, address: str) -> list[Coordinates]:
         """Convert a free-text address to a list of (lat, lng) candidates."""
         ...
 
-    async def reverse_geocode(self, latitude: float, longitude: float) -> str:
+    async def reverse_geocode(self, latitude: float, longitude: float) -> Address:
         """Convert coordinates to a human-readable address string."""
         ...

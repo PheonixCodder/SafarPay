@@ -14,6 +14,7 @@ from sp.infrastructure.cache.manager import get_cache_manager_factory
 from sp.infrastructure.db.engine import get_db_engine
 from sp.infrastructure.db.session import get_session_factory
 from sp.infrastructure.messaging.kafka import KafkaProducerWrapper
+from sp.infrastructure.messaging.outbox import GenericOutboxWorker
 from sp.infrastructure.messaging.publisher import EventPublisher
 
 from .api.router import router
@@ -21,7 +22,6 @@ from .infrastructure.storage import S3StorageProvider
 from .infrastructure.websocket_manager import WebSocketManager
 
 SERVICE_NAME = "communication"
-KAFKA_TOPIC = "communication-events"
 
 
 @asynccontextmanager
@@ -47,10 +47,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             settings.KAFKA_BOOTSTRAP_SERVERS,
             client_id=f"{SERVICE_NAME}-producer",
         )
-        app.state.publisher = EventPublisher(topic=KAFKA_TOPIC, producer=producer)
+        app.state.publisher = EventPublisher(
+            topic=settings.COMMUNICATION_EVENTS_TOPIC,
+            producer=producer,
+        )
 
         from .infrastructure.kafka_consumer import CommunicationKafkaConsumer
-        from .infrastructure.outbox_worker import OutboxWorker
+        from .infrastructure.orm_models import CommunicationEventORM
 
         app.state.consumer = CommunicationKafkaConsumer(
             bootstrap_servers=settings.KAFKA_BOOTSTRAP_SERVERS,
@@ -60,7 +63,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         )
         await app.state.consumer.start()
 
-        app.state.outbox = OutboxWorker(app.state.session_factory, app.state.publisher)
+        app.state.outbox = GenericOutboxWorker(
+            app.state.session_factory,
+            app.state.publisher,
+            CommunicationEventORM,
+            default_topic=settings.COMMUNICATION_EVENTS_TOPIC,
+            batch_size=100,
+            interval_seconds=2.0,
+        )
         await app.state.outbox.start()
 
     yield

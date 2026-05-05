@@ -30,6 +30,12 @@ class CounterOfferStatus(enum.Enum):
     EXPIRED = "EXPIRED"
 
 
+class PricingMode(enum.Enum):
+    FIXED = "FIXED"
+    BID_BASED = "BID_BASED"
+    HYBRID = "HYBRID"
+
+
 class BidEventType(enum.Enum):
     BID_PLACED = "BID_PLACED"
     AUTO_ACCEPT_REQUESTED = "AUTO_ACCEPT_REQUESTED"
@@ -105,6 +111,8 @@ class BiddingSession:
     service_request_id: UUID
     status: BiddingSessionStatus
     opened_at: datetime
+    passenger_user_id: UUID | None = None
+    pricing_mode: PricingMode | None = None
     expires_at: datetime | None = None
     closed_at: datetime | None = None
     max_bids_allowed: int | None = None
@@ -118,15 +126,21 @@ class BiddingSession:
         expires_at: datetime | None = None,
         max_bids_allowed: int | None = None,
         min_driver_rating: float | None = None,
+        baseline_price: float | None = None,
+        passenger_user_id: UUID | None = None,
+        pricing_mode: PricingMode | None = None,
     ) -> BiddingSession:
         return cls(
             id=uuid4(),
             service_request_id=service_request_id,
             status=BiddingSessionStatus.OPEN,
             opened_at=datetime.now(timezone.utc),
+            passenger_user_id=passenger_user_id,
+            pricing_mode=pricing_mode,
             expires_at=expires_at,
             max_bids_allowed=max_bids_allowed,
             min_driver_rating=min_driver_rating,
+            baseline_price=baseline_price,
         )
 
     def close(self) -> None:
@@ -150,6 +164,7 @@ class CounterOffer:
     status: CounterOfferStatus = CounterOfferStatus.PENDING
     responded_at: datetime | None = None
     reason: str | None = None
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     @classmethod
     def create(

@@ -5,7 +5,7 @@ from typing import Annotated, Any
 
 from fastapi import Depends, Request
 from sp.infrastructure.cache.manager import CacheManager
-from sp.infrastructure.db.session import get_async_session
+from sp.infrastructure.db.session import get_async_session, register_post_commit_hook
 from sp.infrastructure.messaging.publisher import EventPublisher
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -70,6 +70,7 @@ def get_ride_client(request: Request) -> Any:
 def get_place_bid_uc(
     session_repo: Annotated[BiddingSessionRepositoryProtocol, Depends(get_session_repo)],
     bid_repo: Annotated[BidRepositoryProtocol, Depends(get_bid_repo)],
+    session: Annotated[AsyncSession, Depends(get_async_session)],
     request: Request,
 ) -> PlaceBidUseCase:
     return PlaceBidUseCase(
@@ -79,12 +80,14 @@ def get_place_bid_uc(
         ws=get_ws_manager(request),
         ride_client=get_ride_client(request),
         publisher=get_publisher(request),
+        post_commit=lambda hook: register_post_commit_hook(session, hook),
     )
 
 
 def get_accept_bid_uc(
     session_repo: Annotated[BiddingSessionRepositoryProtocol, Depends(get_session_repo)],
     bid_repo: Annotated[BidRepositoryProtocol, Depends(get_bid_repo)],
+    session: Annotated[AsyncSession, Depends(get_async_session)],
     request: Request,
 ) -> AcceptBidUseCase:
     return AcceptBidUseCase(
@@ -94,6 +97,7 @@ def get_accept_bid_uc(
         webhook=get_webhook_client(request),
         ws=get_ws_manager(request),
         publisher=get_publisher(request),
+        post_commit=lambda hook: register_post_commit_hook(session, hook),
     )
 
 

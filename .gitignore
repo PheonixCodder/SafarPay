@@ -16,3 +16,6 @@ wheels/
 # IDE
 .idea/
 .vscode/
+
+.claude
+code.md/
