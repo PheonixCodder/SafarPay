@@ -19,6 +19,9 @@ from .websocket_manager import WebSocketManager
 logger = logging.getLogger("ride.kafka_consumer")
 
 _POLL_INTERVAL_MS = 500
+LEGACY_EVENT_ALIASES = {
+    "BID_ACCEPTED": "bid.accepted",
+}
 
 
 class RideKafkaConsumer:
@@ -67,7 +70,7 @@ class RideKafkaConsumer:
                         had_error = True
                         logger.error("Error processing message: %s", exc)
                 if messages and not had_error:
-                    self._consumer.commit()
+                    await self._consumer.commit_safe()
                 await asyncio.sleep(0.01)
         except asyncio.CancelledError:
             pass
@@ -78,8 +81,11 @@ class RideKafkaConsumer:
             logger.warning("Unexpected message value type: %s", type(payload))
             return
 
-        event_type = payload.get("event_type")
-        if event_type not in ("BID_ACCEPTED", "driver.matching.completed"):
+        raw_event_type = payload.get("event_type")
+        if not isinstance(raw_event_type, str):
+            return
+        event_type = LEGACY_EVENT_ALIASES.get(raw_event_type, raw_event_type)
+        if event_type not in ("bid.accepted", "driver.matching.completed"):
             return
 
         data = payload.get("payload", {})

@@ -12,10 +12,10 @@ from __future__ import annotations
 import asyncio
 import logging
 from datetime import datetime
-from typing import Any
 from uuid import UUID
 
 from sqlalchemy import text
+from sqlalchemy.engine import RowMapping
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from ..domain.models import ActorType, LocationHistory, LocationUpdate
@@ -173,7 +173,7 @@ class PostGISLocationRepository:
 # ---------------------------------------------------------------------------
 
 
-def _row_to_history(row: Any) -> LocationHistory:
+def _row_to_history(row: RowMapping) -> LocationHistory:
     return LocationHistory(
         id=UUID(str(row["id"])),
         actor_type=ActorType(row["actor_type"]),

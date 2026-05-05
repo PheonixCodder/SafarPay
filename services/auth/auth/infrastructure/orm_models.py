@@ -18,6 +18,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PgUUID
@@ -105,7 +106,12 @@ class VerificationORM(Base, TimestampMixin):
 class AuthOutboxEventORM(Base, TimestampMixin):
     __tablename__ = "outbox_events"
     __table_args__ = (
-        Index("ix_auth_outbox_pending", "processed_at", "created_at"),
+        Index(
+            "ix_auth_outbox_pending",
+            "processed_at",
+            "created_at",
+            postgresql_where=text("processed_at IS NULL AND error_count < 5"),
+        ),
         {"schema": "auth"},
     )
 

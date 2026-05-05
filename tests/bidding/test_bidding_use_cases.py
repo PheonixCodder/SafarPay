@@ -83,6 +83,14 @@ async def test_create_bidding_session_skips_fixed_and_notifies_drivers_for_biddi
             cast(Any, FakeBiddingWebSockets()),
         ).execute(ride_id, {"pricing_mode": "FIXED"}, [])
 
+    with pytest.raises(BiddingClosedError, match="passenger id"):
+        await CreateBiddingSessionUseCase(
+            cast(Any, FakeSessionRepo()),
+            cast(Any, FakeCache()),
+            cast(Any, FakeWebhook()),
+            cast(Any, FakeBiddingWebSockets()),
+        ).execute(ride_id, {"pricing_mode": "HYBRID"}, driver_ids)
+
 
 @pytest.mark.asyncio
 async def test_place_bid_creates_first_bid_and_auto_accept_outbox() -> None:
@@ -108,7 +116,7 @@ async def test_place_bid_creates_first_bid_and_auto_accept_outbox() -> None:
     assert response.driver_id == DRIVER_ID
     assert response.bid_amount == 380
     assert bid_repo.saved[0].status == BidStatus.ACTIVE
-    assert [event[1] for event in bid_repo.outbox] == ["BID_PLACED", "AUTO_ACCEPT_REQUESTED"]
+    assert [event[1] for event in bid_repo.outbox] == ["bid.placed", "bid.auto_accept_requested"]
     assert ws.session_events[0][1] == BiddingEvent.NEW_BID
     assert cache.redis.values["idem:place_bid:place-1"] != "IN_PROGRESS"
 
@@ -197,7 +205,7 @@ async def test_accept_bid_is_passenger_owned_locks_session_and_closes_with_outbo
 
     assert response.status == "ACCEPTED"
     assert session.status == BiddingSessionStatus.CLOSED
-    assert bid_repo.outbox[0][1] == "BID_ACCEPTED"
+    assert bid_repo.outbox[0][1] == "bid.accepted"
     assert bid_repo.outbox[0][2]["passenger_user_id"] == str(PASSENGER_ID)
     assert [event[1] for event in ws.session_events] == [BiddingEvent.BID_ACCEPTED, BiddingEvent.SESSION_CLOSED]
     assert webhook.accepted[0][0] == DRIVER_ID
@@ -346,7 +354,7 @@ async def test_driver_accept_counter_creates_or_updates_real_bid_and_closes_sess
     assert counter.status == CounterOfferStatus.ACCEPTED
     assert counter.driver_id == DRIVER_ID
     assert counter.bid_id == response.id
-    assert [event[1] for event in bid_repo.outbox] == ["COUNTER_OFFER_RESPONDED", "BID_ACCEPTED"]
+    assert [event[1] for event in bid_repo.outbox] == ["bid.counter_offer.responded", "bid.accepted"]
     assert session.status == BiddingSessionStatus.CLOSED
 
     session2 = make_session(pricing_mode=PricingMode.HYBRID)

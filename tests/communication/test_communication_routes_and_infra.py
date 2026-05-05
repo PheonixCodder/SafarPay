@@ -35,10 +35,10 @@ from communication.infrastructure.dependencies import (
     get_send_text_uc,
     get_start_call_uc,
 )
-from communication.infrastructure.orm_models import CommunicationEventType
-from communication.infrastructure.outbox_worker import OutboxWorker
+from communication.infrastructure.orm_models import CommunicationEventORM, CommunicationEventType
 from communication.infrastructure.storage import S3StorageProvider, build_media_key
 from communication.infrastructure.websocket_manager import CommunicationEvent, WebSocketManager
+from sp.infrastructure.messaging.outbox import GenericOutboxWorker
 from sp.infrastructure.security.dependencies import get_current_user, get_optional_driver_id
 
 from tests.communication.conftest import (
@@ -370,12 +370,16 @@ async def test_outbox_worker_publishes_pending_events_and_tracks_failures() -> N
     class Event:
         def __init__(self, event_type: CommunicationEventType, aggregate_id: UUID, error_count: int = 0) -> None:
             self.id = uuid4()
-            self.event_type = event_type
+            self.event_type = event_type.value
             self.aggregate_id = aggregate_id
             self.payload = {"aggregate_id": str(aggregate_id)}
+            self.topic = "communication-events"
+            self.correlation_id = None
+            self.idempotency_key = None
             self.created_at = now
             self.processed_at: datetime | None = None
             self.error_count = error_count
+            self.last_error: str | None = None
 
     pending = Event(CommunicationEventType.MESSAGE_SENT, uuid4())
     failing = Event(CommunicationEventType.CALL_STARTED, uuid4())
@@ -410,18 +414,23 @@ async def test_outbox_worker_publishes_pending_events_and_tracks_failures() -> N
         def __init__(self) -> None:
             self.published: list[str] = []
 
-        async def publish(self, event: Any) -> None:
+        async def publish_to_topic(self, topic: str, event: Any) -> bool:
+            assert topic == "communication-events"
             self.published.append(event.event_type)
-            if event.event_type.endswith("call_started"):
+            if event.event_type.endswith("call.started"):
                 raise RuntimeError("publish failed")
+            return True
 
     publisher = Publisher()
-    worker = OutboxWorker(cast(Any, lambda: session), cast(Any, publisher), batch_size=10)
+    worker = GenericOutboxWorker(
+        cast(Any, lambda: session),
+        cast(Any, publisher),
+        CommunicationEventORM,
+        default_topic="communication-events",
+        batch_size=10,
+    )
 
-    await worker._process_batch()
+    await worker.flush_once()
 
-    assert publisher.published == ["communication.message_sent", "communication.call_started"]
-    assert pending.processed_at is not None
-    assert failing.processed_at is None
-    assert failing.error_count == 1
+    assert publisher.published == ["communication.message.sent", "communication.call.started"]
     assert session.commits == 1

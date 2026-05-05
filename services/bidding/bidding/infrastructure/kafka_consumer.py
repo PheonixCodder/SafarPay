@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Awaitable, Callable
 from contextlib import suppress
 from uuid import UUID
 
@@ -19,6 +20,10 @@ from .webhook_client import WebhookClientProtocol
 from .websocket_manager import BiddingEvent, WebSocketManager
 
 logger = logging.getLogger("bidding.kafka_consumer")
+
+LEGACY_EVENT_ALIASES = {
+    "AUTO_ACCEPT_REQUESTED": "bid.auto_accept_requested",
+}
 
 
 class BiddingKafkaConsumer:
@@ -68,7 +73,7 @@ class BiddingKafkaConsumer:
                         had_error = True
                         logger.error("Error processing bidding event: %s", exc)
                 if messages and not had_error:
-                    self._consumer.commit()
+                    await self._consumer.commit_safe()
                 await asyncio.sleep(0.01)
         except asyncio.CancelledError:
             pass
@@ -81,18 +86,24 @@ class BiddingKafkaConsumer:
             logger.warning("Unexpected message value type: %s", type(payload))
             return
 
-        event_type = payload.get("event_type")
+        raw_event_type = payload.get("event_type")
+        if not isinstance(raw_event_type, str):
+            return
+        event_type = LEGACY_EVENT_ALIASES.get(raw_event_type, raw_event_type)
         if event_type == "service.request.created":
             await self._handle_ride_created(msg, payload)
         elif event_type == "service.request.cancelled":
             await self._handle_ride_cancelled(msg, payload)
-        elif event_type == "AUTO_ACCEPT_REQUESTED":
+        elif event_type == "bid.auto_accept_requested":
             await self._handle_auto_accept(msg, payload)
         elif event_type == "driver.matching.completed":
             await self._handle_matching_completed(msg, payload)
 
     async def _handle_ride_created(self, msg: dict, payload: dict) -> None:
         data = payload.get("payload", {})
+        if not isinstance(data, dict):
+            logger.warning("service.request.created payload must be an object")
+            return
         if data.get("pricing_mode") == "FIXED":
             return
         ride_id = data.get("ride_id") or data.get("id")
@@ -102,10 +113,17 @@ class BiddingKafkaConsumer:
             return
 
         async with self._session_factory() as session:
+            hooks: list[Callable[[], Awaitable[None]]] = []
             try:
                 async def handle() -> None:
                     repo = BiddingSessionRepository(session)
-                    create_uc = CreateBiddingSessionUseCase(repo, self._cache, self._webhook, self._ws)
+                    create_uc = CreateBiddingSessionUseCase(
+                        repo,
+                        self._cache,
+                        self._webhook,
+                        self._ws,
+                        post_commit=hooks.append,
+                    )
                     await create_uc.execute(
                         UUID(ride_id),
                         ride_payload=data,
@@ -114,12 +132,17 @@ class BiddingKafkaConsumer:
 
                 await process_inbox_message(session, BiddingInboxMessageORM, msg, handle)
                 await session.commit()
+                for hook in hooks:
+                    await hook()
             except Exception:
                 await session.rollback()
                 raise
 
     async def _handle_ride_cancelled(self, msg: dict, payload: dict) -> None:
         data = payload.get("payload", {})
+        if not isinstance(data, dict):
+            logger.warning("service.request.cancelled payload must be an object")
+            return
         ride_id = data.get("ride_id") or data.get("id")
         if not ride_id:
             logger.error("service.request.cancelled missing ride_id")
@@ -140,14 +163,18 @@ class BiddingKafkaConsumer:
 
     async def _handle_auto_accept(self, msg: dict, payload: dict) -> None:
         data = payload.get("payload", {})
+        if not isinstance(data, dict):
+            logger.warning("bid.auto_accept_requested payload must be an object")
+            return
         session_id = data.get("session_id")
         bid_id = data.get("bid_id")
         passenger_id = data.get("passenger_id")
         if not (session_id and bid_id and passenger_id):
-            logger.error("AUTO_ACCEPT_REQUESTED missing payload data")
+            logger.error("bid.auto_accept_requested missing payload data")
             return
 
         async with self._session_factory() as session:
+            hooks: list[Callable[[], Awaitable[None]]] = []
             try:
                 async def handle() -> None:
                     from ..application.use_cases import AcceptBidUseCase
@@ -162,11 +189,14 @@ class BiddingKafkaConsumer:
                         self._webhook,
                         self._ws,
                         publisher=self._publisher,
+                        post_commit=hooks.append,
                     )
                     await accept_uc.execute(UUID(session_id), UUID(bid_id), UUID(passenger_id))
 
                 processed = await process_inbox_message(session, BiddingInboxMessageORM, msg, handle)
                 await session.commit()
+                for hook in hooks:
+                    await hook()
                 if processed:
                     logger.info("Auto-accept completed for bid %s", bid_id)
             except Exception:
@@ -175,6 +205,9 @@ class BiddingKafkaConsumer:
 
     async def _handle_matching_completed(self, msg: dict, payload: dict) -> None:
         data = payload.get("payload", {})
+        if not isinstance(data, dict):
+            logger.warning("driver.matching.completed payload must be an object")
+            return
         pricing_mode = data.get("pricing_mode")
         if pricing_mode not in {"BID_BASED", "HYBRID"}:
             return
@@ -186,6 +219,7 @@ class BiddingKafkaConsumer:
             return
 
         async with self._session_factory() as session:
+            hooks: list[Callable[[], Awaitable[None]]] = []
             try:
                 async def handle() -> None:
                     repo = BiddingSessionRepository(session)
@@ -193,25 +227,30 @@ class BiddingKafkaConsumer:
                     if not bidding_session or bidding_session.status.value != "OPEN":
                         return
                     driver_uuid = UUID(str(driver_id))
-                    await self._webhook.dispatch_bidding_opportunity(
-                        driver_id=driver_uuid,
-                        session_id=bidding_session.id,
-                        ride_payload=data,
-                        idempotency_key=f"bidding_opp_{bidding_session.id}_{driver_uuid}",
-                    )
-                    await self._ws.send_to_driver(
-                        driver_uuid,
-                        BiddingEvent.NEW_BID,
-                        {
-                            "session_id": str(bidding_session.id),
-                            "ride_id": str(ride_id),
-                            "pricing_mode": pricing_mode,
-                            "baseline_price": bidding_session.baseline_price,
-                        },
-                    )
+                    async def notify_driver() -> None:
+                        await self._webhook.dispatch_bidding_opportunity(
+                            driver_id=driver_uuid,
+                            session_id=bidding_session.id,
+                            ride_payload=data,
+                            idempotency_key=f"bidding_opp_{bidding_session.id}_{driver_uuid}",
+                        )
+                        await self._ws.send_to_driver(
+                            driver_uuid,
+                            BiddingEvent.NEW_BID,
+                            {
+                                "session_id": str(bidding_session.id),
+                                "ride_id": str(ride_id),
+                                "pricing_mode": pricing_mode,
+                                "baseline_price": bidding_session.baseline_price,
+                            },
+                        )
+
+                    hooks.append(notify_driver)
 
                 await process_inbox_message(session, BiddingInboxMessageORM, msg, handle)
                 await session.commit()
+                for hook in hooks:
+                    await hook()
             except Exception:
                 await session.rollback()
                 raise

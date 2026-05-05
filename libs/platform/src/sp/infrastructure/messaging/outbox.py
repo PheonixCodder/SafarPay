@@ -67,6 +67,7 @@ class GenericOutboxWorker:
                 )
                 .order_by(self._outbox_model.created_at)
                 .limit(self._batch_size)
+                .with_for_update(skip_locked=True)
             )
             rows = list(result.scalars().all())
 
@@ -78,7 +79,7 @@ class GenericOutboxWorker:
                         event_type=row.event_type,
                         payload=row.payload or {},
                         correlation_id=getattr(row, "correlation_id", None),
-                        idempotency_key=getattr(row, "idempotency_key", str(row.id)),
+                        idempotency_key=getattr(row, "idempotency_key", None) or str(row.id),
                     )
                     topic = getattr(row, "topic", None) or self._default_topic
                     ok = await self._publisher.publish_to_topic(topic, event)

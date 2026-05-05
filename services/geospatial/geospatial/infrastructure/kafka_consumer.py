@@ -72,7 +72,7 @@ class GeospatialKafkaConsumer:
                         had_error = True
                         logger.error("Error processing msg: %s", exc)
                 if messages and not had_error:
-                    self._consumer.commit()
+                    await self._consumer.commit_safe()
                 await asyncio.sleep(0.01)
         except asyncio.CancelledError:
             pass
@@ -99,6 +99,9 @@ class GeospatialKafkaConsumer:
 
     async def _on_ride_created(self, payload: dict, session) -> None:
         data = payload.get("payload", {})
+        if not isinstance(data, dict):
+            logger.warning("service.request.created payload must be an object; skipping")
+            return
         ride_id_raw = data.get("ride_id") or data.get("id")
         if not ride_id_raw:
             logger.error("service.request.created missing ride_id; skipping")

@@ -14,13 +14,13 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sp.infrastructure.db.base import Base, TimestampMixin
+from sp.infrastructure.db.base import Base
 from sqlalchemy import DateTime, Index, Numeric, String, func
 from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 
-class LocationHistoryORM(Base, TimestampMixin):
+class LocationHistoryORM(Base):
     """One persisted GPS ping — append-only, never updated after insert."""
 
     __tablename__ = "location_history"

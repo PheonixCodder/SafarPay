@@ -2,9 +2,24 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class WebhookPayload(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+
+class BiddingOpportunityPayload(WebhookPayload):
+    session_id: UUID
+    ride: dict[str, Any]
+
+
+class BiddingRidePayload(WebhookPayload):
+    session_id: UUID
+    ride_id: UUID
 
 
 class StopSchema(BaseModel):

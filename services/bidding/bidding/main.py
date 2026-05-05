@@ -15,13 +15,14 @@ from sp.infrastructure.cache.manager import get_cache_manager_factory
 from sp.infrastructure.db.engine import get_db_engine
 from sp.infrastructure.db.session import get_session_factory
 from sp.infrastructure.messaging.kafka import KafkaProducerWrapper
+from sp.infrastructure.messaging.outbox import GenericOutboxWorker
 from sp.infrastructure.messaging.publisher import EventPublisher
 
 from .api.router import router
 from .application.use_cases import ExpireSessionsUseCase
 from .infrastructure.clients import DriverEligibilityClient, RideServiceClient
 from .infrastructure.kafka_consumer import BiddingKafkaConsumer
-from .infrastructure.outbox_worker import OutboxWorker
+from .infrastructure.orm_models import RideBidEventORM
 from .infrastructure.repositories import BiddingSessionRepository
 from .infrastructure.webhook_client import WebhookClient
 from .infrastructure.websocket_manager import WebSocketManager
@@ -71,7 +72,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         app.state.publisher = EventPublisher(topic="bidding-events", producer=producer)
 
         # Outbox Worker
-        app.state.outbox_worker = OutboxWorker(app.state.session_factory, app.state.publisher)
+        app.state.outbox_worker = GenericOutboxWorker(
+            app.state.session_factory,
+            app.state.publisher,
+            RideBidEventORM,
+            default_topic="bidding-events",
+            batch_size=100,
+            interval_seconds=2.0,
+        )
         await app.state.outbox_worker.start()
 
     # Initialize Webhook Client with publisher for DLQ
@@ -118,14 +126,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         app.state.expiry_task.cancel()
         tasks.append(app.state.expiry_task)
 
-    if app.state.outbox_worker:
-        tasks.append(asyncio.create_task(app.state.outbox_worker.stop()))
-
     if tasks:
         await asyncio.gather(*tasks, return_exceptions=True)
 
     if app.state.consumer:
         await app.state.consumer.stop()
+    if app.state.outbox_worker:
+        await app.state.outbox_worker.stop()
     if app.state.publisher:
         await app.state.publisher.close()
 

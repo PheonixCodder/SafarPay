@@ -57,19 +57,23 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Messaging
     if settings.KAFKA_BOOTSTRAP_SERVERS:
         producer = KafkaProducerWrapper(settings.KAFKA_BOOTSTRAP_SERVERS)
-        app.state.publisher = EventPublisher("verification.events", producer)
+        app.state.publisher = EventPublisher(settings.VERIFICATION_EVENTS_TOPIC, producer)
         app.state.outbox_worker = GenericOutboxWorker(
             app.state.session_factory,
             app.state.publisher,
             VerificationOutboxEventORM,
-            default_topic="verification.events",
+            default_topic=settings.VERIFICATION_EVENTS_TOPIC,
         )
         await app.state.outbox_worker.start()
 
         consumer = KafkaConsumerWrapper(
             settings.KAFKA_BOOTSTRAP_SERVERS,
-            group_id="verification-service",
-            topics=["auth-events", "auth.events", "verification.events"]
+            group_id=settings.VERIFICATION_CONSUMER_GROUP,
+            topics=[
+                settings.AUTH_EVENTS_TOPIC,
+                settings.AUTH_EVENTS_LEGACY_TOPIC,
+                settings.VERIFICATION_EVENTS_TOPIC,
+            ],
         )
 
         subscriber = EventSubscriber(consumer)
@@ -102,7 +106,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
                         await use_cases.execute_verification_review(driver_id)
 
                     raw_msg = {
-                        "topic": "verification.events",
+                        "topic": settings.VERIFICATION_EVENTS_TOPIC,
                         "value": event.model_dump(mode="json"),
                     }
                     await process_inbox_message(session, VerificationInboxMessageORM, raw_msg, handle)

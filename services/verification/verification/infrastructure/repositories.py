@@ -4,24 +4,32 @@ from __future__ import annotations
 from typing import Any, cast
 from uuid import UUID
 
+from sp.infrastructure.db.repository import BaseRepository
 from sqlalchemy import select, update
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from ..domain.interfaces import (
-    DriverRepositoryProtocol,
-    VehicleRepositoryProtocol,
     DocumentRepositoryProtocol,
+    DriverRepositoryProtocol,
     DriverVehicleRepositoryProtocol,
+    VehicleRepositoryProtocol,
     VerificationRejectionRepositoryProtocol,
 )
-from ..domain.models import Driver, Vehicle, Document, DriverVehicle, VerificationRejection
-from .orm_models import DriverORM, VehicleORM, DocumentORM, DriverVehicleORM, VerificationRejectionORM, VehicleType
+from ..domain.models import Document, Driver, DriverVehicle, Vehicle, VerificationRejection
+from .orm_models import (
+    DocumentORM,
+    DriverORM,
+    DriverVehicleORM,
+    VehicleORM,
+    VehicleType,
+    VerificationRejectionORM,
+)
 
 
-class DriverRepository(DriverRepositoryProtocol):
+class DriverRepository(BaseRepository[DriverORM], DriverRepositoryProtocol):
     def __init__(self, session: AsyncSession) -> None:
-        self._session = session
+        super().__init__(session, DriverORM)
 
     def _to_domain(self, orm: DriverORM) -> Driver:
         return Driver(
@@ -34,7 +42,7 @@ class DriverRepository(DriverRepositoryProtocol):
             updated_at=orm.updated_at,
         )
 
-    async def find_by_id(self, driver_id: UUID) -> Driver | None:
+    async def find_by_id(self, driver_id: UUID) -> Driver | None:  # type: ignore[override]
         result = await self._session.execute(
             select(DriverORM).where(DriverORM.id == driver_id)
         )
@@ -48,7 +56,7 @@ class DriverRepository(DriverRepositoryProtocol):
         orm = result.scalar_one_or_none()
         return self._to_domain(orm) if orm else None
 
-    async def save(self, driver: Driver) -> Driver:
+    async def save(self, driver: Driver) -> Driver:  # type: ignore[override]
         orm = DriverORM(
             id=driver.id,
             user_id=driver.user_id,
@@ -72,9 +80,9 @@ class DriverRepository(DriverRepositoryProtocol):
         return driver
 
 
-class VehicleRepository(VehicleRepositoryProtocol):
+class VehicleRepository(BaseRepository[VehicleORM], VehicleRepositoryProtocol):
     def __init__(self, session: AsyncSession) -> None:
-        self._session = session
+        super().__init__(session, VehicleORM)
 
     def _to_domain(self, orm: VehicleORM) -> Vehicle:
         return Vehicle(
@@ -92,7 +100,7 @@ class VehicleRepository(VehicleRepositoryProtocol):
             updated_at=orm.updated_at,
         )
 
-    async def find_by_id(self, vehicle_id: UUID) -> Vehicle | None:
+    async def find_by_id(self, vehicle_id: UUID) -> Vehicle | None:  # type: ignore[override]
         result = await self._session.execute(
             select(VehicleORM).where(VehicleORM.id == vehicle_id)
         )
@@ -106,7 +114,7 @@ class VehicleRepository(VehicleRepositoryProtocol):
         orm = result.scalar_one_or_none()
         return self._to_domain(orm) if orm else None
 
-    async def save(self, vehicle: Vehicle) -> Vehicle:
+    async def save(self, vehicle: Vehicle) -> Vehicle:  # type: ignore[override]
         orm = VehicleORM(
             id=vehicle.id,
             brand=vehicle.brand,
@@ -143,9 +151,9 @@ class VehicleRepository(VehicleRepositoryProtocol):
         return vehicle
 
 
-class DocumentRepository(DocumentRepositoryProtocol):
+class DocumentRepository(BaseRepository[DocumentORM], DocumentRepositoryProtocol):
     def __init__(self, session: AsyncSession) -> None:
-        self._session = session
+        super().__init__(session, DocumentORM)
 
     def _to_domain(self, orm: DocumentORM) -> Document:
         return Document(
@@ -162,7 +170,7 @@ class DocumentRepository(DocumentRepositoryProtocol):
             updated_at=orm.updated_at,
         )
 
-    async def find_by_id(self, document_id: UUID) -> Document | None:
+    async def find_by_id(self, document_id: UUID) -> Document | None:  # type: ignore[override]
         result = await self._session.execute(
             select(DocumentORM).where(DocumentORM.id == document_id)
         )
@@ -187,7 +195,7 @@ class DocumentRepository(DocumentRepositoryProtocol):
         orm = result.scalar_one_or_none()
         return self._to_domain(orm) if orm else None
 
-    async def save(self, document: Document) -> Document:
+    async def save(self, document: Document) -> Document:  # type: ignore[override]
         orm = DocumentORM(
             id=document.id,
             document_type=document.document_type,
@@ -219,9 +227,9 @@ class DocumentRepository(DocumentRepositoryProtocol):
         return document
 
 
-class DriverVehicleRepository(DriverVehicleRepositoryProtocol):
+class DriverVehicleRepository(BaseRepository[DriverVehicleORM], DriverVehicleRepositoryProtocol):
     def __init__(self, session: AsyncSession) -> None:
-        self._session = session
+        super().__init__(session, DriverVehicleORM)
 
     def _to_domain(self, orm: DriverVehicleORM) -> DriverVehicle:
         return DriverVehicle(
@@ -255,7 +263,7 @@ class DriverVehicleRepository(DriverVehicleRepositoryProtocol):
         self, driver_id: UUID, vehicle_id: UUID, vehicle_type: VehicleType
     ) -> DriverVehicle:
         orm = DriverVehicleORM(
-            driver_id=driver_id, 
+            driver_id=driver_id,
             vehicle_id=vehicle_id,
             vehicle_type=vehicle_type
         )
@@ -279,16 +287,16 @@ class DriverVehicleRepository(DriverVehicleRepositoryProtocol):
             )
             .values(is_currently_selected=True)
         )
-        if cast(Any, result).rowcount == 0:
+        if cast(CursorResult[Any], result).rowcount == 0:
             from verification.domain.exceptions import DriverNotFoundError
             raise DriverNotFoundError(f"DriverVehicle link not found for driver {driver_id} and vehicle {vehicle_id}")
-            
+
         await self._session.flush()
 
 
-class VerificationRejectionRepository(VerificationRejectionRepositoryProtocol):
+class VerificationRejectionRepository(BaseRepository[VerificationRejectionORM], VerificationRejectionRepositoryProtocol):
     def __init__(self, session: AsyncSession) -> None:
-        self._session = session
+        super().__init__(session, VerificationRejectionORM)
 
     def _to_domain(self, orm: VerificationRejectionORM) -> VerificationRejection:
         return VerificationRejection(

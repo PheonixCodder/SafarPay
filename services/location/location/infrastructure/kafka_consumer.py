@@ -18,6 +18,7 @@ import logging
 from contextlib import suppress
 from uuid import UUID
 
+from sp.core.config import Settings
 from sp.infrastructure.messaging.inbox import message_event_id
 from sp.infrastructure.messaging.kafka import KafkaConsumerWrapper
 
@@ -40,9 +41,13 @@ class LocationKafkaConsumer:
         bootstrap_servers: str,
         store: RedisLocationStore,
         ws_manager: WebSocketManager,
+        settings: Settings | None = None,
     ) -> None:
         self._store = store
         self._ws_manager = ws_manager
+        self._inbox_ttl = (
+            settings.LOCATION_INBOX_TTL_SECONDS if settings else 604800
+        )
         self._consumer = KafkaConsumerWrapper(
             bootstrap_servers=bootstrap_servers,
             group_id=_GROUP,
@@ -84,7 +89,7 @@ class LocationKafkaConsumer:
                             msg.get("offset"), exc,
                         )
                 if messages and not had_error:
-                    self._consumer.commit()
+                    await self._consumer.commit_safe()
             except asyncio.CancelledError:
                 raise
             except Exception as exc:  # noqa: BLE001
@@ -96,14 +101,20 @@ class LocationKafkaConsumer:
         if not isinstance(payload, dict):
             return
         event_type: str = payload.get("event_type", "")
-        data: dict = payload.get("payload", {})
+        data = payload.get("payload", {})
+        if not isinstance(data, dict):
+            logger.warning("Kafka event payload must be an object: %s", event_type)
+            return
         if event_type in {
             "service.request.accepted",
             "service.request.completed",
             "service.request.cancelled",
         }:
             event_id = message_event_id(msg)
-            reserved = await self._store.reserve_inbox_event(event_id)
+            reserved = await self._store.reserve_inbox_event(
+                event_id,
+                ttl=self._inbox_ttl,
+            )
             if not reserved:
                 logger.info("Skipping duplicate location event_id=%s", event_id)
                 return
@@ -173,6 +184,11 @@ class LocationKafkaConsumer:
                     ride_id,
                     driver_id_str,
                 )
+
+        if driver_id is None:
+            participants = await self._store.get_ride_participants(ride_id)
+            if participants:
+                driver_id = participants[0]
 
         # 1. Clear WebSocket subscriptions
         self._ws_manager.unsubscribe_all_from_ride(ride_id)

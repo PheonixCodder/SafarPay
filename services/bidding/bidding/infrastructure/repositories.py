@@ -120,8 +120,7 @@ class BidRepository(BaseRepository[RideBidORM]):
         predicates = [
             RideBidORM.bidding_session_id == session_id,
             RideBidORM.status == BidStatus.ACTIVE.value,
-            (RideBidORM.bid_amount > new_lowest_amount) |
-            ((RideBidORM.bid_amount == new_lowest_amount) & (RideBidORM.created_at < placed_at_threshold)),
+            RideBidORM.bid_amount > new_lowest_amount,
         ]
         if exclude_bid_id is not None:
             predicates.append(RideBidORM.id != exclude_bid_id)
@@ -134,13 +133,27 @@ class BidRepository(BaseRepository[RideBidORM]):
         return cast(Any, result).rowcount
 
     async def save_outbox_event(self, bid_id: UUID, event_type: str, payload: dict[str, Any]) -> None:
-        import json
+        from .orm_models import RideBidEventORM
 
-        from .orm_models import BidEventType, RideBidEventORM
+        canonical_event_type = {
+            "BID_PLACED": "bid.placed",
+            "BID_UPDATED": "bid.updated",
+            "BID_WITHDRAWN": "bid.withdrawn",
+            "BID_ACCEPTED": "bid.accepted",
+            "BID_REJECTED": "bid.rejected",
+            "AUTO_ACCEPT_REQUESTED": "bid.auto_accept_requested",
+            "COUNTER_OFFER_CREATED": "bid.counter_offer.created",
+            "COUNTER_OFFER_RESPONDED": "bid.counter_offer.responded",
+        }.get(event_type, event_type)
         event = RideBidEventORM(
             bid_id=bid_id,
-            event_type=BidEventType(event_type),
-            payload=json.dumps(payload),
+            event_type=canonical_event_type,
+            aggregate_id=str(bid_id),
+            aggregate_type="bid",
+            topic="bidding-events",
+            payload=payload,
+            correlation_id=payload.get("correlation_id"),
+            idempotency_key=payload.get("idempotency_key"),
         )
         self._session.add(event)
         await self._session.flush()

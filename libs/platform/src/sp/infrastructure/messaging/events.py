@@ -46,17 +46,60 @@ class UserLoggedInPayload(EventPayload):
 
 class BidPlacedPayload(EventPayload):
     bid_id: UUID
-    bidding_session_id: UUID
-    service_request_id: UUID
+    session_id: UUID
     driver_id: UUID
 
 
 class BidAcceptedPayload(EventPayload):
     bid_id: UUID
-    bidding_session_id: UUID
-    service_request_id: UUID
+    session_id: UUID
+    ride_id: UUID
     driver_id: UUID
-    passenger_user_id: UUID
+
+
+class BidUpdatedPayload(EventPayload):
+    bid_id: UUID
+    session_id: UUID
+    driver_id: UUID
+
+
+class BidWithdrawnPayload(EventPayload):
+    bid_id: UUID
+    session_id: UUID
+    driver_id: UUID
+
+
+class BidRejectedPayload(EventPayload):
+    bid_id: UUID
+    session_id: UUID
+
+
+class BidAutoAcceptRequestedPayload(EventPayload):
+    session_id: UUID
+    bid_id: UUID
+    passenger_id: UUID
+
+
+class BidCounterOfferPayload(EventPayload):
+    session_id: UUID
+    counter_offer_id: UUID
+
+
+class CommunicationConversationPayload(EventPayload):
+    conversation_id: UUID
+
+
+class CommunicationMessagePayload(EventPayload):
+    message_id: UUID
+
+
+class CommunicationMediaMessagePayload(EventPayload):
+    message_id: UUID
+    media_id: UUID
+
+
+class CommunicationCallPayload(EventPayload):
+    call_id: UUID
 
 
 class NotificationRequestedPayload(EventPayload):
@@ -184,6 +227,56 @@ class BidAcceptedEvent(BaseEvent):
     event_type: Literal["bid.accepted"] = "bid.accepted"
 
 
+class BidUpdatedEvent(BaseEvent):
+    event_type: Literal["bid.updated"] = "bid.updated"
+
+
+class BidWithdrawnEvent(BaseEvent):
+    event_type: Literal["bid.withdrawn"] = "bid.withdrawn"
+
+
+class BidRejectedEvent(BaseEvent):
+    event_type: Literal["bid.rejected"] = "bid.rejected"
+
+
+class BidAutoAcceptRequestedEvent(BaseEvent):
+    event_type: Literal["bid.auto_accept_requested"] = "bid.auto_accept_requested"
+
+
+class BidCounterOfferCreatedEvent(BaseEvent):
+    event_type: Literal["bid.counter_offer.created"] = "bid.counter_offer.created"
+
+
+class BidCounterOfferRespondedEvent(BaseEvent):
+    event_type: Literal["bid.counter_offer.responded"] = "bid.counter_offer.responded"
+
+
+# Communication events
+
+class CommunicationConversationOpenedEvent(BaseEvent):
+    event_type: Literal["communication.conversation.opened"] = "communication.conversation.opened"
+
+
+class CommunicationConversationClosedEvent(BaseEvent):
+    event_type: Literal["communication.conversation.closed"] = "communication.conversation.closed"
+
+
+class CommunicationMessageSentEvent(BaseEvent):
+    event_type: Literal["communication.message.sent"] = "communication.message.sent"
+
+
+class CommunicationMediaMessageSentEvent(BaseEvent):
+    event_type: Literal["communication.media_message.sent"] = "communication.media_message.sent"
+
+
+class CommunicationCallStartedEvent(BaseEvent):
+    event_type: Literal["communication.call.started"] = "communication.call.started"
+
+
+class CommunicationCallUpdatedEvent(BaseEvent):
+    event_type: Literal["communication.call.updated"] = "communication.call.updated"
+
+
 # ── Notification events ───────────────────────────────────────────────────────
 
 class NotificationRequestedEvent(BaseEvent):
@@ -292,6 +385,18 @@ EVENT_REGISTRY: dict[str, type[BaseEvent]] = {
     "user.logged_in": UserLoggedInEvent,
     "bid.placed": BidPlacedEvent,
     "bid.accepted": BidAcceptedEvent,
+    "bid.updated": BidUpdatedEvent,
+    "bid.withdrawn": BidWithdrawnEvent,
+    "bid.rejected": BidRejectedEvent,
+    "bid.auto_accept_requested": BidAutoAcceptRequestedEvent,
+    "bid.counter_offer.created": BidCounterOfferCreatedEvent,
+    "bid.counter_offer.responded": BidCounterOfferRespondedEvent,
+    "communication.conversation.opened": CommunicationConversationOpenedEvent,
+    "communication.conversation.closed": CommunicationConversationClosedEvent,
+    "communication.message.sent": CommunicationMessageSentEvent,
+    "communication.media_message.sent": CommunicationMediaMessageSentEvent,
+    "communication.call.started": CommunicationCallStartedEvent,
+    "communication.call.updated": CommunicationCallUpdatedEvent,
     "notification.requested": NotificationRequestedEvent,
     "document.verified": DocumentVerifiedEvent,
     "verification.review_requested": VerificationReviewRequestedEvent,
@@ -323,6 +428,18 @@ PAYLOAD_REGISTRY: dict[str, type[EventPayload]] = {
     "user.logged_in": UserLoggedInPayload,
     "bid.placed": BidPlacedPayload,
     "bid.accepted": BidAcceptedPayload,
+    "bid.updated": BidUpdatedPayload,
+    "bid.withdrawn": BidWithdrawnPayload,
+    "bid.rejected": BidRejectedPayload,
+    "bid.auto_accept_requested": BidAutoAcceptRequestedPayload,
+    "bid.counter_offer.created": BidCounterOfferPayload,
+    "bid.counter_offer.responded": BidCounterOfferPayload,
+    "communication.conversation.opened": CommunicationConversationPayload,
+    "communication.conversation.closed": CommunicationConversationPayload,
+    "communication.message.sent": CommunicationMessagePayload,
+    "communication.media_message.sent": CommunicationMediaMessagePayload,
+    "communication.call.started": CommunicationCallPayload,
+    "communication.call.updated": CommunicationCallPayload,
     "notification.requested": NotificationRequestedPayload,
     "document.verified": DocumentVerifiedPayload,
     "verification.review_requested": VerificationReviewRequestedPayload,

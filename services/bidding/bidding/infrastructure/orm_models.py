@@ -7,6 +7,7 @@ from datetime import datetime
 
 from sp.infrastructure.db.base import Base, TimestampMixin
 from sqlalchemy import (
+    BigInteger,
     CheckConstraint,
     DateTime,
     ForeignKey,
@@ -284,7 +285,7 @@ class RideBidCounterOfferORM(Base, TimestampMixin):
 
     bid_id: Mapped[uuid.UUID | None] = mapped_column(
         PgUUID(as_uuid=True),
-        ForeignKey("bidding.bids.id", ondelete="CASCADE"),
+        ForeignKey("bidding.bids.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
     )
@@ -375,7 +376,7 @@ class RideBidAcceptanceORM(Base, TimestampMixin):
 # =========================================================
 
 
-class RideBidEventORM(Base):
+class RideBidEventORM(Base, TimestampMixin):
     __tablename__ = "bid_events"
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -389,20 +390,16 @@ class RideBidEventORM(Base):
         index=True,
     )
 
-    event_type: Mapped[BidEventType] = mapped_column(
-        SQLEnum(BidEventType, name="bid_event_type_enum", schema="bidding"),
-        nullable=False,
-        index=True,
-    )
-
-    payload: Mapped[str | None] = mapped_column(Text)
-
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
-    )
-
+    event_type: Mapped[str] = mapped_column(String(160), nullable=False, index=True)
+    aggregate_id: Mapped[str | None] = mapped_column(String(120), index=True)
+    aggregate_type: Mapped[str | None] = mapped_column(String(80))
+    topic: Mapped[str] = mapped_column(String(160), nullable=False, default="bidding-events")
+    payload: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    correlation_id: Mapped[str | None] = mapped_column(String(120))
+    idempotency_key: Mapped[str | None] = mapped_column(String(180), unique=True)
     processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     error_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    last_error: Mapped[str | None] = mapped_column(Text)
 
     bid: Mapped[RideBidORM] = relationship(back_populates="events")
 
@@ -420,7 +417,7 @@ class BiddingInboxMessageORM(Base, TimestampMixin):
     event_type: Mapped[str] = mapped_column(String(160), nullable=False, index=True)
     source_topic: Mapped[str] = mapped_column(String(160), nullable=False)
     source_partition: Mapped[int | None] = mapped_column(Integer)
-    source_offset: Mapped[int | None] = mapped_column(Integer)
+    source_offset: Mapped[int | None] = mapped_column(BigInteger)
     aggregate_id: Mapped[str | None] = mapped_column(String(120), index=True)
     payload: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
     received_at: Mapped[datetime] = mapped_column(

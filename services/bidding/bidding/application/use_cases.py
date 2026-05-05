@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 import time
+from collections.abc import Awaitable, Callable
 from typing import Any
 from uuid import UUID
 
@@ -54,6 +55,7 @@ USECASE_LATENCY = Histogram("bidding_usecase_duration_seconds", "Latency of bidd
 
 
 MINIMUM_BID_DECREMENT = 1.0
+PostCommitScheduler = Callable[[Callable[[], Awaitable[None]]], None]
 
 
 def _bid_to_resp(bid: Bid) -> BidResponse:
@@ -131,11 +133,13 @@ class CreateBiddingSessionUseCase:
         cache: CacheManager,
         webhook: WebhookClientProtocol,
         ws: WebSocketManager,
+        post_commit: PostCommitScheduler | None = None,
     ) -> None:
         self._session_repo = session_repo
         self._cache = cache
         self._webhook = webhook
         self._ws = ws
+        self._post_commit = post_commit
 
     async def execute(self, ride_id: UUID, ride_payload: dict[str, Any], driver_ids: list[UUID]) -> BiddingSessionResponse:
         pricing_mode_raw = ride_payload.get("pricing_mode")
@@ -144,6 +148,10 @@ class CreateBiddingSessionUseCase:
             logger.info("Skipping bidding session for FIXED ride %s", ride_id)
             raise BiddingClosedError("FIXED rides do not use bidding sessions.")
 
+        passenger_raw = ride_payload.get("passenger_user_id") or ride_payload.get("passenger_id")
+        if not passenger_raw:
+            raise BiddingClosedError("Bidding session requires a passenger id.")
+
         session = BiddingSession.create(
             service_request_id=ride_id,
             baseline_price=(
@@ -151,33 +159,33 @@ class CreateBiddingSessionUseCase:
                 or ride_payload.get("baseline_min_price")
                 or ride_payload.get("baseline_max_price")
             ),
-            passenger_user_id=(
-                UUID(str(ride_payload["passenger_user_id"]))
-                if ride_payload.get("passenger_user_id")
-                else UUID(str(ride_payload["passenger_id"]))
-                if ride_payload.get("passenger_id")
-                else None
-            ),
+            passenger_user_id=UUID(str(passenger_raw)),
             pricing_mode=pricing_mode,
         )
         saved = await self._session_repo.save(session)
 
         # Notify drivers
-        for d_id in driver_ids:
-            await self._webhook.dispatch_bidding_opportunity(
-                driver_id=d_id,
-                session_id=saved.id,
-                ride_payload=ride_payload,
-                idempotency_key=f"bidding_opp_{saved.id}_{d_id}",
-            )
-            await self._ws.send_to_driver(
-                d_id,
-                BiddingEvent.NEW_BID,
-                {
-                    "session_id": str(saved.id),
-                    "baseline_price": ride_payload.get("baseline_price"),
-                },
-            )
+        async def notify_drivers() -> None:
+            for d_id in driver_ids:
+                await self._webhook.dispatch_bidding_opportunity(
+                    driver_id=d_id,
+                    session_id=saved.id,
+                    ride_payload=ride_payload,
+                    idempotency_key=f"bidding_opp_{saved.id}_{d_id}",
+                )
+                await self._ws.send_to_driver(
+                    d_id,
+                    BiddingEvent.NEW_BID,
+                    {
+                        "session_id": str(saved.id),
+                        "baseline_price": ride_payload.get("baseline_price"),
+                    },
+                )
+
+        if self._post_commit:
+            self._post_commit(notify_drivers)
+        else:
+            await notify_drivers()
 
         logger.info("Created bidding session %s for ride %s", saved.id, ride_id)
         return _session_to_resp(saved)
@@ -192,6 +200,7 @@ class PlaceBidUseCase:
         ws: WebSocketManager,
         ride_client: RideServiceClientProtocol | None = None,
         publisher: EventPublisher | None = None,
+        post_commit: PostCommitScheduler | None = None,
     ) -> None:
         self._session_repo = session_repo
         self._bid_repo = bid_repo
@@ -199,6 +208,7 @@ class PlaceBidUseCase:
         self._ws = ws
         self._ride_client = ride_client
         self._publisher = publisher
+        self._post_commit = post_commit
 
     async def execute(self, session_id: UUID, req: PlaceBidRequest, driver_id: UUID, idempotency_key: str | None = None) -> BidResponse:
         start_time = time.time()
@@ -316,29 +326,34 @@ class PlaceBidUseCase:
                 if self._publisher:
                     await self._bid_repo.save_outbox_event(
                         saved.id,
-                        "BID_UPDATED" if existing_bid else "BID_PLACED",
+                        "bid.updated" if existing_bid else "bid.placed",
                         payload,
                     )
                     if auto_accept_payload:
                         auto_accept_payload["bid_id"] = str(saved.id)
-                        await self._bid_repo.save_outbox_event(saved.id, "AUTO_ACCEPT_REQUESTED", auto_accept_payload)
+                        await self._bid_repo.save_outbox_event(
+                            saved.id, "bid.auto_accept_requested", auto_accept_payload
+                        )
                         logger.info("Auto-accept requested for bid %s", saved.id)
 
             # 7. Update Cache
             await redis.zadd(zset_key, {str(saved.id): req.bid_amount})
 
-            # 8. Events
-            await self._ws.broadcast_to_session(session.id, BiddingEvent.NEW_BID, payload)
-            if lowest_raw:
-                await self._ws.broadcast_to_session(session.id, BiddingEvent.BID_LEADER_UPDATED, payload)
-
-            logger.info("Bid placed session=%s driver=%s amount=%s", session.id, driver_id, saved.bid_amount)
-
             resp = _bid_to_resp(saved)
 
-            # 9. Store Idempotency Result
-            if idempotency_key:
-                await redis.set(idem_key, resp.model_dump_json(), ex=86400) # 24h
+            async def after_commit() -> None:
+                await self._ws.broadcast_to_session(session.id, BiddingEvent.NEW_BID, payload)
+                if lowest_raw:
+                    await self._ws.broadcast_to_session(session.id, BiddingEvent.BID_LEADER_UPDATED, payload)
+                if idempotency_key:
+                    await redis.set(idem_key, resp.model_dump_json(), ex=86400)
+
+            if self._post_commit:
+                self._post_commit(after_commit)
+            else:
+                await after_commit()
+
+            logger.info("Bid placed session=%s driver=%s amount=%s", session.id, driver_id, saved.bid_amount)
 
             # Auto-accept check is handled via outbox event in the transaction block
 
@@ -361,6 +376,7 @@ class AcceptBidUseCase:
         webhook: WebhookClientProtocol,
         ws: WebSocketManager,
         publisher: EventPublisher | None = None,
+        post_commit: PostCommitScheduler | None = None,
     ) -> None:
         self._session_repo = session_repo
         self._bid_repo = bid_repo
@@ -368,6 +384,7 @@ class AcceptBidUseCase:
         self._webhook = webhook
         self._ws = ws
         self._publisher = publisher
+        self._post_commit = post_commit
 
     async def execute(self, session_id: UUID, bid_id: UUID, passenger_id: UUID, idempotency_key: str | None = None) -> BidResponse:
         start_time = time.time()
@@ -423,23 +440,26 @@ class AcceptBidUseCase:
                 }
 
                 if self._publisher:
-                    await self._bid_repo.save_outbox_event(bid.id, "BID_ACCEPTED", payload)
-
-            await self._ws.broadcast_to_session(session_id, BiddingEvent.BID_ACCEPTED, payload)
-            await self._ws.broadcast_to_session(session_id, BiddingEvent.SESSION_CLOSED, payload)
-
-            await self._webhook.notify_bid_accepted(
-                driver_id=bid.driver_id,
-                session_id=session_id,
-                ride_id=session.service_request_id,
-                idempotency_key=f"bid_acc_{bid_id}"
-            )
+                    await self._bid_repo.save_outbox_event(bid.id, "bid.accepted", payload)
 
             resp = _bid_to_resp(bid)
 
-            # Store Idempotency Result
-            if idempotency_key:
-                await redis.set(f"idem:accept_bid:{idempotency_key}", resp.model_dump_json(), ex=86400) # 24h
+            async def after_commit() -> None:
+                await self._ws.broadcast_to_session(session_id, BiddingEvent.BID_ACCEPTED, payload)
+                await self._ws.broadcast_to_session(session_id, BiddingEvent.SESSION_CLOSED, payload)
+                await self._webhook.notify_bid_accepted(
+                    driver_id=bid.driver_id,
+                    session_id=session_id,
+                    ride_id=session.service_request_id,
+                    idempotency_key=f"bid_acc_{bid_id}",
+                )
+                if idempotency_key:
+                    await redis.set(f"idem:accept_bid:{idempotency_key}", resp.model_dump_json(), ex=86400)
+
+            if self._post_commit:
+                self._post_commit(after_commit)
+            else:
+                await after_commit()
 
             BIDS_ACCEPTED.inc()
             USECASE_LATENCY.labels(usecase="AcceptBid").observe(time.time() - start_time)
@@ -491,7 +511,7 @@ class WithdrawBidUseCase:
                 "driver_id": str(driver_id),
             }
             if self._publisher:
-                await self._bid_repo.save_outbox_event(bid.id, "BID_WITHDRAWN", payload)
+                await self._bid_repo.save_outbox_event(bid.id, "bid.withdrawn", payload)
 
         redis = self._cache._assert_connected()
         zset_key = self._cache._key("bids", f"session:{session_id}")
@@ -773,10 +793,10 @@ class DriverAcceptCounterOfferUseCase:
                 }
                 if self._publisher:
                     await self._bid_repo.save_outbox_event(
-                        saved_bid.id, "COUNTER_OFFER_RESPONDED", payload
+                        saved_bid.id, "bid.counter_offer.responded", payload
                     )
                     await self._bid_repo.save_outbox_event(
-                        saved_bid.id, "BID_ACCEPTED", payload
+                        saved_bid.id, "bid.accepted", payload
                     )
 
             # 7. Broadcast to passenger and all drivers

@@ -141,6 +141,25 @@ class KafkaConsumerWrapper:
         if self._consumer:
             self._consumer.commit()
 
+    async def commit_safe(self, *, retries: int = 3, backoff_seconds: float = 0.5) -> bool:
+        """Commit offsets without letting broker failures kill consumer loops."""
+        if not self._consumer:
+            return True
+        for attempt in range(1, retries + 1):
+            try:
+                await asyncio.to_thread(self._consumer.commit)
+                return True
+            except Exception as exc:
+                logger.exception(
+                    "Kafka commit failed attempt=%s/%s: %s",
+                    attempt,
+                    retries,
+                    exc,
+                )
+                if attempt < retries:
+                    await asyncio.sleep(backoff_seconds * attempt)
+        return False
+
     async def send_to_dlq(
         self, topic: str, message: dict[str, Any], error: str
     ) -> None:

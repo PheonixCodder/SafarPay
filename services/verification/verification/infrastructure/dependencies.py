@@ -2,6 +2,7 @@
 from typing import Annotated
 
 from fastapi import Depends, Request
+from sp.core.config import get_settings
 from sp.infrastructure.cache.manager import CacheManager
 from sp.infrastructure.db.session import get_async_session
 from sp.infrastructure.messaging.publisher import EventPublisher
@@ -75,7 +76,10 @@ def get_identity_engine(request: Request) -> IdentityVerificationEngine:
 
 
 def get_event_publisher(request: Request, session: DBSession) -> VerificationOutboxPublisher | EventPublisher:
-    return VerificationOutboxPublisher(session)
+    if getattr(request.app.state, "outbox_worker", None):
+        return VerificationOutboxPublisher(session)
+    settings = get_settings()
+    return getattr(request.app.state, "publisher", EventPublisher(settings.VERIFICATION_EVENTS_TOPIC))
 
 
 def get_cache_manager(request: Request) -> CacheManager:

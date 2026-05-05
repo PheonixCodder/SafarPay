@@ -5,18 +5,18 @@ from datetime import datetime, timezone
 from typing import Any, cast
 from uuid import UUID
 
-from sqlalchemy import select, update, delete
+from sqlalchemy import delete, select, update
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..domain.models import User, UserRole, Session, Account, Verification
 from ..domain.interfaces import (
-    UserRepositoryProtocol,
-    SessionRepositoryProtocol,
     AccountRepositoryProtocol,
+    SessionRepositoryProtocol,
+    UserRepositoryProtocol,
     VerificationRepositoryProtocol,
 )
-from .orm_models import UserORM, SessionORM, AccountORM, VerificationORM
-
+from ..domain.models import Account, Session, User, UserRole, Verification
+from .orm_models import AccountORM, SessionORM, UserORM, VerificationORM
 
 # ── User Repository ──────────────────────────────────────────────────────────
 
@@ -96,7 +96,7 @@ class UserRepository(UserRepositoryProtocol):
             delete(UserORM).where(UserORM.id == user_id)
         )
         await self._session.flush()
-        return cast(Any, result).rowcount > 0
+        return cast(CursorResult[Any], result).rowcount > 0
 
 
 # ── Session Repository ────────────────────────────────────────────────────────

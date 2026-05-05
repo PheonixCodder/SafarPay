@@ -9,6 +9,7 @@ from sp.core.observability.logging import get_logger
 from sp.infrastructure.security.dependencies import (
     CurrentDriver,
     CurrentUser,
+    OptionalDriverId,
     get_current_driver_ws,
     get_current_user_ws,
 )
@@ -194,6 +195,9 @@ async def accept_passenger_counter(
 )
 async def get_counter_offers(
     session_id: UUID,
+    current_user: CurrentUser,
+    current_driver_id: OptionalDriverId,
+    session_repo: Annotated[BiddingSessionRepositoryProtocol, Depends(get_session_repo)],
     counter_offer_repo: Annotated[CounterOfferRepositoryProtocol, Depends(get_counter_offer_repo)],
 ) -> list[CounterOfferResponse]:
     """
@@ -201,7 +205,17 @@ async def get_counter_offers(
 
     Used by frontend to display negotiation history and current counter-offers.
     """
+    session = await session_repo.find_by_id(session_id)
+    if not session:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
+
     counter_offers = await counter_offer_repo.find_by_session(session_id)
+    is_passenger = session.passenger_user_id == current_user.user_id
+    is_driver = current_driver_id is not None and any(
+        co_domain.driver_id == current_driver_id for co_domain in counter_offers
+    )
+    if current_user.role != "admin" and not is_passenger and not is_driver:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
     results = []
     for co_domain in counter_offers:
         results.append(CounterOfferResponse(

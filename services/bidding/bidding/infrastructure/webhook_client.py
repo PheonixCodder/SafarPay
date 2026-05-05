@@ -7,26 +7,12 @@ from typing import Any
 from uuid import UUID
 
 import httpx
-from pydantic import BaseModel, ConfigDict
 from sp.infrastructure.messaging.publisher import EventPublisher
 
+from ..application.schemas import BiddingOpportunityPayload, BiddingRidePayload
 from ..domain.interfaces import WebhookClientProtocol
 
 logger = logging.getLogger("bidding.webhook")
-
-
-class WebhookPayload(BaseModel):
-    model_config = ConfigDict(extra="allow")
-
-
-class BiddingOpportunityPayload(WebhookPayload):
-    session_id: UUID
-    ride: dict[str, Any]
-
-
-class BiddingRidePayload(WebhookPayload):
-    session_id: UUID
-    ride_id: UUID
 
 
 # ** TODO ** // Fix the internal routes **

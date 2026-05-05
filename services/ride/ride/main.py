@@ -133,9 +133,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     yield
 
     # ── Teardown ──────────────────────────────────────────────────────────────
-    if getattr(app.state, "consumer", None):
+    consumer = getattr(app.state, "consumer", None) # type: ignore[assignment]
+    if consumer:
         try:
-            await app.state.consumer.stop()
+            await consumer.stop()
         except Exception as e:
             import logging
             logging.getLogger("ride.main").error("Failed to stop consumer: %s", e)

@@ -21,6 +21,7 @@ from bidding.infrastructure.dependencies import (
     get_item_bids_uc,
     get_passenger_counter_uc,
     get_place_bid_uc,
+    get_session_repo,
     get_withdraw_bid_uc,
 )
 from fastapi import FastAPI
@@ -30,6 +31,7 @@ from tests.bidding.conftest import (
     DRIVER_ID,
     OTHER_DRIVER_ID,
     PASSENGER_ID,
+    FakeSessionRepo,
     make_bid,
     make_counter,
     make_session,
@@ -113,6 +115,7 @@ def test_all_bidding_routes_success_and_actor_parameters(bidding_app: FastAPI, b
     passenger_counter = override(bidding_app, get_passenger_counter_uc, StubUseCase(counter_response(counter)))
     driver_accept_counter = override(bidding_app, get_driver_accept_counter_uc, StubUseCase(_bid_to_resp(bid)))
     override(bidding_app, get_counter_offer_repo, CounterRepoStub([counter]))
+    override(bidding_app, get_session_repo, FakeSessionRepo(session))
 
     assert bidding_client.post(
         f"/api/v1/bidding/sessions/{session.id}/bids",
@@ -218,6 +221,7 @@ def test_counter_offers_endpoint_returns_all_statuses(bidding_app: FastAPI, bidd
     accepted = make_counter(session, status=CounterOfferStatus.ACCEPTED)
     accepted.driver_id = DRIVER_ID
     override(bidding_app, get_counter_offer_repo, CounterRepoStub([pending, accepted]))
+    override(bidding_app, get_session_repo, FakeSessionRepo(session))
 
     response = bidding_client.get(f"/api/v1/bidding/sessions/{session.id}/counter-offers")
 

@@ -45,6 +45,7 @@ TIMESTAMP_EXCEPTIONS = {
     "CallSignalingEventORM",
     "CommunicationEventORM",
     "DriverStatsORM",
+    "LocationHistoryORM",
 }
 
 

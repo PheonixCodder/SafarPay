@@ -31,6 +31,25 @@ from .orm_models import (
 )
 
 
+def _event_type_value(event_type: CommunicationEventType | str) -> str:
+    legacy = {
+        "CONVERSATION_OPENED": CommunicationEventType.CONVERSATION_OPENED.value,
+        "CONVERSATION_CLOSED": CommunicationEventType.CONVERSATION_CLOSED.value,
+        "MESSAGE_SENT": CommunicationEventType.MESSAGE_SENT.value,
+        "MEDIA_MESSAGE_SENT": CommunicationEventType.MEDIA_MESSAGE_SENT.value,
+        "CALL_STARTED": CommunicationEventType.CALL_STARTED.value,
+        "CALL_UPDATED": CommunicationEventType.CALL_UPDATED.value,
+        "communication.conversation_opened": CommunicationEventType.CONVERSATION_OPENED.value,
+        "communication.conversation_closed": CommunicationEventType.CONVERSATION_CLOSED.value,
+        "communication.message_sent": CommunicationEventType.MESSAGE_SENT.value,
+        "communication.media_message_sent": CommunicationEventType.MEDIA_MESSAGE_SENT.value,
+        "communication.call_started": CommunicationEventType.CALL_STARTED.value,
+        "communication.call_updated": CommunicationEventType.CALL_UPDATED.value,
+    }
+    value = event_type.value if isinstance(event_type, CommunicationEventType) else event_type
+    return legacy.get(value, value)
+
+
 def _conversation_to_domain(o: ConversationORM) -> Conversation:
     return Conversation(
         id=o.id,
@@ -234,7 +253,15 @@ class ConversationRepository:
         payload: dict[str, Any],
     ) -> None:
         self._session.add(
-            CommunicationEventORM(event_type=event_type, aggregate_id=aggregate_id, payload=payload)
+            CommunicationEventORM(
+                event_type=_event_type_value(event_type),
+                aggregate_id=aggregate_id,
+                aggregate_type="conversation",
+                topic="communication-events",
+                payload=payload,
+                correlation_id=payload.get("correlation_id"),
+                idempotency_key=payload.get("idempotency_key"),
+            )
         )
 
 
@@ -298,8 +325,10 @@ class MessageRepository:
         self._session.add(orm)
         self._session.add(
             CommunicationEventORM(
-                event_type=CommunicationEventType.MESSAGE_SENT,
+                event_type=CommunicationEventType.MESSAGE_SENT.value,
                 aggregate_id=message.id,
+                aggregate_type="message",
+                topic="communication-events",
                 payload={
                     "conversation_id": str(message.conversation_id),
                     "message_id": str(message.id),
@@ -381,8 +410,10 @@ class MediaRepository:
         )
         self._session.add(
             CommunicationEventORM(
-                event_type=CommunicationEventType.MEDIA_MESSAGE_SENT,
+                event_type=CommunicationEventType.MEDIA_MESSAGE_SENT.value,
                 aggregate_id=message_id,
+                aggregate_type="message",
+                topic="communication-events",
                 payload={"message_id": str(message_id), "media_id": str(media_id)},
             )
         )
@@ -414,8 +445,10 @@ class CallRepository:
         self._session.add(orm)
         self._session.add(
             CommunicationEventORM(
-                event_type=CommunicationEventType.CALL_STARTED,
+                event_type=CommunicationEventType.CALL_STARTED.value,
                 aggregate_id=call.id,
+                aggregate_type="call",
+                topic="communication-events",
                 payload={
                     "conversation_id": str(call.conversation_id),
                     "call_id": str(call.id),
@@ -446,8 +479,10 @@ class CallRepository:
         )
         self._session.add(
             CommunicationEventORM(
-                event_type=CommunicationEventType.CALL_UPDATED,
+                event_type=CommunicationEventType.CALL_UPDATED.value,
                 aggregate_id=call.id,
+                aggregate_type="call",
+                topic="communication-events",
                 payload={
                     "conversation_id": str(call.conversation_id),
                     "call_id": str(call.id),

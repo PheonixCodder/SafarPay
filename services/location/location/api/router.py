@@ -35,8 +35,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSock
 from sp.core.config import get_settings
 from sp.infrastructure.db.session import get_async_session
 from sp.infrastructure.security.dependencies import (
-    CurrentUser,
     CurrentDriver,
+    CurrentUser,
     OptionalDriverId,
     get_current_driver_ws,
 )
@@ -211,7 +211,7 @@ async def get_ride_locations(
     ride_id: UUID,
     current_user: CurrentUser,
     current_driver_id: OptionalDriverId,
-    uc: GetRideLocationsUseCase = Depends(get_ride_locations_uc),
+    uc: Annotated[GetRideLocationsUseCase, Depends(get_ride_locations_uc)],
 ) -> RideLocationsResponse:
     """Returns both participant locations. Auth is verified against Redis participant cache —
     no caller-supplied driver_id/passenger_user_id params needed or accepted."""
@@ -237,10 +237,10 @@ async def get_ride_locations(
 async def get_location_history(
     actor_id: UUID,
     current_user: CurrentUser,
-    since: datetime = Query(...),
-    until: datetime = Query(...),
-    actor_type: str = Query(default="DRIVER", pattern="^(DRIVER|PASSENGER)$"),
-    uc: GetLocationHistoryUseCase = Depends(get_location_history_uc),
+    uc: Annotated[GetLocationHistoryUseCase, Depends(get_location_history_uc)],
+    since: Annotated[datetime, Query(...)],
+    until: Annotated[datetime, Query(...)],
+    actor_type: Annotated[str, Query(pattern="^(DRIVER|PASSENGER)$")] = "DRIVER",
 ) -> LocationHistoryResponse:
     try:
         return await uc.execute(
@@ -284,9 +284,9 @@ async def reverse_geocode(
 async def ws_driver_location(
     websocket: WebSocket,
     current_driver: Annotated[UUID, Depends(get_current_driver_ws)],
-    ws_manager: WebSocketManager = Depends(get_ws_manager),
-    uc: UpdateDriverLocationUseCase = Depends(get_update_driver_location_uc),
-    set_status_uc: SetDriverStatusUseCase = Depends(get_set_driver_status_uc),
+    ws_manager: Annotated[WebSocketManager, Depends(get_ws_manager)],
+    uc: Annotated[UpdateDriverLocationUseCase, Depends(get_update_driver_location_uc)],
+    set_status_uc: Annotated[SetDriverStatusUseCase, Depends(get_set_driver_status_uc)],
 ) -> None:
     """Driver connects, sends GPS pings every ~5 seconds.
 
@@ -371,10 +371,10 @@ async def ws_driver_location(
 async def ws_ride_track(
     websocket: WebSocket,
     ride_id: UUID,
-    token: str = Query(..., description="JWT access token — intentional WS exception"),
-    session: AsyncSession = Depends(get_async_session),
-    ws_manager: WebSocketManager = Depends(get_ws_manager),
-    ride_locations_uc: GetRideLocationsUseCase = Depends(get_ride_locations_uc),
+    session: Annotated[AsyncSession, Depends(get_async_session)],
+    ws_manager: Annotated[WebSocketManager, Depends(get_ws_manager)],
+    ride_locations_uc: Annotated[GetRideLocationsUseCase, Depends(get_ride_locations_uc)],
+    token: Annotated[str, Query(description="JWT access token — intentional WS exception")],
 ) -> None:
     """Passenger subscribes to live driver location for a specific ride.
 

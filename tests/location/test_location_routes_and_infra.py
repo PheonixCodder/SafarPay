@@ -241,5 +241,23 @@ async def test_location_kafka_consumer_maintains_participant_cache_and_driver_st
     assert store.status_updates[-1] == (DRIVER_ID, DriverStatus.ONLINE, None)
 
     await consumer._dispatch({
+        "value": {
+            "event_type": "service.request.accepted",
+            "payload": {
+                "ride_id": str(RIDE_ID),
+                "driver_id": str(DRIVER_ID),
+                "passenger_user_id": str(PASSENGER_ID),
+            },
+        },
+    })
+    await consumer._dispatch({
+        "value": {
+            "event_type": "service.request.completed",
+            "payload": {"ride_id": str(RIDE_ID)},
+        },
+    })
+    assert store.status_updates[-1] == (DRIVER_ID, DriverStatus.ONLINE, None)
+
+    await consumer._dispatch({
         "value": {"event_type": "service.request.accepted", "payload": {"ride_id": "bad"}}
     })
