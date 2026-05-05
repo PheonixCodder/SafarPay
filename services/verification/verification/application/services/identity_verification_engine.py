@@ -71,7 +71,7 @@ class IdentityVerificationEngine:
                 self.metrics.histogram("identity_verification_duration", duration)
                 self.metrics.increment(
                     "identity_verification_total", 
-                    {"status": "success" if result.success else "failure"}
+                    labels={"status": "success" if result.success else "failure"},
                 )
             return result
 

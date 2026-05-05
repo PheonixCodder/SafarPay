@@ -12,6 +12,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import text
@@ -172,7 +173,7 @@ class PostGISLocationRepository:
 # ---------------------------------------------------------------------------
 
 
-def _row_to_history(row: dict) -> LocationHistory:
+def _row_to_history(row: Any) -> LocationHistory:
     return LocationHistory(
         id=UUID(str(row["id"])),
         actor_type=ActorType(row["actor_type"]),

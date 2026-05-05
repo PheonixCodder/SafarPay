@@ -77,10 +77,10 @@ class OutboxWorker:
                 try:
                     payload = json.loads(event_orm.payload) if event_orm.payload else {}
 
-                    class DynamicEvent(BaseEvent):
-                        event_type = event_orm.event_type.value
-
-                    event = DynamicEvent(payload=payload)
+                    event = BaseEvent(
+                        event_type=event_orm.event_type.value,
+                        payload=payload,
+                    )
                     await self._publisher.publish(event)
 
                     event_orm.processed_at = now

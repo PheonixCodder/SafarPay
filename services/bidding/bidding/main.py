@@ -19,7 +19,9 @@ from sp.infrastructure.messaging.publisher import EventPublisher
 
 from .api.router import router
 from .application.use_cases import ExpireSessionsUseCase
+from .infrastructure.clients import DriverEligibilityClient, RideServiceClient
 from .infrastructure.kafka_consumer import BiddingKafkaConsumer
+from .infrastructure.outbox_worker import OutboxWorker
 from .infrastructure.repositories import BiddingSessionRepository
 from .infrastructure.webhook_client import WebhookClient
 from .infrastructure.websocket_manager import WebSocketManager
@@ -41,11 +43,6 @@ async def session_expiry_loop(session_factory, ws, webhook, logger):
         except Exception:
             logger.exception("Session expiry loop encountered an error")
         await asyncio.sleep(10)
-
-
-from .infrastructure.clients import DriverEligibilityClient, RideServiceClient
-from .infrastructure.outbox_worker import OutboxWorker
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
@@ -78,17 +75,17 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         await app.state.outbox_worker.start()
 
     # Initialize Webhook Client with publisher for DLQ
-    webhook_url = getattr(settings, "DRIVER_SERVICE_URL", "http://driver:8000")
+    webhook_url = settings.VERIFICATION_SERVICE_URL
     webhook_client = WebhookClient(base_url=webhook_url, publisher=app.state.publisher)
     await webhook_client.start()
     app.state.webhook_client = webhook_client
 
     # Initialize Service Clients
-    ride_url = getattr(settings, "RIDE_SERVICE_URL", "http://ride:8000")
+    ride_url = settings.RIDE_SERVICE_URL
     app.state.ride_client = RideServiceClient(base_url=ride_url)
     await app.state.ride_client.start()
 
-    driver_url = getattr(settings, "DRIVER_SERVICE_URL", "http://driver:8000")
+    driver_url = settings.VERIFICATION_SERVICE_URL
     app.state.driver_client = DriverEligibilityClient(base_url=driver_url)
     await app.state.driver_client.start()
 
@@ -99,6 +96,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             cache=app.state.cache,
             webhook=app.state.webhook_client,
             ws=app.state.ws_manager,
+            publisher=app.state.publisher,
         )
         await consumer.start()
         app.state.consumer = consumer

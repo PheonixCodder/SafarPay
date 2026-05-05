@@ -15,8 +15,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from contextlib import suppress
 from uuid import UUID
 
+from sp.infrastructure.messaging.inbox import message_event_id
 from sp.infrastructure.messaging.kafka import KafkaConsumerWrapper
 
 from ..domain.models import DriverStatus
@@ -58,10 +60,8 @@ class LocationKafkaConsumer:
     async def stop(self) -> None:
         if self._task:
             self._task.cancel()
-            try:
+            with suppress(asyncio.CancelledError):
                 await self._task
-            except asyncio.CancelledError:
-                pass
         self._consumer.close()
         logger.info("LocationKafkaConsumer stopped")
 
@@ -76,7 +76,7 @@ class LocationKafkaConsumer:
                 had_error = False
                 for msg in messages:
                     try:
-                        await self._dispatch(msg["value"])
+                        await self._dispatch(msg)
                     except Exception as exc:  # noqa: BLE001
                         had_error = True
                         logger.exception(
@@ -91,9 +91,22 @@ class LocationKafkaConsumer:
                 logger.exception("LocationKafkaConsumer loop error: %s", exc)
                 await asyncio.sleep(2)
 
-    async def _dispatch(self, payload: dict) -> None:
+    async def _dispatch(self, msg: dict) -> None:
+        payload = msg.get("value", {})
+        if not isinstance(payload, dict):
+            return
         event_type: str = payload.get("event_type", "")
         data: dict = payload.get("payload", {})
+        if event_type in {
+            "service.request.accepted",
+            "service.request.completed",
+            "service.request.cancelled",
+        }:
+            event_id = message_event_id(msg)
+            reserved = await self._store.reserve_inbox_event(event_id)
+            if not reserved:
+                logger.info("Skipping duplicate location event_id=%s", event_id)
+                return
 
         match event_type:
             case "service.request.accepted":
@@ -145,21 +158,37 @@ class LocationKafkaConsumer:
         """Clear ride subscriptions; return driver to ONLINE; remove participant cache."""
         try:
             ride_id = UUID(data["ride_id"])
-            driver_id_str = data.get("driver_id") or data.get("assigned_driver_id", "")
-            driver_id = UUID(driver_id_str)
         except (KeyError, ValueError) as exc:
             logger.error("ride ended event: bad payload — %s", exc)
             return
+
+        driver_id = None
+        driver_id_str = data.get("driver_id") or data.get("assigned_driver_id")
+        if driver_id_str:
+            try:
+                driver_id = UUID(driver_id_str)
+            except ValueError:
+                logger.warning(
+                    "ride_id=%s | ride ended event has invalid driver id: %s",
+                    ride_id,
+                    driver_id_str,
+                )
 
         # 1. Clear WebSocket subscriptions
         self._ws_manager.unsubscribe_all_from_ride(ride_id)
 
         # 2. Return driver to ONLINE
-        await self._store.set_driver_status(
-            driver_id=driver_id,
-            status=DriverStatus.ONLINE,
-            ride_id=None,
-        )
+        if driver_id:
+            await self._store.set_driver_status(
+                driver_id=driver_id,
+                status=DriverStatus.ONLINE,
+                ride_id=None,
+            )
+        else:
+            logger.warning(
+                "ride_id=%s | ended without driver id; skipped driver status update",
+                ride_id,
+            )
 
         # 3. Delete participant auth cache
         await self._store.delete_ride_participants(ride_id)

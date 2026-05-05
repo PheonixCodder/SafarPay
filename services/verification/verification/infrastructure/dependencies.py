@@ -2,32 +2,32 @@
 from typing import Annotated
 
 from fastapi import Depends, Request
-from sqlalchemy.ext.asyncio import AsyncSession
-
+from sp.infrastructure.cache.manager import CacheManager
 from sp.infrastructure.db.session import get_async_session
+from sp.infrastructure.messaging.publisher import EventPublisher
 from sp.infrastructure.security.dependencies import get_current_user
 from sp.infrastructure.security.jwt import TokenPayload
-from sp.infrastructure.messaging.publisher import EventPublisher
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..application.services.identity_verification_engine import IdentityVerificationEngine
+from ..application.services.rejection_resolver import RejectionResolver
+from ..domain.interfaces import (
+    DocumentRepositoryProtocol,
+    DriverRepositoryProtocol,
+    DriverVehicleRepositoryProtocol,
+    StorageProviderProtocol,
+    VehicleRepositoryProtocol,
+    VerificationRejectionRepositoryProtocol,
+)
+from .outbox_publisher import VerificationOutboxPublisher
 from .repositories import (
-    DriverRepository,
-    VehicleRepository,
     DocumentRepository,
+    DriverRepository,
     DriverVehicleRepository,
+    VehicleRepository,
     VerificationRejectionRepository,
 )
 from .storage import S3StorageProvider
-from ..domain.interfaces import (
-    DriverRepositoryProtocol,
-    VehicleRepositoryProtocol,
-    DocumentRepositoryProtocol,
-    DriverVehicleRepositoryProtocol,
-    StorageProviderProtocol,
-    VerificationRejectionRepositoryProtocol,
-)
-from ..application.services.rejection_resolver import RejectionResolver
-from ..application.services.identity_verification_engine import IdentityVerificationEngine
-from sp.infrastructure.cache.manager import CacheManager
 
 # ── Type Aliases ─────────────────────────────────────────────────────────────
 DBSession = Annotated[AsyncSession, Depends(get_async_session)]
@@ -71,15 +71,15 @@ def get_rejection_resolver(
 
 
 def get_identity_engine(request: Request) -> IdentityVerificationEngine:
-    return getattr(request.app.state, "identity_engine")
+    return request.app.state.identity_engine
 
 
-def get_event_publisher(request: Request) -> EventPublisher:
-    return getattr(request.app.state, "publisher")
+def get_event_publisher(request: Request, session: DBSession) -> VerificationOutboxPublisher | EventPublisher:
+    return VerificationOutboxPublisher(session)
 
 
 def get_cache_manager(request: Request) -> CacheManager:
-    return getattr(request.app.state, "cache")
+    return request.app.state.cache
 
 
 # ── Dependency Types ─────────────────────────────────────────────────────────

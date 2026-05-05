@@ -7,6 +7,7 @@ from contextlib import suppress
 from uuid import UUID
 
 from sp.infrastructure.cache.manager import CacheManager
+from sp.infrastructure.messaging.inbox import process_inbox_message
 from sp.infrastructure.messaging.kafka import KafkaConsumerWrapper
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -14,6 +15,7 @@ from ..application.use_cases import (
     CloseConversationFromRideUseCase,
     OpenConversationFromRideUseCase,
 )
+from .orm_models import CommunicationInboxMessageORM
 from .repositories import ConversationRepository
 from .websocket_manager import WebSocketManager
 
@@ -77,9 +79,12 @@ class CommunicationKafkaConsumer:
                 return
             async with self._session_factory() as session:
                 try:
-                    repo = ConversationRepository(session)
-                    open_uc = OpenConversationFromRideUseCase(repo, self._cache, self._ws)
-                    await open_uc.execute(UUID(ride_id), UUID(passenger_user_id), UUID(driver_id))
+                    async def handle() -> None:
+                        repo = ConversationRepository(session)
+                        open_uc = OpenConversationFromRideUseCase(repo, self._cache, self._ws)
+                        await open_uc.execute(UUID(ride_id), UUID(passenger_user_id), UUID(driver_id))
+
+                    await process_inbox_message(session, CommunicationInboxMessageORM, msg, handle)
                     await session.commit()
                 except Exception as exc:
                     await session.rollback()
@@ -92,9 +97,12 @@ class CommunicationKafkaConsumer:
                 return
             async with self._session_factory() as session:
                 try:
-                    repo = ConversationRepository(session)
-                    close_uc = CloseConversationFromRideUseCase(repo, self._ws)
-                    await close_uc.execute(UUID(ride_id))
+                    async def handle() -> None:
+                        repo = ConversationRepository(session)
+                        close_uc = CloseConversationFromRideUseCase(repo, self._ws)
+                        await close_uc.execute(UUID(ride_id))
+
+                    await process_inbox_message(session, CommunicationInboxMessageORM, msg, handle)
                     await session.commit()
                 except Exception as exc:
                     await session.rollback()

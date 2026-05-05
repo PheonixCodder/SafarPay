@@ -58,7 +58,7 @@ class PassengerCounterOfferRequest(BaseModel):
 
 
 class DriverAcceptCounterRequest(BaseModel):
-    counter_offer_id: UUID
+    pass
 
 
 class CounterOfferResponse(BaseModel):
@@ -90,6 +90,11 @@ class CounterOfferInSession(BaseModel):
 
 class ItemBidsResponse(BaseModel):
     session_id: UUID
+    service_request_id: UUID
+    status: str
+    pricing_mode: str | None = None
+    passenger_user_id: UUID | None = None
+    baseline_price: float | None = None
     bids: list[BidResponse]
     lowest_bid: float | None
     counter_offers: list[CounterOfferInSession] | None = None

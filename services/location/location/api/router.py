@@ -33,8 +33,16 @@ from uuid import UUID
 import pydantic
 from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect, status
 from sp.core.config import get_settings
-from sp.infrastructure.security.dependencies import CurrentUser, CurrentDriver, get_current_driver_ws
+from sp.infrastructure.db.session import get_async_session
+from sp.infrastructure.security.dependencies import (
+    CurrentUser,
+    CurrentDriver,
+    OptionalDriverId,
+    get_current_driver_ws,
+)
 from sp.infrastructure.security.jwt import verify_token
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..application.schemas import (
     AddressResponse,
@@ -42,10 +50,8 @@ from ..application.schemas import (
     DriverStatusRequest,
     GeocodeRequest,
     LocationHistoryResponse,
-    LocationHistoryRequest,
     LocationUpdateRequest,
     NearbyDriversResponse,
-    NearbyDriversRequest,
     ReverseGeocodeRequest,
     RideLocationsResponse,
     StatusResponse,
@@ -59,7 +65,6 @@ from ..application.use_cases import (
     ReverseGeocodeUseCase,
     SetDriverStatusUseCase,
     UpdateDriverLocationUseCase,
-    UpdatePassengerLocationUseCase,
 )
 from ..domain.exceptions import (
     ActorNotFoundError,
@@ -81,7 +86,6 @@ from ..infrastructure.dependencies import (
     get_ride_locations_uc,
     get_set_driver_status_uc,
     get_update_driver_location_uc,
-    get_update_passenger_location_uc,
     get_ws_manager,
 )
 from ..infrastructure.websocket_manager import WebSocketManager
@@ -119,17 +123,17 @@ def _handle_domain(exc: LocationDomainError) -> HTTPException:
     summary="HTTP fallback GPS update for drivers",
 )
 async def update_driver_location_http(
-    path_driver_id: UUID,
+    driver_id: UUID,
     req: LocationUpdateRequest,
     current_driver: CurrentDriver,
     current_user: CurrentUser,
     uc: Annotated[UpdateDriverLocationUseCase, Depends(get_update_driver_location_uc)],
 ) -> None:
     """HTTP fallback for when the driver WebSocket is unavailable."""
-    if str(current_driver) != str(path_driver_id) and current_user.role != "admin":
+    if str(current_driver) != str(driver_id) and current_user.role != "admin":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
     try:
-        await uc.execute(driver_id=path_driver_id, req=req)
+        await uc.execute(driver_id=driver_id, req=req)
     except LocationDomainError as exc:
         raise _handle_domain(exc) from exc
 
@@ -155,16 +159,16 @@ async def get_driver_location(
     summary="Set driver ONLINE or OFFLINE",
 )
 async def set_driver_status(
-    path_driver_id: UUID,
+    driver_id: UUID,
     current_driver: CurrentDriver,
     current_user: CurrentUser,
     req: DriverStatusRequest,
     uc: Annotated[SetDriverStatusUseCase, Depends(get_set_driver_status_uc)],
 ) -> StatusResponse:
-    if str(current_driver) != str(path_driver_id) and current_user.role != "admin":
+    if str(current_driver) != str(driver_id) and current_user.role != "admin":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
     try:
-        return await uc.execute(driver_id=path_driver_id, req=req)
+        return await uc.execute(driver_id=driver_id, req=req)
     except LocationDomainError as exc:
         raise _handle_domain(exc) from exc
 
@@ -205,7 +209,8 @@ async def get_nearby_drivers(
 )
 async def get_ride_locations(
     ride_id: UUID,
-    current_user: CurrentUser = Depends(),
+    current_user: CurrentUser,
+    current_driver_id: OptionalDriverId,
     uc: GetRideLocationsUseCase = Depends(get_ride_locations_uc),
 ) -> RideLocationsResponse:
     """Returns both participant locations. Auth is verified against Redis participant cache —
@@ -213,7 +218,8 @@ async def get_ride_locations(
     try:
         return await uc.execute(
             ride_id=ride_id,
-            caller_id=current_user.user_id,
+            caller_user_id=current_user.user_id,
+            caller_driver_id=current_driver_id,
         )
     except LocationDomainError as exc:
         raise _handle_domain(exc) from exc
@@ -230,10 +236,10 @@ async def get_ride_locations(
 )
 async def get_location_history(
     actor_id: UUID,
+    current_user: CurrentUser,
     since: datetime = Query(...),
     until: datetime = Query(...),
     actor_type: str = Query(default="DRIVER", pattern="^(DRIVER|PASSENGER)$"),
-    current_user: CurrentUser = Depends(),
     uc: GetLocationHistoryUseCase = Depends(get_location_history_uc),
 ) -> LocationHistoryResponse:
     try:
@@ -277,10 +283,10 @@ async def reverse_geocode(
 @router.websocket("/ws/drivers/location")
 async def ws_driver_location(
     websocket: WebSocket,
+    current_driver: Annotated[UUID, Depends(get_current_driver_ws)],
     ws_manager: WebSocketManager = Depends(get_ws_manager),
     uc: UpdateDriverLocationUseCase = Depends(get_update_driver_location_uc),
     set_status_uc: SetDriverStatusUseCase = Depends(get_set_driver_status_uc),
-    current_driver: CurrentDriver = Depends(get_current_driver_ws),
 ) -> None:
     """Driver connects, sends GPS pings every ~5 seconds.
 
@@ -366,6 +372,7 @@ async def ws_ride_track(
     websocket: WebSocket,
     ride_id: UUID,
     token: str = Query(..., description="JWT access token — intentional WS exception"),
+    session: AsyncSession = Depends(get_async_session),
     ws_manager: WebSocketManager = Depends(get_ws_manager),
     ride_locations_uc: GetRideLocationsUseCase = Depends(get_ride_locations_uc),
 ) -> None:
@@ -389,11 +396,21 @@ async def ws_ride_track(
         return
 
     user_id = payload.user_id
+    result = await session.execute(
+        text("SELECT id FROM verification.drivers WHERE user_id = :uid LIMIT 1"),
+        {"uid": user_id},
+    )
+    row = result.fetchone()
+    driver_id = row[0] if row else None
 
     # Authorization: verify caller is a participant of this ride
     # Reuses GetRideLocationsUseCase which reads from the Redis participant cache
     try:
-        await ride_locations_uc.execute(ride_id=ride_id, caller_id=user_id)
+        await ride_locations_uc.execute(
+            ride_id=ride_id,
+            caller_user_id=user_id,
+            caller_driver_id=driver_id,
+        )
     except UnauthorisedLocationAccessError:
         await websocket.close(code=1008, reason="Forbidden: not a ride participant")
         return

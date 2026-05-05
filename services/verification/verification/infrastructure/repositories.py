@@ -1,6 +1,7 @@
 """Concrete SQLAlchemy repositories for the verification service."""
 from __future__ import annotations
 
+from typing import Any, cast
 from uuid import UUID
 
 from sqlalchemy import select, update
@@ -278,7 +279,7 @@ class DriverVehicleRepository(DriverVehicleRepositoryProtocol):
             )
             .values(is_currently_selected=True)
         )
-        if result.rowcount == 0:
+        if cast(Any, result).rowcount == 0:
             from verification.domain.exceptions import DriverNotFoundError
             raise DriverNotFoundError(f"DriverVehicle link not found for driver {driver_id} and vehicle {vehicle_id}")
             

@@ -335,3 +335,24 @@ class CommunicationEventORM(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     error_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
+
+class CommunicationInboxMessageORM(Base, TimestampMixin):
+    __tablename__ = "inbox_messages"
+    __table_args__ = (
+        Index("ix_communication_inbox_source_offset", "source_topic", "source_partition", "source_offset", unique=True),
+        Index("ix_communication_inbox_pending", "processed_at", "received_at"),
+        {"schema": "communication"},
+    )
+
+    event_id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True)
+    event_type: Mapped[str] = mapped_column(String(160), nullable=False, index=True)
+    source_topic: Mapped[str] = mapped_column(String(160), nullable=False)
+    source_partition: Mapped[int | None] = mapped_column(Integer)
+    source_offset: Mapped[int | None] = mapped_column(Integer)
+    aggregate_id: Mapped[str | None] = mapped_column(String(120), index=True)
+    payload: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    error_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)

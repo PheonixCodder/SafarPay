@@ -20,7 +20,7 @@ from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 
-class LocationHistoryORM(Base):
+class LocationHistoryORM(Base, TimestampMixin):
     """One persisted GPS ping — append-only, never updated after insert."""
 
     __tablename__ = "location_history"

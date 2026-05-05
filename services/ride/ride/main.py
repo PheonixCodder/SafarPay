@@ -27,11 +27,13 @@ from sp.infrastructure.cache.manager import get_cache_manager_factory
 from sp.infrastructure.db.engine import get_db_engine
 from sp.infrastructure.db.session import get_session_factory
 from sp.infrastructure.messaging.kafka import KafkaProducerWrapper
+from sp.infrastructure.messaging.outbox import GenericOutboxWorker
 from sp.infrastructure.messaging.publisher import EventPublisher
 
 from .api.router import router
 from .infrastructure.geospatial_client import GeospatialClient, NullGeospatialClient
 from .infrastructure.notification_client import NotificationClient, NullNotificationClient
+from .infrastructure.orm_models import RideOutboxEventORM
 from .infrastructure.storage import S3StorageProvider
 from .infrastructure.webhook_client import NullWebhookClient, WebhookClient
 from .infrastructure.websocket_manager import WebSocketManager
@@ -63,12 +65,20 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     # ── Kafka publisher ───────────────────────────────────────────────────────
     app.state.publisher = None
+    app.state.outbox_worker = None
     if settings.KAFKA_BOOTSTRAP_SERVERS:
         producer = KafkaProducerWrapper(
             settings.KAFKA_BOOTSTRAP_SERVERS,
             client_id=f"{SERVICE_NAME}-producer",
         )
         app.state.publisher = EventPublisher(topic=KAFKA_TOPIC, producer=producer)
+        app.state.outbox_worker = GenericOutboxWorker(
+            app.state.session_factory,
+            app.state.publisher,
+            RideOutboxEventORM,
+            default_topic=KAFKA_TOPIC,
+        )
+        await app.state.outbox_worker.start()
 
     # ── WebSocket manager ─────────────────────────────────────────────────────
     app.state.ws_manager = WebSocketManager()
@@ -129,6 +139,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         except Exception as e:
             import logging
             logging.getLogger("ride.main").error("Failed to stop consumer: %s", e)
+
+    if getattr(app.state, "outbox_worker", None):
+        try:
+            await app.state.outbox_worker.stop()
+        except Exception as e:
+            import logging
+            logging.getLogger("ride.main").error("Failed to stop outbox worker: %s", e)
 
     try:
         await app.state.cache.close()

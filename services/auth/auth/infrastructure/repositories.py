@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from typing import Any, cast
 from uuid import UUID
 
 from sqlalchemy import select, update, delete
@@ -95,7 +96,7 @@ class UserRepository(UserRepositoryProtocol):
             delete(UserORM).where(UserORM.id == user_id)
         )
         await self._session.flush()
-        return result.rowcount > 0
+        return cast(Any, result).rowcount > 0
 
 
 # ── Session Repository ────────────────────────────────────────────────────────
