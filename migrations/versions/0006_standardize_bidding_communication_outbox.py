@@ -8,7 +8,6 @@ from __future__ import annotations
 
 from alembic import op
 
-
 revision = "0006_standardize_bidding_communication_outbox"
 down_revision = "0005_outbox_inbox_contracts"
 branch_labels = None
@@ -141,6 +140,29 @@ def upgrade() -> None:
 def downgrade() -> None:
     op.execute(
         """
+        DO $$
+        BEGIN
+            IF to_regclass('bidding.bid_events') IS NOT NULL THEN
+                UPDATE bidding.bid_events
+                SET event_type = CASE event_type
+                    WHEN 'bid.placed' THEN 'BID_PLACED'
+                    WHEN 'bid.updated' THEN 'BID_UPDATED'
+                    WHEN 'bid.withdrawn' THEN 'BID_WITHDRAWN'
+                    WHEN 'bid.accepted' THEN 'BID_ACCEPTED'
+                    WHEN 'bid.rejected' THEN 'BID_REJECTED'
+                    WHEN 'bid.auto_accept_requested' THEN 'AUTO_ACCEPT_REQUESTED'
+                    WHEN 'bid.counter_offer.created' THEN 'COUNTER_OFFER_CREATED'
+                    WHEN 'bid.counter_offer.responded' THEN 'COUNTER_OFFER_RESPONDED'
+                    ELSE event_type
+                END
+                WHERE event_type IS NOT NULL;
+
+                ALTER TABLE bidding.bid_events
+                    ALTER COLUMN payload DROP DEFAULT,
+                    ALTER COLUMN payload TYPE text USING payload::text;
+            END IF;
+        END $$;
+
         DROP INDEX IF EXISTS bidding.ix_bid_events_pending_standard;
         DROP INDEX IF EXISTS bidding.ix_bid_events_aggregate;
         DROP INDEX IF EXISTS bidding.ix_bid_events_idempotency_key;
@@ -156,6 +178,23 @@ def downgrade() -> None:
     )
     op.execute(
         """
+        DO $$
+        BEGIN
+            IF to_regclass('communication.communication_events') IS NOT NULL THEN
+                UPDATE communication.communication_events
+                SET event_type = CASE event_type
+                    WHEN 'communication.conversation.opened' THEN 'CONVERSATION_OPENED'
+                    WHEN 'communication.conversation.closed' THEN 'CONVERSATION_CLOSED'
+                    WHEN 'communication.message.sent' THEN 'MESSAGE_SENT'
+                    WHEN 'communication.media_message.sent' THEN 'MEDIA_MESSAGE_SENT'
+                    WHEN 'communication.call.started' THEN 'CALL_STARTED'
+                    WHEN 'communication.call.updated' THEN 'CALL_UPDATED'
+                    ELSE event_type
+                END
+                WHERE event_type IS NOT NULL;
+            END IF;
+        END $$;
+
         DROP INDEX IF EXISTS communication.ix_communication_events_pending_standard;
         DROP INDEX IF EXISTS communication.ix_communication_events_type;
         DROP INDEX IF EXISTS communication.ix_communication_events_idempotency_key;

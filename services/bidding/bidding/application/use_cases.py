@@ -143,7 +143,11 @@ class CreateBiddingSessionUseCase:
 
     async def execute(self, ride_id: UUID, ride_payload: dict[str, Any], driver_ids: list[UUID]) -> BiddingSessionResponse:
         pricing_mode_raw = ride_payload.get("pricing_mode")
-        pricing_mode = PricingMode(pricing_mode_raw) if pricing_mode_raw else None
+        try:
+            pricing_mode = PricingMode(pricing_mode_raw) if pricing_mode_raw else None
+        except ValueError as exc:
+            logger.warning("Unknown pricing_mode=%r for ride %s", pricing_mode_raw, ride_id)
+            raise BiddingClosedError(f"Unsupported pricing_mode: {pricing_mode_raw!r}") from exc
         if pricing_mode == PricingMode.FIXED:
             logger.info("Skipping bidding session for FIXED ride %s", ride_id)
             raise BiddingClosedError("FIXED rides do not use bidding sessions.")

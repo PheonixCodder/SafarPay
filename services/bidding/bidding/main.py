@@ -69,14 +69,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     if settings.KAFKA_BOOTSTRAP_SERVERS:
         producer = KafkaProducerWrapper(settings.KAFKA_BOOTSTRAP_SERVERS, client_id=f"{SERVICE_NAME}-producer")
-        app.state.publisher = EventPublisher(topic="bidding-events", producer=producer)
+        app.state.publisher = EventPublisher(topic=settings.BIDDING_EVENTS_TOPIC, producer=producer)
 
         # Outbox Worker
         app.state.outbox_worker = GenericOutboxWorker(
             app.state.session_factory,
             app.state.publisher,
             RideBidEventORM,
-            default_topic="bidding-events",
+            default_topic=settings.BIDDING_EVENTS_TOPIC,
             batch_size=100,
             interval_seconds=2.0,
         )

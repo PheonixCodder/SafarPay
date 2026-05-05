@@ -78,7 +78,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
         subscriber = EventSubscriber(consumer)
 
-        async def review_handler(event):
+        async def review_handler(event, raw_msg):
             driver_id_str = event.payload.get("driver_id")
             if not driver_id_str:
                 return
@@ -105,10 +105,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
                         )
                         await use_cases.execute_verification_review(driver_id)
 
-                    raw_msg = {
-                        "topic": settings.VERIFICATION_EVENTS_TOPIC,
-                        "value": event.model_dump(mode="json"),
-                    }
                     await process_inbox_message(session, VerificationInboxMessageORM, raw_msg, handle)
                     await session.commit()
                 except Exception:

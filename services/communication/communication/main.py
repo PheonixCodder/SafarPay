@@ -22,7 +22,6 @@ from .infrastructure.storage import S3StorageProvider
 from .infrastructure.websocket_manager import WebSocketManager
 
 SERVICE_NAME = "communication"
-KAFKA_TOPIC = "communication-events"
 
 
 @asynccontextmanager
@@ -48,7 +47,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             settings.KAFKA_BOOTSTRAP_SERVERS,
             client_id=f"{SERVICE_NAME}-producer",
         )
-        app.state.publisher = EventPublisher(topic=KAFKA_TOPIC, producer=producer)
+        app.state.publisher = EventPublisher(
+            topic=settings.COMMUNICATION_EVENTS_TOPIC,
+            producer=producer,
+        )
 
         from .infrastructure.kafka_consumer import CommunicationKafkaConsumer
         from .infrastructure.orm_models import CommunicationEventORM
@@ -65,7 +67,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             app.state.session_factory,
             app.state.publisher,
             CommunicationEventORM,
-            default_topic=KAFKA_TOPIC,
+            default_topic=settings.COMMUNICATION_EVENTS_TOPIC,
             batch_size=100,
             interval_seconds=2.0,
         )

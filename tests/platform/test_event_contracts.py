@@ -110,3 +110,32 @@ async def test_subscriber_sends_invalid_known_event_payload_to_dlq() -> None:
     assert consumer.dlq
     assert consumer.dlq[0][0] == "ride-events"
     assert "driver_id" in consumer.dlq[0][2]
+
+
+@pytest.mark.asyncio
+async def test_subscriber_can_pass_raw_broker_message_to_handler() -> None:
+    consumer = CapturingConsumer()
+    subscriber = EventSubscriber(consumer)  # type: ignore[arg-type]
+    observed: list[dict[str, Any]] = []
+
+    async def handler(event: ServiceRequestAcceptedEvent, raw_msg: dict[str, Any]) -> None:
+        observed.append(raw_msg)
+
+    subscriber.register("service.request.accepted", handler)
+    raw_msg = {
+        "topic": "ride-events",
+        "partition": 3,
+        "offset": 42,
+        "value": {
+            "event_type": "service.request.accepted",
+            "payload": {
+                "ride_id": str(uuid4()),
+                "passenger_user_id": str(uuid4()),
+                "driver_id": str(uuid4()),
+            },
+        },
+    }
+
+    await subscriber._dispatch(raw_msg)
+
+    assert observed == [raw_msg]

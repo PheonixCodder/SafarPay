@@ -77,8 +77,12 @@ class BiddingKafkaConsumer:
                 await asyncio.sleep(0.01)
         except asyncio.CancelledError:
             pass
-        except Exception as exc:
-            logger.error("Consumer loop failed: %s", exc)
+        except Exception:
+            logger.exception(
+                "Bidding consumer _consume_loop terminated unexpectedly; "
+                "_task will be done and consumption has stopped"
+            )
+            raise
 
     async def _process_message(self, msg: dict) -> None:
         payload = msg.get("value", {})

@@ -91,6 +91,18 @@ async def test_create_bidding_session_skips_fixed_and_notifies_drivers_for_biddi
             cast(Any, FakeBiddingWebSockets()),
         ).execute(ride_id, {"pricing_mode": "HYBRID"}, driver_ids)
 
+    with pytest.raises(BiddingClosedError, match="Unsupported pricing_mode"):
+        await CreateBiddingSessionUseCase(
+            cast(Any, FakeSessionRepo()),
+            cast(Any, FakeCache()),
+            cast(Any, FakeWebhook()),
+            cast(Any, FakeBiddingWebSockets()),
+        ).execute(
+            ride_id,
+            {"pricing_mode": "hybrid", "passenger_user_id": str(PASSENGER_ID)},
+            driver_ids,
+        )
+
 
 @pytest.mark.asyncio
 async def test_place_bid_creates_first_bid_and_auto_accept_outbox() -> None:

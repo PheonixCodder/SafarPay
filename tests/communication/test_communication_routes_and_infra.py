@@ -36,6 +36,7 @@ from communication.infrastructure.dependencies import (
     get_start_call_uc,
 )
 from communication.infrastructure.orm_models import CommunicationEventORM, CommunicationEventType
+from communication.infrastructure.repositories import MessageRepository
 from communication.infrastructure.storage import S3StorageProvider, build_media_key
 from communication.infrastructure.websocket_manager import CommunicationEvent, WebSocketManager
 from sp.infrastructure.messaging.outbox import GenericOutboxWorker
@@ -270,6 +271,31 @@ def test_build_media_key_uses_safe_extension_and_media_path() -> None:
     assert build_media_key(CONVERSATION_ID, "VOICE_NOTE", "voice.ogg").endswith(".ogg")
     assert build_media_key(CONVERSATION_ID, "IMAGE", "bad.exe").endswith(".bin")
     assert f"conversations/{CONVERSATION_ID}/image/" in build_media_key(CONVERSATION_ID, "IMAGE", None)
+
+
+@pytest.mark.asyncio
+async def test_message_repository_uses_configured_outbox_topic() -> None:
+    conversation = make_conversation()
+    passenger, _ = make_participants(conversation)
+    message = make_message(conversation, passenger)
+
+    class Session:
+        def __init__(self) -> None:
+            self.added: list[Any] = []
+
+        def add(self, item: Any) -> None:
+            self.added.append(item)
+
+        async def flush(self) -> None:
+            pass
+
+    session = Session()
+    repo = MessageRepository(cast(Any, session), event_topic="communication-events.test")
+
+    await repo.create(message)
+
+    event = next(item for item in session.added if isinstance(item, CommunicationEventORM))
+    assert event.topic == "communication-events.test"
 
 
 @pytest.mark.asyncio
