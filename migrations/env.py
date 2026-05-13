@@ -25,6 +25,7 @@ from bidding.infrastructure import orm_models as bidding_orm_models  # noqa: F40
 from communication.infrastructure import orm_models as communication_orm_models  # noqa: F401
 from geospatial.infrastructure import orm_models as geospatial_orm_models  # noqa: F401
 from location.infrastructure import orm_models as location_orm_models  # noqa: F401
+from payment.infrastructure import orm_models as payment_orm_models  # noqa: F401
 from ride.infrastructure import orm_models as ride_orm_models  # noqa: F401
 
 # ── Settings ───────────────────────────────────────────────────────────────

@@ -24,6 +24,7 @@ from ..domain.interfaces import (
     BiddingSessionRepositoryProtocol,
     BidRepositoryProtocol,
     CounterOfferRepositoryProtocol,
+    PaymentClientProtocol,
     RideServiceClientProtocol,
     WebhookClientProtocol,
 )
@@ -380,6 +381,7 @@ class AcceptBidUseCase:
         webhook: WebhookClientProtocol,
         ws: WebSocketManager,
         publisher: EventPublisher | None = None,
+        payment_client: PaymentClientProtocol | None = None,
         post_commit: PostCommitScheduler | None = None,
     ) -> None:
         self._session_repo = session_repo
@@ -388,6 +390,7 @@ class AcceptBidUseCase:
         self._webhook = webhook
         self._ws = ws
         self._publisher = publisher
+        self._payment_client = payment_client
         self._post_commit = post_commit
 
     async def execute(self, session_id: UUID, bid_id: UUID, passenger_id: UUID, idempotency_key: str | None = None) -> BidResponse:
@@ -426,6 +429,15 @@ class AcceptBidUseCase:
                 raise BidNotFoundError("Bid not found.")
             if bid.status != BidStatus.ACTIVE:
                 raise BiddingClosedError(f"Only ACTIVE bids can be accepted. Current status: {bid.status.value}.")
+
+            if self._payment_client:
+                await self._payment_client.reserve_commission(
+                    session.service_request_id,
+                    bid.driver_id,
+                    passenger_id,
+                    bid.bid_amount,
+                    idempotency_key=f"commission_reserve:bid:{session.service_request_id}:{bid.id}",
+                )
 
             session.close()
             bid.accept()
@@ -485,12 +497,14 @@ class WithdrawBidUseCase:
         cache: CacheManager,
         ws: WebSocketManager,
         publisher: EventPublisher | None = None,
+        payment_client: PaymentClientProtocol | None = None,
     ) -> None:
         self._session_repo = session_repo
         self._bid_repo = bid_repo
         self._cache = cache
         self._ws = ws
         self._publisher = publisher
+        self._payment_client = payment_client
 
     async def execute(self, session_id: UUID, bid_id: UUID, driver_id: UUID) -> BidResponse:
         session = await self._session_repo.find_by_id(session_id)
@@ -713,6 +727,7 @@ class DriverAcceptCounterOfferUseCase:
         cache: CacheManager,
         ws: WebSocketManager,
         publisher: EventPublisher | None = None,
+        payment_client: PaymentClientProtocol | None = None,
     ) -> None:
         self._session_repo = session_repo
         self._bid_repo = bid_repo
@@ -720,6 +735,7 @@ class DriverAcceptCounterOfferUseCase:
         self._cache = cache
         self._ws = ws
         self._publisher = publisher
+        self._payment_client = payment_client
 
     async def execute(
         self,
@@ -774,6 +790,15 @@ class DriverAcceptCounterOfferUseCase:
                     message="Driver accepted passenger counter-offer",
                 )
                 bid.accept()
+
+            if self._payment_client:
+                await self._payment_client.reserve_commission(
+                    session.service_request_id,
+                    driver_id,
+                    passenger_user_id,
+                    counter_offer.price,
+                    idempotency_key=f"commission_reserve:counter:{session.service_request_id}:{counter_offer.id}:{driver_id}",
+                )
 
             session.close()
             counter_offer.driver_id = driver_id

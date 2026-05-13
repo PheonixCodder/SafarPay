@@ -34,11 +34,13 @@ class RideKafkaConsumer:
         cache: CacheManager,
         ws: WebSocketManager,
         publisher: EventPublisher | None = None,
+        payment_client=None,
     ) -> None:
         self._session_factory = session_factory
         self._cache = cache
         self._ws = ws
         self._publisher = publisher
+        self._payment_client = payment_client
         self._task: asyncio.Task | None = None
         self._consumer = KafkaConsumerWrapper(
             bootstrap_servers=bootstrap_servers,
@@ -119,6 +121,7 @@ class RideKafkaConsumer:
                         self._cache,
                         self._ws,
                         RideOutboxPublisher(session),
+                        self._payment_client,
                     )
                     final_price = float(amount) if amount is not None else None
                     await uc.execute(UUID(ride_id), UUID(driver_id), final_price)

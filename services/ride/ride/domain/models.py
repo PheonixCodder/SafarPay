@@ -55,6 +55,18 @@ class PricingMode(str, Enum):
     HYBRID = "HYBRID"
 
 
+class PassengerPaymentMethod(str, Enum):
+    CARD = "CARD"
+    CASH = "CASH"
+    EASYPAISA = "EASYPAISA"
+    JAZZCASH = "JAZZCASH"
+
+
+class PaymentCollectionMode(str, Enum):
+    PLATFORM_COLLECTED = "PLATFORM_COLLECTED"
+    DRIVER_COLLECTED = "DRIVER_COLLECTED"
+
+
 class StopType(str, Enum):
     PICKUP = "PICKUP"
     DROPOFF = "DROPOFF"
@@ -391,6 +403,9 @@ class ServiceRequest:
     baseline_min_price: float | None = None
     baseline_max_price: float | None = None
     final_price: float | None = None
+    passenger_payment_method: PassengerPaymentMethod = PassengerPaymentMethod.CASH
+    passenger_payment_method_id: UUID | None = None
+    payment_collection_mode: PaymentCollectionMode = PaymentCollectionMode.DRIVER_COLLECTED
 
     scheduled_at: datetime | None = None
     is_scheduled: bool = False
@@ -479,7 +494,14 @@ class ServiceRequest:
         baseline_max_price: float | None = None,
         scheduled_at: datetime | None = None,
         auto_accept_driver: bool = True,
+        passenger_payment_method: PassengerPaymentMethod = PassengerPaymentMethod.CASH,
+        passenger_payment_method_id: UUID | None = None,
     ) -> ServiceRequest:
+        collection_mode = (
+            PaymentCollectionMode.PLATFORM_COLLECTED
+            if passenger_payment_method == PassengerPaymentMethod.CARD
+            else PaymentCollectionMode.DRIVER_COLLECTED
+        )
         return cls(
             id=uuid4(),
             passenger_id=passenger_id,
@@ -492,6 +514,9 @@ class ServiceRequest:
             scheduled_at=scheduled_at,
             is_scheduled=scheduled_at is not None,
             auto_accept_driver=auto_accept_driver,
+            passenger_payment_method=passenger_payment_method,
+            passenger_payment_method_id=passenger_payment_method_id,
+            payment_collection_mode=collection_mode,
         )
 
 
@@ -545,7 +570,7 @@ class IntercityDetail:
     emergency_contact_number: str | None = None
     matching_priority_score: float | None = None
     demand_zone_id: str | None = None
-    passenger_groups: list['IntercityPassengerGroup'] = field(default_factory=list)
+    passenger_groups: list[IntercityPassengerGroup] = field(default_factory=list)
 
 
 @dataclass

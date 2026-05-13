@@ -21,6 +21,7 @@ from ..domain.interfaces import (
     BiddingSessionRepositoryProtocol,
     BidRepositoryProtocol,
     CounterOfferRepositoryProtocol,
+    PaymentClientProtocol,
     WebhookClientProtocol,
 )
 from .repositories import BiddingSessionRepository, BidRepository, CounterOfferRepository
@@ -67,6 +68,10 @@ def get_ride_client(request: Request) -> Any:
     return getattr(request.app.state, "ride_client", None)
 
 
+def get_payment_client(request: Request) -> PaymentClientProtocol | None:
+    return getattr(request.app.state, "payment_client", None)
+
+
 def get_place_bid_uc(
     session_repo: Annotated[BiddingSessionRepositoryProtocol, Depends(get_session_repo)],
     bid_repo: Annotated[BidRepositoryProtocol, Depends(get_bid_repo)],
@@ -97,6 +102,7 @@ def get_accept_bid_uc(
         webhook=get_webhook_client(request),
         ws=get_ws_manager(request),
         publisher=get_publisher(request),
+        payment_client=get_payment_client(request),
         post_commit=lambda hook: register_post_commit_hook(session, hook),
     )
 
@@ -152,4 +158,5 @@ def get_driver_accept_counter_uc(
         cache=get_cache(request),
         ws=get_ws_manager(request),
         publisher=get_publisher(request),
+        payment_client=get_payment_client(request),
     )

@@ -35,12 +35,14 @@ class BiddingKafkaConsumer:
         webhook: WebhookClientProtocol,
         ws: WebSocketManager,
         publisher: EventPublisher | None = None,
+        payment_client=None,
     ) -> None:
         self._session_factory = session_factory
         self._cache = cache
         self._webhook = webhook
         self._ws = ws
         self._publisher = publisher
+        self._payment_client = payment_client
         self._consumer = KafkaConsumerWrapper(
             bootstrap_servers=bootstrap_servers,
             group_id="bidding_service_group",
@@ -193,6 +195,7 @@ class BiddingKafkaConsumer:
                         self._webhook,
                         self._ws,
                         publisher=self._publisher,
+                        payment_client=self._payment_client,
                         post_commit=hooks.append,
                     )
                     await accept_uc.execute(UUID(session_id), UUID(bid_id), UUID(passenger_id))

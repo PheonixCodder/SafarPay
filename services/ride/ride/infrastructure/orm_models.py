@@ -54,6 +54,18 @@ class PricingMode(enum.Enum):
     HYBRID = "HYBRID"
 
 
+class PassengerPaymentMethod(enum.Enum):
+    CARD = "CARD"
+    CASH = "CASH"
+    EASYPAISA = "EASYPAISA"
+    JAZZCASH = "JAZZCASH"
+
+
+class PaymentCollectionMode(enum.Enum):
+    PLATFORM_COLLECTED = "PLATFORM_COLLECTED"
+    DRIVER_COLLECTED = "DRIVER_COLLECTED"
+
+
 class RequestStatus(enum.Enum):
     CREATED = "CREATED"
     BIDDING = "BIDDING"
@@ -159,6 +171,9 @@ class ServiceRequestORM(Base, TimestampMixin):
     baseline_max_price: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
     auto_accept_driver: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     final_price: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
+    passenger_payment_method: Mapped[str] = mapped_column(String(30), default="CASH", nullable=False)
+    passenger_payment_method_id: Mapped[uuid.UUID | None] = mapped_column(PgUUID(as_uuid=True), nullable=True)
+    payment_collection_mode: Mapped[str] = mapped_column(String(30), default="DRIVER_COLLECTED", nullable=False)
 
     accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

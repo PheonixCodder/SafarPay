@@ -20,7 +20,12 @@ from sp.infrastructure.messaging.publisher import EventPublisher
 
 from .api.router import router
 from .application.use_cases import ExpireSessionsUseCase
-from .infrastructure.clients import DriverEligibilityClient, RideServiceClient
+from .infrastructure.clients import (
+    DriverEligibilityClient,
+    NullPaymentClient,
+    PaymentClient,
+    RideServiceClient,
+)
 from .infrastructure.kafka_consumer import BiddingKafkaConsumer
 from .infrastructure.orm_models import RideBidEventORM
 from .infrastructure.repositories import BiddingSessionRepository
@@ -97,6 +102,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     app.state.driver_client = DriverEligibilityClient(base_url=driver_url)
     await app.state.driver_client.start()
 
+    app.state.payment_client = PaymentClient(base_url=settings.PAYMENT_SERVICE_URL) if settings.PAYMENT_SERVICE_URL else NullPaymentClient()
+    if hasattr(app.state.payment_client, "start"):
+        await app.state.payment_client.start()
+
     if settings.KAFKA_BOOTSTRAP_SERVERS:
         consumer = BiddingKafkaConsumer(
             bootstrap_servers=settings.KAFKA_BOOTSTRAP_SERVERS,
@@ -105,6 +114,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             webhook=app.state.webhook_client,
             ws=app.state.ws_manager,
             publisher=app.state.publisher,
+            payment_client=app.state.payment_client,
         )
         await consumer.start()
         app.state.consumer = consumer
@@ -138,6 +148,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     await app.state.ride_client.close()
     await app.state.driver_client.close()
+    if hasattr(app.state.payment_client, "close"):
+        await app.state.payment_client.close()
     await app.state.webhook_client.close()
     await app.state.cache.close()
     await app.state.db_engine.dispose()

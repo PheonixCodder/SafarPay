@@ -17,6 +17,8 @@ from pydantic import BaseModel, Field, model_validator
 from ..domain.models import (
     DriverGenderPreference,
     FuelType,
+    PassengerPaymentMethod,
+    PaymentCollectionMode,
     PricingMode,
     ProofType,
     RideStatus,
@@ -292,6 +294,8 @@ class CreateRideRequest(BaseModel):
     baseline_max_price: float | None = Field(None, ge=0)
     scheduled_at: datetime | None = None
     auto_accept_driver: bool = True
+    passenger_payment_method: PassengerPaymentMethod = PassengerPaymentMethod.CASH
+    passenger_payment_method_id: UUID | None = None
 
     @model_validator(mode="after")
     def validate_stop_types(self) -> CreateRideRequest:
@@ -320,6 +324,14 @@ class CreateRideRequest(BaseModel):
         lo, hi = self.baseline_min_price, self.baseline_max_price
         if lo is not None and hi is not None and lo > hi:
             raise ValueError("baseline_min_price must not exceed baseline_max_price.")
+        return self
+
+    @model_validator(mode="after")
+    def validate_payment_method(self) -> CreateRideRequest:
+        if self.passenger_payment_method == PassengerPaymentMethod.CARD and self.passenger_payment_method_id is None:
+            raise ValueError("passenger_payment_method_id is required for CARD rides.")
+        if self.passenger_payment_method != PassengerPaymentMethod.CARD and self.passenger_payment_method_id is not None:
+            raise ValueError("passenger_payment_method_id is only allowed for CARD rides.")
         return self
 
 
@@ -386,6 +398,9 @@ class RideResponse(BaseModel):
     baseline_min_price: float | None
     baseline_max_price: float | None
     final_price: float | None
+    passenger_payment_method: PassengerPaymentMethod
+    passenger_payment_method_id: UUID | None
+    payment_collection_mode: PaymentCollectionMode
     scheduled_at: datetime | None
     is_scheduled: bool
     is_risky: bool
@@ -411,6 +426,8 @@ class RideSummaryResponse(BaseModel):
     service_type: ServiceType
     category: ServiceCategory
     status: RideStatus
+    passenger_payment_method: PassengerPaymentMethod
+    payment_collection_mode: PaymentCollectionMode
     created_at: datetime
     scheduled_at: datetime | None
     pickup_stop: StopResponse | None

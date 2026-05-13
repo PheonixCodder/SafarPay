@@ -73,6 +73,7 @@ class Settings(BaseSettings):
     BIDDING_EVENTS_TOPIC: str = "bidding-events"
     COMMUNICATION_EVENTS_TOPIC: str = "communication-events"
     GEOSPATIAL_EVENTS_TOPIC: str = "geospatial-events"
+    PAYMENT_EVENTS_TOPIC: str = "payment-events"
     RIDE_EVENTS_TOPIC: str = "ride-events"
     VERIFICATION_EVENTS_TOPIC: str = "verification.events"
     VERIFICATION_CONSUMER_GROUP: str = "verification-service"
@@ -100,6 +101,15 @@ class Settings(BaseSettings):
     GEOSPATIAL_SERVICE_URL: str = "http://geospatial:8006"
     COMMUNICATION_SERVICE_URL: str = "http://communication:8007"
     RIDE_SERVICE_URL: str = "http://ride:8008"
+    PAYMENT_SERVICE_URL: str = "http://payment:8009"
+    DRIVER_COMMISSION_RATE: float = 0.15
+    DRIVER_MIN_WALLET_BALANCE: float = 0.0
+    PAYMENT_RESERVATION_EXPIRY_HOURS: int = 2
+    PAYMENT_CARD_PROVIDER: str = "SANDBOX"
+    EASYPAISA_MERCHANT_ID: str = ""
+    EASYPAISA_SECRET: str = ""
+    JAZZCASH_MERCHANT_ID: str = ""
+    JAZZCASH_SECRET: str = ""
     GEOSPATIAL_DEFAULT_RADIUS_KM: float = 5.0
     GEOSPATIAL_MAX_RADIUS_KM: float = 20.0
     GEOSPATIAL_H3_RESOLUTION: int = 9

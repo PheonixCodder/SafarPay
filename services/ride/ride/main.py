@@ -34,6 +34,7 @@ from .api.router import router
 from .infrastructure.geospatial_client import GeospatialClient, NullGeospatialClient
 from .infrastructure.notification_client import NotificationClient, NullNotificationClient
 from .infrastructure.orm_models import RideOutboxEventORM
+from .infrastructure.payment_client import NullPaymentClient, PaymentClient
 from .infrastructure.storage import S3StorageProvider
 from .infrastructure.webhook_client import NullWebhookClient, WebhookClient
 from .infrastructure.websocket_manager import WebSocketManager
@@ -109,6 +110,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     else:
         app.state.notification_client = NullNotificationClient()
 
+    payment_url = getattr(settings, "PAYMENT_SERVICE_URL", "")
+    if payment_url:
+        payment = PaymentClient(payment_url)
+        await payment.start()
+        app.state.payment_client = payment
+    else:
+        app.state.payment_client = NullPaymentClient()
+
     # ── S3 Storage provider (presigned URLs for proof images) ─────────────────
     # boto3 resolves credentials from env vars / IAM / ~/.aws automatically.
     # If AWS credentials are absent (local dev) boto3 will raise only when a
@@ -125,6 +134,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             cache=app.state.cache,
             ws=app.state.ws_manager,
             publisher=app.state.publisher,
+            payment_client=app.state.payment_client,
         )
         await consumer.start()
         app.state.consumer = consumer
@@ -190,6 +200,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         except Exception as e:
             import logging
             logging.getLogger("ride.main").error("Failed to close notif client: %s", e)
+
+    payment_client = app.state.payment_client
+    if hasattr(payment_client, "close"):
+        try:
+            await payment_client.close()
+        except Exception as e:
+            import logging
+            logging.getLogger("ride.main").error("Failed to close payment client: %s", e)
 
 
 def create_app() -> FastAPI:

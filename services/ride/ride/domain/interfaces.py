@@ -179,3 +179,58 @@ class NotificationClientProtocol(Protocol):
         context: dict[str, Any],
     ) -> bool:
         ...
+
+
+class PaymentClientProtocol(Protocol):
+    async def create_ride_payment(
+        self,
+        ride_id: UUID,
+        passenger_id: UUID,
+        passenger_payment_method: str,
+        passenger_payment_method_id: UUID | None,
+        amount_estimated: float | None,
+        *,
+        idempotency_key: str,
+    ) -> dict[str, Any]:
+        ...
+
+    async def reserve_commission(
+        self,
+        ride_id: UUID,
+        driver_id: UUID,
+        passenger_id: UUID | None,
+        basis_amount: float,
+        *,
+        idempotency_key: str,
+    ) -> dict[str, Any]:
+        ...
+
+    async def capture_commission(
+        self,
+        ride_id: UUID,
+        driver_id: UUID,
+        final_amount: float,
+        *,
+        idempotency_key: str,
+    ) -> dict[str, Any]:
+        ...
+
+    async def complete_ride_payment(
+        self,
+        ride_id: UUID,
+        driver_id: UUID,
+        final_amount: float,
+        *,
+        idempotency_key: str,
+    ) -> dict[str, Any]:
+        ...
+
+    async def release_commission(
+        self,
+        ride_id: UUID,
+        driver_id: UUID | None,
+        reason: str | None,
+        *,
+        idempotency_key: str,
+    ) -> dict[str, Any] | None:
+        ...
