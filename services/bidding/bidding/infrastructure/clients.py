@@ -9,7 +9,11 @@ from uuid import UUID
 import httpx
 
 from ..domain.exceptions import BiddingDomainError
-from ..domain.interfaces import DriverEligibilityClientProtocol, RideServiceClientProtocol
+from ..domain.interfaces import (
+    DriverEligibilityClientProtocol,
+    PaymentClientProtocol,
+    RideServiceClientProtocol,
+)
 
 logger = logging.getLogger("bidding.clients")
 
@@ -72,6 +76,17 @@ class ResilientHttpClient:
 
         raise BiddingDomainError("Max retries exceeded")
 
+    async def _post(self, path: str, payload: dict[str, Any], *, idempotency_key: str) -> dict[str, Any]:
+        if not self._client:
+            raise BiddingDomainError("Client not started.")
+        try:
+            resp = await self._client.post(path, json=payload, headers={"Idempotency-Key": idempotency_key})
+            if resp.status_code >= 400:
+                raise BiddingDomainError(f"HTTP {resp.status_code}: {resp.text[:200]}")
+            return resp.json() if resp.content else {}
+        except (httpx.TransportError, httpx.TimeoutException) as exc:
+            raise BiddingDomainError("Service request failed") from exc
+
 # ** TODO Fix all clients
 class RideServiceClient(ResilientHttpClient, RideServiceClientProtocol):
     def __init__(self, base_url: str) -> None:
@@ -98,3 +113,34 @@ class DriverEligibilityClient(ResilientHttpClient, DriverEligibilityClientProtoc
         except BiddingDomainError as e:
             logger.warning("Driver eligibility check failed for %s: %s", driver_id, e)
             return False
+
+
+class PaymentClient(ResilientHttpClient, PaymentClientProtocol):
+    def __init__(self, base_url: str) -> None:
+        super().__init__(base_url, timeout=2.0, max_retries=1)
+
+    async def reserve_commission(
+        self,
+        ride_id: UUID,
+        driver_id: UUID,
+        passenger_id: UUID | None,
+        basis_amount: float,
+        *,
+        idempotency_key: str,
+    ) -> dict[str, Any]:
+        return await self._post(
+            f"/api/v1/internal/rides/{ride_id}/commission/reserve",
+            {
+                "driver_id": str(driver_id),
+                "passenger_id": str(passenger_id) if passenger_id else None,
+                "basis_amount": basis_amount,
+                "currency": "PKR",
+            },
+            idempotency_key=idempotency_key,
+        )
+
+
+class NullPaymentClient(PaymentClientProtocol):
+    async def reserve_commission(self, *args, **kwargs) -> dict[str, Any]:
+        logger.warning("NullPaymentClient: commission reserve skipped")
+        return {}

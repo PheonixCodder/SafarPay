@@ -76,3 +76,16 @@ class DriverEligibilityClientProtocol(Protocol):
     async def validate_driver(self, driver_id: UUID, session_id: UUID) -> bool:
         """Validates that a driver is eligible to bid on a given session (rating, vehicle, availability)."""
         ...
+
+
+class PaymentClientProtocol(Protocol):
+    async def reserve_commission(
+        self,
+        ride_id: UUID,
+        driver_id: UUID,
+        passenger_id: UUID | None,
+        basis_amount: float,
+        *,
+        idempotency_key: str,
+    ) -> dict[str, Any]:
+        ...

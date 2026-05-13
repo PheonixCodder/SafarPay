@@ -40,6 +40,7 @@ from ..domain.exceptions import (
 )
 from ..domain.interfaces import (
     GeospatialClientProtocol,
+    PaymentClientProtocol,
     ProofImageRepositoryProtocol,
     ServiceRequestRepositoryProtocol,
     StopRepositoryProtocol,
@@ -132,7 +133,11 @@ def _ride_to_resp(ride: ServiceRequest) -> RideResponse:
         pricing_mode=ride.pricing_mode, status=ride.status,
         baseline_min_price=ride.baseline_min_price,
         baseline_max_price=ride.baseline_max_price,
-        final_price=ride.final_price, scheduled_at=ride.scheduled_at,
+        final_price=ride.final_price,
+        passenger_payment_method=ride.passenger_payment_method,
+        passenger_payment_method_id=ride.passenger_payment_method_id,
+        payment_collection_mode=ride.payment_collection_mode,
+        scheduled_at=ride.scheduled_at,
         is_scheduled=ride.is_scheduled, is_risky=ride.is_risky,
         auto_accept_driver=ride.auto_accept_driver,
         accepted_at=ride.accepted_at, completed_at=ride.completed_at,
@@ -153,7 +158,10 @@ def _ride_to_summary(ride: ServiceRequest) -> RideSummaryResponse:
         id=ride.id, passenger_id=ride.passenger_id,
         assigned_driver_id=ride.assigned_driver_id,
         service_type=ride.service_type, category=ride.category,
-        status=ride.status, created_at=ride.created_at,
+        status=ride.status,
+        passenger_payment_method=ride.passenger_payment_method,
+        payment_collection_mode=ride.payment_collection_mode,
+        created_at=ride.created_at,
         scheduled_at=ride.scheduled_at,
         pickup_stop=_stop_to_resp(pickup) if pickup else None,
         dropoff_stop=_stop_to_resp(dropoff) if dropoff else None,
@@ -194,11 +202,13 @@ class CreateRideUseCase:
         cache: CacheManager,
         ws: WebSocketManager,
         publisher: EventPublisher | None = None,
+        payment: PaymentClientProtocol | None = None,
     ) -> None:
         self._repo = repo
         self._cache = cache
         self._ws = ws
         self._pub = publisher
+        self._payment = payment
 
     async def execute(self, cmd: CreateRideRequest, passenger_id: UUID) -> RideResponse:
         ride = ServiceRequest.create(
@@ -210,6 +220,8 @@ class CreateRideUseCase:
             baseline_max_price=cmd.baseline_max_price,
             scheduled_at=cmd.scheduled_at,
             auto_accept_driver=cmd.auto_accept_driver,
+            passenger_payment_method=cmd.passenger_payment_method,
+            passenger_payment_method_id=cmd.passenger_payment_method_id,
         )
         stops = [
             Stop.create(
@@ -233,6 +245,15 @@ class CreateRideUseCase:
         ]
         detail_data = cmd.detail.model_dump(mode="python")
         ride = await self._repo.create_full(ride, stops, detail_data)
+        if self._payment:
+            await self._payment.create_ride_payment(
+                ride.id,
+                ride.passenger_id,
+                ride.passenger_payment_method.value,
+                ride.passenger_payment_method_id,
+                ride.baseline_min_price or ride.baseline_max_price,
+                idempotency_key=f"ride_payment:{ride.id}",
+            )
 
         # Enter MATCHING state so ride can be accepted (FIXED mode) or enter bidding (BID/HYBRID)
         ride.begin_matching()
@@ -315,11 +336,13 @@ class CancelRideUseCase:
         cache: CacheManager,
         ws: WebSocketManager,
         publisher: EventPublisher | None = None,
+        payment: PaymentClientProtocol | None = None,
     ) -> None:
         self._repo = repo
         self._cache = cache
         self._ws = ws
         self._pub = publisher
+        self._payment = payment
 
     async def execute(self, ride_id: UUID, cmd: CancelRideRequest, passenger_id: UUID) -> RideResponse:
         ride = await _load_ride_or_404(self._repo, ride_id)
@@ -328,6 +351,13 @@ class CancelRideUseCase:
                 "Only the passenger who created this ride may cancel it."
             )
         ride.cancel(cmd.reason)
+        if self._payment:
+            await self._payment.release_commission(
+                ride.id,
+                ride.assigned_driver_id,
+                cmd.reason,
+                idempotency_key=f"commission_release:cancel:{ride.id}",
+            )
         await self._repo.update_status(
             ride.id, ride.status,
             cancelled_at=ride.cancelled_at,
@@ -364,11 +394,13 @@ class AcceptRideUseCase:
         cache: CacheManager,
         ws: WebSocketManager,
         publisher: EventPublisher | None = None,
+        payment: PaymentClientProtocol | None = None,
     ) -> None:
         self._repo = repo
         self._cache = cache
         self._ws = ws
         self._pub = publisher
+        self._payment = payment
 
     async def execute(self, ride_id: UUID, cmd: AcceptRideRequest, driver_id: UUID) -> RideResponse:
         ride = await _load_ride_or_404(self._repo, ride_id)
@@ -377,6 +409,15 @@ class AcceptRideUseCase:
             raise InvalidStateTransitionError(
                 f"Direct accept not allowed for {ride.pricing_mode.value} pricing. "
                 f"Use the Bidding Service (POST /bidding/sessions/{{id}}/bids) instead."
+            )
+        if self._payment:
+            basis_amount = ride.baseline_min_price or ride.baseline_max_price or ride.final_price or 0.0
+            await self._payment.reserve_commission(
+                ride.id,
+                driver_id,
+                ride.passenger_id,
+                basis_amount,
+                idempotency_key=f"commission_reserve:fixed:{ride.id}:{driver_id}",
             )
         ride.accept(driver_id)
         await self._repo.update_status(
@@ -410,14 +451,25 @@ class InternalAssignDriverUseCase:
         cache: CacheManager,
         ws: WebSocketManager,
         publisher: EventPublisher | None = None,
+        payment: PaymentClientProtocol | None = None,
     ) -> None:
         self._repo = repo
         self._cache = cache
         self._ws = ws
         self._pub = publisher
+        self._payment = payment
 
     async def execute(self, ride_id: UUID, driver_id: UUID, final_price: float | None = None) -> RideResponse:
         ride = await _load_ride_or_404(self._repo, ride_id)
+        if self._payment and ride.pricing_mode == PricingMode.FIXED:
+            basis_amount = final_price or ride.baseline_min_price or ride.baseline_max_price or ride.final_price or 0.0
+            await self._payment.reserve_commission(
+                ride.id,
+                driver_id,
+                ride.passenger_id,
+                basis_amount,
+                idempotency_key=f"commission_reserve:internal:{ride.id}:{driver_id}",
+            )
         ride.accept(driver_id)
         if final_price is not None:
             ride.final_price = final_price
@@ -459,12 +511,14 @@ class StartRideUseCase:
         cache: CacheManager,
         ws: WebSocketManager,
         publisher: EventPublisher | None = None,
+        payment: PaymentClientProtocol | None = None,
     ) -> None:
         self._repo = repo
         self._code_repo = code_repo
         self._cache = cache
         self._ws = ws
         self._pub = publisher
+        self._payment = payment
 
     async def execute(self, ride_id: UUID, cmd: VerifyAndStartRequest, driver_id: UUID) -> RideResponse:
         ride = await _load_ride_or_404(self._repo, ride_id)
@@ -502,12 +556,14 @@ class CompleteRideUseCase:
         cache: CacheManager,
         ws: WebSocketManager,
         publisher: EventPublisher | None = None,
+        payment: PaymentClientProtocol | None = None,
     ) -> None:
         self._repo = repo
         self._code_repo = code_repo
         self._cache = cache
         self._ws = ws
         self._pub = publisher
+        self._payment = payment
 
     async def execute(self, ride_id: UUID, cmd: VerifyAndCompleteRequest, driver_id: UUID) -> RideResponse:
         ride = await _load_ride_or_404(self._repo, ride_id)
@@ -523,11 +579,25 @@ class CompleteRideUseCase:
                 raise VerificationCodeNotFoundError("No active verification code for completion.")
             code.verify(cmd.verification_code, driver_id=driver_id)
             await self._code_repo.update_verification(code)
+        final_amount = cmd.final_price or ride.final_price or ride.baseline_min_price or ride.baseline_max_price or 0.0
+        if self._payment:
+            await self._payment.complete_ride_payment(
+                ride.id,
+                driver_id,
+                final_amount,
+                idempotency_key=f"ride_payment_complete:{ride.id}:{driver_id}",
+            )
+            await self._payment.capture_commission(
+                ride.id,
+                driver_id,
+                final_amount,
+                idempotency_key=f"commission_capture:{ride.id}:{driver_id}",
+            )
         ride.complete()
         await self._repo.update_status(
             ride.id, ride.status,
             completed_at=ride.completed_at,
-            final_price=cmd.final_price,
+            final_price=final_amount,
         )
         await self._cache.delete(_RIDE_CACHE_NS, str(ride_id))
         await _publish(self._pub, ServiceRequestCompletedEvent(payload={
@@ -535,11 +605,11 @@ class CompleteRideUseCase:
             "passenger_user_id": str(ride.passenger_id),
             "assigned_driver_id": str(ride.assigned_driver_id) if ride.assigned_driver_id else None,
             "driver_id": str(ride.assigned_driver_id) if ride.assigned_driver_id else None,
-            "final_price": cmd.final_price,
+            "final_price": final_amount,
         }))
         await self._ws.broadcast_to_passenger(
             ride.passenger_id, PassengerEvent.RIDE_COMPLETED,
-            {"ride_id": str(ride.id), "final_price": cmd.final_price},
+            {"ride_id": str(ride.id), "final_price": final_amount},
         )
         return _ride_to_resp(ride)
 

@@ -24,6 +24,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from ..domain.models import (
+    PassengerPaymentMethod,
+    PaymentCollectionMode,
     PricingMode,
     ProofImage,
     ProofType,
@@ -171,6 +173,9 @@ def _ride_orm_to_domain(o: ServiceRequestORM) -> ServiceRequest:
         baseline_min_price=float(o.baseline_min_price) if o.baseline_min_price is not None else None,
         baseline_max_price=float(o.baseline_max_price) if o.baseline_max_price is not None else None,
         final_price=float(o.final_price) if o.final_price is not None else None,
+        passenger_payment_method=PassengerPaymentMethod(o.passenger_payment_method),
+        passenger_payment_method_id=o.passenger_payment_method_id,
+        payment_collection_mode=PaymentCollectionMode(o.payment_collection_mode),
         scheduled_at=o.scheduled_at,
         is_scheduled=o.is_scheduled,
         is_risky=o.is_risky,
@@ -346,6 +351,9 @@ class ServiceRequestRepository:
             baseline_max_price=ride.baseline_max_price,
             auto_accept_driver=ride.auto_accept_driver,
             final_price=ride.final_price,
+            passenger_payment_method=ride.passenger_payment_method.value,
+            passenger_payment_method_id=ride.passenger_payment_method_id,
+            payment_collection_mode=ride.payment_collection_mode.value,
             scheduled_at=ride.scheduled_at,
             is_scheduled=ride.is_scheduled,
             is_risky=ride.is_risky,

@@ -30,6 +30,7 @@ from ..application.use_cases import (
 )
 from ..domain.interfaces import (
     GeospatialClientProtocol,
+    PaymentClientProtocol,
     ProofImageRepositoryProtocol,
     ServiceRequestRepositoryProtocol,
     StopRepositoryProtocol,
@@ -77,6 +78,10 @@ def get_geo(request: Request) -> GeospatialClientProtocol:
     return request.app.state.geo_client
 
 
+def get_payment_client(request: Request) -> PaymentClientProtocol:
+    return request.app.state.payment_client
+
+
 def get_storage(request: Request) -> S3StorageProvider:
     """Return the S3StorageProvider stored on app.state at lifespan."""
     return request.app.state.storage
@@ -115,7 +120,7 @@ def get_code_repo(
 # ---------------------------------------------------------------------------
 
 def get_create_ride_uc(request: Request, repo: Annotated[ServiceRequestRepositoryProtocol, Depends(get_ride_repo)]) -> CreateRideUseCase:
-    return CreateRideUseCase(repo=repo, cache=get_cache(request), ws=get_ws_manager(request), publisher=get_outbox_publisher(repo))
+    return CreateRideUseCase(repo=repo, cache=get_cache(request), ws=get_ws_manager(request), publisher=get_outbox_publisher(repo), payment=get_payment_client(request))
 
 
 def get_get_ride_uc(repo: Annotated[ServiceRequestRepositoryProtocol, Depends(get_ride_repo)], request: Request) -> GetRideUseCase:
@@ -127,11 +132,11 @@ def get_list_rides_uc(repo: Annotated[ServiceRequestRepositoryProtocol, Depends(
 
 
 def get_cancel_ride_uc(request: Request, repo: Annotated[ServiceRequestRepositoryProtocol, Depends(get_ride_repo)]) -> CancelRideUseCase:
-    return CancelRideUseCase(repo=repo, cache=get_cache(request), ws=get_ws_manager(request), publisher=get_outbox_publisher(repo))
+    return CancelRideUseCase(repo=repo, cache=get_cache(request), ws=get_ws_manager(request), publisher=get_outbox_publisher(repo), payment=get_payment_client(request))
 
 
 def get_accept_ride_uc(request: Request, repo: Annotated[ServiceRequestRepositoryProtocol, Depends(get_ride_repo)]) -> AcceptRideUseCase:
-    return AcceptRideUseCase(repo=repo, cache=get_cache(request), ws=get_ws_manager(request), publisher=get_outbox_publisher(repo))
+    return AcceptRideUseCase(repo=repo, cache=get_cache(request), ws=get_ws_manager(request), publisher=get_outbox_publisher(repo), payment=get_payment_client(request))
 
 
 def get_start_ride_uc(request: Request, repo: Annotated[ServiceRequestRepositoryProtocol, Depends(get_ride_repo)], code_repo: Annotated[VerificationCodeRepositoryProtocol, Depends(get_code_repo)]) -> StartRideUseCase:
@@ -139,7 +144,7 @@ def get_start_ride_uc(request: Request, repo: Annotated[ServiceRequestRepository
 
 
 def get_complete_ride_uc(request: Request, repo: Annotated[ServiceRequestRepositoryProtocol, Depends(get_ride_repo)], code_repo: Annotated[VerificationCodeRepositoryProtocol, Depends(get_code_repo)]) -> CompleteRideUseCase:
-    return CompleteRideUseCase(repo=repo, code_repo=code_repo, cache=get_cache(request), ws=get_ws_manager(request), publisher=get_outbox_publisher(repo))
+    return CompleteRideUseCase(repo=repo, code_repo=code_repo, cache=get_cache(request), ws=get_ws_manager(request), publisher=get_outbox_publisher(repo), payment=get_payment_client(request))
 
 
 def get_add_stop_uc(request: Request, repo: Annotated[ServiceRequestRepositoryProtocol, Depends(get_ride_repo)], stop_repo: Annotated[StopRepositoryProtocol, Depends(get_stop_repo)]) -> AddStopUseCase:
