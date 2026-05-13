@@ -1,0 +1,76 @@
+name: client
+description: "A Ride Hailing App"
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Utility Packages
+  http: ^1.6.0
+  intl: ^0.20.2
+  logger: ^2.7.0
+  flutter_secure_storage: ^9.2.4
+  google_sign_in: ^6.2.2
+  url_launcher: ^6.3.2
+  flutter_native_splash: ^2.4.7
+  smooth_page_indicator: ^2.0.1
+  flutter_otp_text_field: ^1.5.1+1
+  permission_handler: ^12.0.1
+  firebase_core: ^4.8.0
+
+  # Icons
+  cupertino_icons: ^1.0.8
+  iconsax: ^0.0.8
+
+  # State Management
+  get: ^4.7.3
+  get_storage: ^2.1.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/logos/
+    - assets/icons/
+    - assets/images/
+    - assets/images/onboarding/
+
+  fonts:
+    - family: SF-Pro
+      fonts:
+        - asset: assets/fonts/SF-Pro-Display-Regular.otf
+          weight: 400
+        - asset: assets/fonts/SF-Pro-Display-Medium.otf
+          weight: 500
+        - asset: assets/fonts/SF-Pro-Display-Bold.otf
+          weight: 700
+        - asset: assets/fonts/SF-Pro-Display-Thin-Italic.otf
+          weight: 100
+          style: italic
+        - asset: assets/fonts/SF-Pro-Display-Ultralight-Italic.otf
+          weight: 200
+          style: italic
+        - asset: assets/fonts/SF-Pro-Display-Light-Italic.otf
+          weight: 300
+          style: italic
+        - asset: assets/fonts/SF-Pro-Display-Semibold-Italic.otf
+          weight: 600
+          style: italic
+        - asset: assets/fonts/SF-Pro-Display-Heavy-Italic.otf
+          weight: 800
+          style: italic
+        - asset: assets/fonts/SF-Pro-Display-Black-Italic.otf
+          weight: 900
+          style: italic
