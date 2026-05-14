@@ -39,6 +39,7 @@ Do not modify these unless the task explicitly requires it:
 
 - `build/`, `.dart_tool/`, platform ephemeral plugin folders, and other generated output.
 - Flutter platform generated plugin registrant files.
+- Firebase generated config files: `lib/firebase_options.dart`, `android/app/google-services.json`, and Apple `GoogleService-Info.plist` files.
 - Root-level files excluded by the user, including `code.md`, `PAYMENT_SERVICE_FLOW.md`, and `SafarPay.iml`.
 - Third-party package internals.
 

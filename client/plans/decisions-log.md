@@ -48,3 +48,8 @@ Permanent record of decisions that affect product scope, architecture, auth beha
 
 - **Decision**: Mark onboarding, login, phone OTP, profile, permissions, home, and Google phone-link flows as complete for current client UI and mocked repository behavior.
 - **Reason**: The real backend endpoint integration is still represented by commented API calls and mock repository implementations.
+
+### 0010 - Keep Firebase generated config out of Git
+
+- **Decision**: Stop tracking `lib/firebase_options.dart`, `android/app/google-services.json`, and Apple `GoogleService-Info.plist` files.
+- **Reason**: Firebase client API keys are not traditional private server secrets, but GitHub secret scanning flags them and they should be generated locally, restricted in Google Cloud/Firebase, and rotated when exposed.

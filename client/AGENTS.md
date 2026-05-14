@@ -20,18 +20,20 @@ Read these files in order before implementing code or making architectural decis
 12. `context/feature-specs/005-permissions-and-home.prompt.md` - reconstructed prompt for permissions and home
 13. `context/feature-specs/006-google-phone-link.prompt.md` - reconstructed prompt for Google phone linking
 14. `context/feature-specs/007-client-context-workflow.prompt.md` - reconstructed prompt for context documentation workflow
-15. `plans/000-client-product-and-architecture-plan.md` - canonical client product and architecture plan
-16. `plans/001-flutter-scaffold-plan.md` - Flutter scaffold plan
-17. `plans/002-design-system-foundation-plan.md` - shared design system plan
-18. `plans/003-onboarding-flow-plan.md` - onboarding implementation plan
-19. `plans/004-auth-gate-and-login-plan.md` - auth gate and login plan
-20. `plans/005-phone-otp-and-profile-plan.md` - phone OTP and profile plan
-21. `plans/006-permissions-and-home-plan.md` - permissions and home plan
-22. `plans/007-google-phone-link-screen-plan.md` - Google phone-link auth flow plan
-23. `plans/008-client-context-documentation-plan.md` - client documentation setup plan
-24. `plans/900-branch-split-and-merge-plan.md` - Git branch split and merge plan
-25. `plans/901-empty-folder-restoration-plan.md` - empty-folder preservation plan
-26. `plans/decisions-log.md` - permanent decision record
+15. `context/feature-specs/008-firebase-config-hardening.prompt.md` - reconstructed prompt for Firebase config hardening
+16. `plans/000-client-product-and-architecture-plan.md` - canonical client product and architecture plan
+17. `plans/001-flutter-scaffold-plan.md` - Flutter scaffold plan
+18. `plans/002-design-system-foundation-plan.md` - shared design system plan
+19. `plans/003-onboarding-flow-plan.md` - onboarding implementation plan
+20. `plans/004-auth-gate-and-login-plan.md` - auth gate and login plan
+21. `plans/005-phone-otp-and-profile-plan.md` - phone OTP and profile plan
+22. `plans/006-permissions-and-home-plan.md` - permissions and home plan
+23. `plans/007-google-phone-link-screen-plan.md` - Google phone-link auth flow plan
+24. `plans/008-client-context-documentation-plan.md` - client documentation setup plan
+25. `plans/009-firebase-config-hardening-plan.md` - Firebase config hardening plan
+26. `plans/900-branch-split-and-merge-plan.md` - Git branch split and merge plan
+27. `plans/901-empty-folder-restoration-plan.md` - empty-folder preservation plan
+28. `plans/decisions-log.md` - permanent decision record
 
 Update `context/progress-tracker.md` after each meaningful implementation change.
 
@@ -161,6 +163,7 @@ Notes:
 - OTP uses a custom 6-digit underline input.
 - Google phone linking uses `screens/profile/otp_google.dart`, then reuses `OtpScreen` with `SAuthOtpFlow.googlePhoneLink`.
 - Post-auth routing goes to permissions first unless required permissions are already complete.
+- Firebase generated config is local-only. Follow `FIREBASE_SETUP.md` to regenerate ignored config files.
 
 ## Verification
 

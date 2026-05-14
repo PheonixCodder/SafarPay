@@ -26,6 +26,7 @@
 - `context/feature-specs/` - reconstructed prompts/specs that explain how current feature code should be produced.
 - `plans/` - ordered implementation plans and decision history.
 - Platform folders (`android/`, `ios/`, `web/`, `linux/`, `macos/`, `windows/`) - Flutter platform scaffolding and generated plugin registration.
+- Firebase generated config files are local-only and ignored: `lib/firebase_options.dart`, `android/app/google-services.json`, and Apple `GoogleService-Info.plist` files.
 
 ## Auth And Access Model
 
@@ -42,6 +43,7 @@
 - **Secure token storage**: access token and refresh token only.
 - **Local app storage**: completion flags such as permissions status.
 - **Assets**: logos, onboarding images, icons, and fonts are local files declared in `pubspec.yaml`.
+- **Firebase generated config**: generated locally with FlutterFire CLI and not committed. Use `FIREBASE_SETUP.md`.
 - **Generated/build output**: `.dart_tool/`, `build/`, platform ephemeral folders, and plugin symlinks are not source of truth.
 
 ## Invariants
@@ -54,3 +56,4 @@
 6. Generated Flutter platform files should not be manually edited unless the change is required and documented.
 7. Empty source folders that must survive Git should contain a `.gitkeep`.
 8. Feature changes should update matching feature-spec, plan, progress, and decision docs when they alter behavior.
+9. Firebase API keys and platform config files must be generated locally, ignored by Git, and restricted/rotated in Google Cloud/Firebase when exposed.

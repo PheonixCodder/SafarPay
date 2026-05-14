@@ -19,11 +19,13 @@ Update this file after every meaningful implementation change.
 - `client/lib/data/.gitkeep` was added to preserve the empty data folder.
 - Client context documentation and plans folder were introduced.
 - Reconstructed feature-spec prompt files were planned for scaffold, design foundation, onboarding, auth gate/login, phone OTP/profile, permissions/home, Google phone linking, and documentation workflow.
+- Firebase generated config hardening was added so API-key-bearing generated files are local-only and ignored going forward.
 
 ## In Progress
 
 - Google phone-link flow implementation exists locally and needs final review/commit when ready.
 - Documentation history is being reorganized into feature-first prompt and plan files.
+- Firebase generated config is being removed from Git tracking while preserved locally for development.
 - Flutter analyzer still reports existing info-level cleanup items in unrelated files.
 
 ## Next Up
@@ -32,6 +34,7 @@ Update this file after every meaningful implementation change.
 - Decide when to connect mocked auth repository methods to real backend endpoints.
 - Clean existing analyzer info items when the team chooses a lint-cleanup pass.
 - Add real ride booking, bidding, location tracking, and payment client screens as separate planned feature units.
+- Rotate or restrict the previously exposed Firebase API keys in Google Cloud/Firebase and resolve the GitHub secret-scanning alerts.
 
 ## Open Questions
 
