@@ -6,6 +6,7 @@ import '../models/auth_models.dart';
 import '../repositories/auth_repository.dart';
 import '../screens/otp/otp.dart';
 import '../screens/permissions/permissions.dart';
+import '../screens/profile/otp_google.dart';
 import '../utils/auth_navigation.dart';
 import 'permissions.dart';
 import '../../../utils/constants/texts.dart';
@@ -16,8 +17,6 @@ import '../../../utils/local_storage/token_storage.dart';
 class SLoginController extends GetxController {
   final RxBool isSendingOtp = false.obs;
   final RxBool isGoogleLoading = false.obs;
-  final RxBool requiresGooglePhoneLink = false.obs;
-  final RxString googleDisplayName = ''.obs;
 
   Future<void> sendOtp(String phoneNumber) async {
     if (isSendingOtp.value) return;
@@ -29,12 +28,7 @@ class SLoginController extends GetxController {
       SAuthNavigation.to(
         OtpScreen(
           phoneNumber: phoneNumber,
-          flow: requiresGooglePhoneLink.value
-              ? SAuthOtpFlow.googlePhoneLink
-              : SAuthOtpFlow.phoneRegistration,
-          displayName: requiresGooglePhoneLink.value
-              ? googleDisplayName.value
-              : null,
+          flow: SAuthOtpFlow.phoneRegistration,
         ),
       );
     } on SHttpException catch (error) {
@@ -51,7 +45,11 @@ class SLoginController extends GetxController {
 
     isGoogleLoading.value = true;
     try {
-      final googleUser = await GoogleSignIn(scopes: ['email'], serverClientId: '411278048243-um4o8hv7dopg74cj69ja08d4kak193ll.apps.googleusercontent.com').signIn();
+      final googleUser = await GoogleSignIn(
+        scopes: ['email'],
+        serverClientId:
+            '411278048243-um4o8hv7dopg74cj69ja08d4kak193ll.apps.googleusercontent.com',
+      ).signIn();
       if (googleUser == null) return;
 
       final googleAuth = await googleUser.authentication;
@@ -63,20 +61,28 @@ class SLoginController extends GetxController {
       }
 
       final tokens = await SAuthRepository.instance.verifyGoogleToken(idToken);
+
+      if (tokens.phoneRequired) {
+        if (tokens.accessToken.isNotEmpty) {
+          await STokenStorage.saveTokens(
+            accessToken: tokens.accessToken,
+            refreshToken: tokens.refreshToken,
+          );
+        }
+        SHelperFunctions.showSnackBar(STexts.googlePhoneRequired);
+        SAuthNavigation.to(
+          GoogleOtpProfileScreen(
+            displayName: googleUser.displayName,
+            email: googleUser.email,
+          ),
+        );
+        return;
+      }
+
       await STokenStorage.saveTokens(
         accessToken: tokens.accessToken,
         refreshToken: tokens.refreshToken,
       );
-
-      if (tokens.phoneRequired) {
-        requiresGooglePhoneLink.value = true;
-        googleDisplayName.value = googleUser.displayName ?? '';
-        SHelperFunctions.showSnackBar(STexts.googlePhoneRequired);
-        return;
-      }
-
-      requiresGooglePhoneLink.value = false;
-      googleDisplayName.value = '';
       await _goToPostAuthDestination();
     } on SHttpException catch (error) {
       SHelperFunctions.showSnackBar(error.message);
