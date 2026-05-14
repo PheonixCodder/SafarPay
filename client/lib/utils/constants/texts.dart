@@ -10,9 +10,12 @@ class STexts {
   static const String onBoardingTitle2 = "Feel Safe, Ride Smart";
   static const String onBoardingTitle3 = "Ride at Honest Prices";
 
-  static const String onBoardingSubTitle1 = "Find a nearby driver and ride within minutes, anytime, anywhere.";
-  static const String onBoardingSubTitle2 = "With verified drivers and ride tracking, your safety is built into every trip.";
-  static const String onBoardingSubTitle3 = "No hidden charges. What you see is what you pay, always.";
+  static const String onBoardingSubTitle1 =
+      "Find a nearby driver and ride within minutes, anytime, anywhere.";
+  static const String onBoardingSubTitle2 =
+      "With verified drivers and ride tracking, your safety is built into every trip.";
+  static const String onBoardingSubTitle3 =
+      "No hidden charges. What you see is what you pay, always.";
   static const String onBoardingNext = "Next";
   static const String onBoardingSkip = "Skip";
   static const String onBoardingGetStarted = "Get Started";
@@ -21,8 +24,10 @@ class STexts {
   static const String locationTitle = "What is Your Location?";
   static const String notificationsTitle = "Enable Notification Access";
 
-  static const String locationSubTitle = "We need to know your location in order to suggest nearby services";
-  static const String notificationsSubTitle = "Enable Notification to receive real-time updates";
+  static const String locationSubTitle =
+      "We need to know your location in order to suggest nearby services";
+  static const String notificationsSubTitle =
+      "Enable Notification to receive real-time updates";
   static const String allowLocationAccess = "Allow Location Access";
   static const String allowNotificationAccess = "Allow Notification Access";
   static const String permissionDenied = "Permission is required to continue.";
@@ -41,7 +46,8 @@ class STexts {
   static const String sendOtp = "Send OTP";
   static const String otpSent = "OTP sent to your phone number.";
   static const String loginTitle = "Login";
-  static const String loginSubTitle = "Enter your phone number to continue securely.";
+  static const String loginSubTitle =
+      "Enter your phone number to continue securely.";
   static const String orContinueWith = "or continue with";
   static const String continueWithGoogle = "Continue with Google";
   static const String googlePhoneRequired =
@@ -50,12 +56,19 @@ class STexts {
       "Google did not return a valid token. Please try again.";
   static const String googleLoginFailed =
       "Google login failed. Please try again.";
-  static const String unexpectedError = "Something went wrong. Please try again.";
+  static const String googlePhoneLinkTitle = "Confirm your phone";
+  static const String googlePhoneLinkSubTitle =
+      "Your Google account is verified. Add a phone number so SafarPay can secure your rides and send trip updates.";
+  static const String googleAccountVerified = "Google account verified";
+  static const String googlePhoneLinkCta = "Send verification code";
+  static const String unexpectedError =
+      "Something went wrong. Please try again.";
 
   // -- OTP
   static const String otpTitle = "Verify your number";
   static const String googleOtpTitlePrefix = "Hi";
-  static const String otpSubTitle = "Enter the 6-digit code sent to WhatsApp at";
+  static const String otpSubTitle =
+      "Enter the 6-digit code sent to WhatsApp at";
   static const String changeNumber = "Change number";
   static const String verifyOtp = "Verify OTP";
   static const String resendOnWhatsapp = "Resend on WhatsApp";
@@ -66,12 +79,14 @@ class STexts {
 
   // -- Complete Profile
   static const String completeProfileTitle = "Complete your Profile";
-  static const String completeProfileSubTitle = "Tell us a little about yourself to finish setting up your account.";
+  static const String completeProfileSubTitle =
+      "Tell us a little about yourself to finish setting up your account.";
   static const String firstName = "First Name";
   static const String lastName = "Last Name";
   static const String emailAddress = "Email Address";
   static const String continueText = "Continue";
-  static const String acceptTermsRequired = "Please accept the privacy policy and terms of use.";
+  static const String acceptTermsRequired =
+      "Please accept the privacy policy and terms of use.";
   static const String profileCompleted = "Profile completed.";
   static const String iAgreeTo = "I agree to";
   static const String privacyPolicy = "Privacy Policy";

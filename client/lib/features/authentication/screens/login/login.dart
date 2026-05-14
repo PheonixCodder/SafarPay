@@ -3,7 +3,6 @@ import 'package:get/get.dart';
 
 import '../../../../common/widgets/divider.dart';
 import '../../../../common/styles/spacing_styles.dart';
-import '../../../../utils/constants/colors.dart';
 import '../../../../utils/constants/sizes.dart';
 import '../../../../utils/constants/texts.dart';
 import '../../controllers/login.dart';

@@ -88,7 +88,10 @@ class SAuthRepository {
     await Future.delayed(const Duration(milliseconds: 500));
     // For testing: set phoneRequired to true to exercise the Google phone-link flow.
     // Change to false if you want to skip that flow.
-    const phoneRequired = false; // Change to true if you want to test linking
+    final phoneRequired = bool.fromEnvironment(
+      'MOCK_GOOGLE_PHONE_REQUIRED',
+      defaultValue: true,
+    );
     return STokenResponse(
       accessToken: phoneRequired ? '' : 'mock_google_access_token',
       refreshToken: phoneRequired ? '' : 'mock_google_refresh_token',

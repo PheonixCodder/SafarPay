@@ -61,14 +61,9 @@ class _SLoginFormState extends State<SLoginForm> {
             width: double.infinity,
             child: Obx(
               () => ElevatedButton(
-                onPressed: widget.controller.isSendingOtp.value
-                    ? null
-                    : _sendOtp,
-                child: Text(
-                  widget.controller.requiresGooglePhoneLink.value
-                      ? STexts.continueText
-                      : STexts.sendOtp,
-                ),
+                onPressed:
+                    widget.controller.isSendingOtp.value ? null : _sendOtp,
+                child: const Text(STexts.sendOtp),
               ),
             ),
           ),
