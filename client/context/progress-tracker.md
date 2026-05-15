@@ -4,11 +4,11 @@ Update this file after every meaningful implementation change.
 
 ## Current Phase
 
-- Client foundation and authentication UI/mock phase complete; next phase is backend integration and ride-feature expansion.
+- Client foundation, authentication UI/mock phase, and post-auth navigation shell are complete; next phase is backend integration and ride-feature expansion.
 
 ## Current Goal
 
-- Reengineer the whole current client history into feature-spec prompts, feature-first plans, updated context files, and decision logs.
+- Keep client context synchronized while cleaning client structure and preparing future ride-feature expansion.
 
 ## Completed
 
@@ -20,10 +20,20 @@ Update this file after every meaningful implementation change.
 - Client context documentation and plans folder were introduced.
 - Reconstructed feature-spec prompt files were planned for scaffold, design foundation, onboarding, auth gate/login, phone OTP/profile, permissions/home, Google phone linking, and documentation workflow.
 - Firebase generated config hardening was added so API-key-bearing generated files are local-only and ignored going forward.
+- Post-auth navigation now routes authenticated users through `NavigationMenu` instead of directly to `HomeScreen`.
+- Navigation menu active-state design was updated to use a smooth top indicator line instead of a selected pill highlight.
+- Navigation menu indicator positioning was refined to use responsive width-based centering, and bottom tab icons were reduced in size.
+- Reusable ride search result row was added under `common/widgets/ride`.
+- Typed demo ride response models and 10 demo ride records were added under `lib/data/rides`.
+- Home search now shows two recent ride destinations from demo data.
+- Home banner carousel was added with local banner assets.
+- Home service categories were added with local category assets.
+- Notification, category, and ride search widget design values were moved into shared utilities without intentional visual changes.
+- Client widget structure was cleaned up with reusable widgets moved to `lib/common/widgets`, multi-widget files split, and settings rebuilt from focused components.
+- Settings profile edit and `User Info` row now navigate to the personalization profile screen through a reusable right-slide transition.
 
 ## In Progress
 
-- Google phone-link flow implementation exists locally and needs final review/commit when ready.
 - Documentation history is being reorganized into feature-first prompt and plan files.
 - Firebase generated config is being removed from Git tracking while preserved locally for development.
 - Flutter analyzer still reports existing info-level cleanup items in unrelated files.
@@ -50,9 +60,22 @@ Update this file after every meaningful implementation change.
 - Tokens are persisted only through `STokenStorage`.
 - App copy remains centralized in `STexts`.
 - Empty source folders that matter to architecture are preserved with `.gitkeep`.
+- `NavigationMenu` is the authenticated app shell; `HomeScreen` is only the first tab.
+- Navigation menu active state is represented by primary icon/label color and a custom animated top line.
+- Navigation menu top indicator positioning must be calculated from tab width instead of hard-coded alignment values.
+- Shared ride UI components live in `lib/common/widgets/ride` when they are not owned by one screen.
+- Ride demo data mirrors backend response contracts until live ride APIs are integrated.
+- Home carousel uses local banner assets and app sizing/radius tokens.
+- Home service categories are static local UI until service destination screens are planned.
+- Shared widget styling should use `SColors`, `SOpacities`, `SSizes`, `STexts`, and `SHelperFunctions` instead of local literals.
+- Reusable widgets belong in `lib/common/widgets`; screen-local widgets should live in the owning screen's `widgets/` folder with one primary widget per file.
+- Reusable non-auth page transitions live in `lib/common/navigation`.
 
 ## Session Notes
 
 - Existing local dirty files include auth flow code changes, platform generated plugin registrant files, `code.md`, `PAYMENT_SERVICE_FLOW.md`, `SafarPay.iml`, and `client/AGENTS.md`.
 - `flutter analyze --no-pub` was run after the Google phone-link work and only reported existing info-level items outside the new screen.
+- During the client structure cleanup, `dart format` and `flutter analyze --no-pub` timed out in this environment; targeted source scans were used to verify widget-file structure and stale-name cleanup.
 - Future agents should read `client/AGENTS.md` and then the context files before changing client code.
+- The client structure cleanup added `context/feature-specs/017-client-structure-cleanup.md` and `plans/018-client-structure-cleanup-plan.md`.
+- Settings user-info navigation added `context/feature-specs/018-settings-user-info-navigation.md` and `plans/019-settings-user-info-navigation-plan.md`.

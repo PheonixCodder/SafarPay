@@ -6,7 +6,7 @@
 | --- | --- | --- |
 | Framework | Flutter + Dart | Mobile UI and app runtime |
 | State | GetX | Controllers, reactive state, and simple navigation coordination |
-| Navigation | Flutter Navigator via `SAuthNavigation` and Get context | Auth flow transitions |
+| Navigation | Flutter Navigator via `SAuthNavigation`, Get context, and `NavigationMenu` | Auth flow transitions and post-auth tab shell |
 | Local preferences | `get_storage` | Lightweight app flags such as permissions completion |
 | Secure storage | `flutter_secure_storage` | Access and refresh tokens |
 | Auth providers | Phone OTP, Google Sign-In, Firebase Core | Client-side auth entrypoints and platform setup |
@@ -18,10 +18,18 @@
 
 - `lib/app.dart` - app-level theme and root widget setup.
 - `lib/main.dart` - Flutter/Firebase/bootstrap entrypoint.
-- `lib/common/` - shared widgets and layout styles that are not feature-specific.
-- `lib/data/` - reserved for future data providers, DTOs, and client-side data abstractions.
+- `lib/common/` - shared widgets and layout styles that are not feature-specific; reusable widgets should live here instead of inside feature folders.
+- `lib/common/navigation/` - reusable Navigator route transitions and navigation helpers shared across features.
+- `lib/common/widgets/navigation/` - shared bottom navigation shell widgets and placeholder tab screens.
+- `lib/common/widgets/containers/` - shared decorative containers and header surfaces.
+- `lib/common/widgets/images/` - shared image presentation widgets.
+- `lib/common/widgets/ride/` - reusable ride UI building blocks shared across search, booking, and ride flows.
+- `lib/data/` - shared DTOs, demo data, and future client-side data abstractions.
+- `lib/data/rides/` - backend-aligned ride response models and demo ride data for UI development before live API integration.
 - `lib/features/authentication/` - onboarding, login, OTP, profile completion, permissions, auth models, repository, and auth navigation helpers.
 - `lib/features/home/` - post-auth starter home experience.
+- `lib/features/personalization/` - settings and profile-facing personalization surfaces.
+- `lib/navigation_menu.dart` - authenticated app shell with Home, Trips, Rent, and Profile tabs.
 - `lib/utils/` - constants, helpers, validation, HTTP, storage, logging, device utilities, and theme.
 - `context/feature-specs/` - reconstructed prompts/specs that explain how current feature code should be produced.
 - `plans/` - ordered implementation plans and decision history.
@@ -30,19 +38,21 @@
 
 ## Auth And Access Model
 
-- `AuthGateScreen` decides whether to show auth flow, permissions, or home based on token presence and current user lookup.
+- `AuthGateScreen` decides whether to show auth flow, permissions, or the authenticated navigation shell based on token presence and current user lookup.
 - `SAuthRepository` owns auth API calls and temporary mock behavior while backend integration is incomplete.
 - `STokenStorage` owns secure access and refresh token persistence.
 - Phone registration uses OTP verification followed by profile completion.
 - Google auth verifies a Google ID token. If the backend requires phone linking, the client routes to `GoogleOtpProfileScreen`, then verifies OTP through `OtpScreen` with `SAuthOtpFlow.googlePhoneLink`.
 - Permissions are tracked locally using `SPermissionsController` and `SLocalStorage`.
+- After permissions are complete, all auth success paths enter `NavigationMenu`; `HomeScreen` is not used as a direct auth destination.
 - Current auth is complete for client UI and mocked repository flows. Production backend endpoint activation remains pending.
 
 ## Storage Model
 
 - **Secure token storage**: access token and refresh token only.
 - **Local app storage**: completion flags such as permissions status.
-- **Assets**: logos, onboarding images, icons, and fonts are local files declared in `pubspec.yaml`.
+- **Demo ride data**: typed static records under `lib/data/rides` until backend ride endpoints are connected.
+- **Assets**: logos, onboarding images, home banners, home categories, icons, and fonts are local files declared in `pubspec.yaml`.
 - **Firebase generated config**: generated locally with FlutterFire CLI and not committed. Use `FIREBASE_SETUP.md`.
 - **Generated/build output**: `.dart_tool/`, `build/`, platform ephemeral folders, and plugin symlinks are not source of truth.
 
@@ -57,3 +67,9 @@
 7. Empty source folders that must survive Git should contain a `.gitkeep`.
 8. Feature changes should update matching feature-spec, plan, progress, and decision docs when they alter behavior.
 9. Firebase API keys and platform config files must be generated locally, ignored by Git, and restricted/rotated in Google Cloud/Firebase when exposed.
+10. Authenticated users must enter the app through `NavigationMenu`; `HomeScreen` remains a tab, not a terminal auth route.
+11. Ride DTOs should mirror backend response contracts and keep backend enum wire values stable.
+12. A Dart source file should contain one primary widget class unless a very small private helper is truly inseparable.
+13. Reusable widgets must move to `lib/common/widgets`; screen-only widgets stay under the owning screen's `widgets/` folder.
+14. Reusable page transitions belong in `lib/common/navigation` instead of feature screens.
+15. Local-only profile display data must not be treated as backend persistence.

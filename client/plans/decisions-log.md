@@ -53,3 +53,58 @@ Permanent record of decisions that affect product scope, architecture, auth beha
 
 - **Decision**: Stop tracking `lib/firebase_options.dart`, `android/app/google-services.json`, and Apple `GoogleService-Info.plist` files.
 - **Reason**: Firebase client API keys are not traditional private server secrets, but GitHub secret scanning flags them and they should be generated locally, restricted in Google Cloud/Firebase, and rotated when exposed.
+
+### 0011 - Route post-auth users through NavigationMenu
+
+- **Decision**: Send authenticated users with completed permissions to `NavigationMenu` instead of directly to `HomeScreen`.
+- **Reason**: The main app needs one authenticated shell that owns Home, Trips, Rent, and Profile navigation consistently across phone OTP, Google auth, permissions completion, and already-authenticated app launch.
+
+### 0012 - Use custom active indicator for NavigationMenu
+
+- **Decision**: Replace Material `NavigationBar`'s selected pill treatment with a custom bottom bar that uses active icon/label coloring and an animated top indicator line.
+- **Reason**: The product reference requires a cleaner active state where the line moves smoothly between tabs without the built-in Material highlight.
+
+### 0013 - Calculate NavigationMenu indicator position from tab width
+
+- **Decision**: Center the active indicator using the actual bottom-bar width divided by the number of tabs instead of hard-coded `Alignment` values.
+- **Reason**: Hard-coded alignment values drift on real layouts; width-based positioning keeps Home, Trips, Rent, and Profile centered consistently across devices.
+
+### 0014 - Use upright typography only
+
+- **Decision**: Do not use or register italic font faces in the Flutter client.
+- **Reason**: Italic SF Pro assets caused themed text weights such as `headlineMedium` to render with a curved/italic appearance. SafarPay's visual language should use upright typography only; missing weights should wait for matching upright font files instead of falling back to italic assets.
+
+### 0015 - Place reusable ride rows under common widgets
+
+- **Decision**: Store reusable ride search result UI in `lib/common/widgets/ride`.
+- **Reason**: Location result rows can be reused by search, booking, and ride flows, so they should not be owned by a single feature screen.
+
+### 0016 - Mirror backend ride response contracts in client data models
+
+- **Decision**: Define typed Dart ride response models and enums under `lib/data/rides` that preserve backend enum wire values and JSON field names.
+- **Reason**: The frontend can build against realistic demo data now while keeping a clean path to future backend integration.
+
+### 0017 - Use local banner assets for the home carousel
+
+- **Decision**: Render the home carousel from local assets declared in `SImages` and `pubspec.yaml`.
+- **Reason**: Local banners keep the home experience available offline during early client development and avoid adding remote media loading behavior before product content is finalized.
+
+### 0018 - Keep home service categories static until service routing is planned
+
+- **Decision**: Render Groceries, City rides, City to City, Couriers, and Freight as static home tiles backed by local assets and centralized text constants.
+- **Reason**: The home screen needs the service discovery surface now, but destination screens and service-specific routes are not planned yet.
+
+### 0019 - Centralize upgraded widget design values in utils
+
+- **Decision**: Move notification, category, and ride search result dimensions, opacity values, and display strings into `lib/utils`.
+- **Reason**: The upgraded visual design should remain stable while keeping shared widgets maintainable and consistent with SafarPay's utility-first Flutter style.
+
+### 0020 - Split reusable widgets into focused files
+
+- **Decision**: Keep one primary widget class per Dart file where practical, move reusable UI primitives into `lib/common/widgets`, and keep screen-only widgets under the owning screen's `widgets/` folder.
+- **Reason**: The client had accumulated reusable widgets inside feature files and multiple widget classes per file. Focused files and common widget ownership make future ride, settings, and navigation work easier to change without altering the current design.
+
+### 0021 - Use common right-slide route for personalization profile navigation
+
+- **Decision**: Open the personalization `ProfileScreen` from Settings through a reusable right-slide route helper under `lib/common/navigation`.
+- **Reason**: Settings profile navigation needs a polished page overlap transition, and keeping the route helper common allows future screens to reuse the same behavior without duplicating `PageRouteBuilder` code.

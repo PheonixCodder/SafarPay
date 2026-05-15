@@ -2,7 +2,7 @@
 
 ## Overview
 
-SafarPay is a ride-hailing mobile client for riders who need a fast, trustworthy way to start a trip, verify their identity, and move into the main app experience. The current client has the Flutter scaffold, shared design foundation, onboarding, phone OTP authentication, Google authentication with phone linking, profile completion, permissions, and a starter home screen in place.
+SafarPay is a ride-hailing mobile client for riders who need a fast, trustworthy way to start a trip, verify their identity, and move into the main app experience. The current client has the Flutter scaffold, shared design foundation, onboarding, phone OTP authentication, Google authentication with phone linking, profile completion, permissions, and a four-tab post-auth navigation shell in place.
 
 ## Goals
 
@@ -20,7 +20,7 @@ SafarPay is a ride-hailing mobile client for riders who need a fast, trustworthy
 5. Phone OTP flow sends a code, verifies it, and completes profile registration.
 6. Google flow verifies Google identity and either proceeds directly or asks for phone linking.
 7. Authenticated users complete location and notification permissions.
-8. User reaches `HomeScreen`.
+8. User reaches `NavigationMenu`, where `HomeScreen` is the first tab.
 
 ## Features
 
@@ -41,7 +41,21 @@ SafarPay is a ride-hailing mobile client for riders who need a fast, trustworthy
 
 - Profile completion after phone OTP registration.
 - Location and notification permission flow.
-- Post-auth routing to home when permissions are complete.
+- Post-auth routing to `NavigationMenu` when permissions are complete.
+- Personalization settings starter screen with account, app setting rows, profile entry, and logout action.
+- Personalization profile screen is reachable from Settings through the profile edit action and `User Info` row.
+
+### Navigation
+
+- Four-tab shell with Home, Trips, Rent, and Profile destinations.
+- Home remains the first tab, Trips and Rent are starter states, and Profile opens the Settings experience.
+
+### Ride Data And Search
+
+- Typed demo ride responses mirror the backend ride contract.
+- Home shows two recent demo ride destinations below the search bar.
+- Home includes a local banner carousel for ride and promotion imagery.
+- Home includes static service category entry points for Groceries, City rides, City to City, Couriers, and Freight.
 
 ### Client Foundation
 
@@ -58,12 +72,17 @@ SafarPay is a ride-hailing mobile client for riders who need a fast, trustworthy
 - Local token and preference storage.
 - Firebase/Google setup files needed for client auth.
 - Shared UI constants and app theme.
+- Typed demo data for frontend UI development before backend ride integration.
+- Local home banner carousel assets.
+- Local home category assets and static category UI.
+- Personalization settings UI cleanup and reusable settings components.
+- Reusable page transition helpers for common non-auth navigation patterns.
 
 ### Out Of Scope
 
 - Backend service implementation.
 - Payment backend implementation.
-- Full ride booking, bidding, live tracking, and wallet UI beyond starter placeholders.
+- Full ride booking, bidding, live tracking, rental, profile management, and wallet UI beyond starter placeholders.
 - Production analytics, crash reporting, and release automation until explicitly planned.
 - Real auth API integration is out of scope for the current completed UI/mock phase.
 
