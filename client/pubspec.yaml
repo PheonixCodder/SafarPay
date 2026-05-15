@@ -10,6 +10,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
 
   # Utility Packages
   http: ^1.6.0
@@ -23,6 +25,8 @@ dependencies:
   flutter_otp_text_field: ^1.5.1+1
   permission_handler: ^12.0.1
   firebase_core: ^4.8.0
+  carousel_slider: ^5.1.2
+  shadcn_ui: ^0.54.0
 
   # Icons
   cupertino_icons: ^1.0.8
@@ -46,6 +50,8 @@ flutter:
     - assets/icons/
     - assets/images/
     - assets/images/onboarding/
+    - assets/images/banners/
+    - assets/images/categories/
 
   fonts:
     - family: SF-Pro
@@ -56,21 +62,3 @@ flutter:
           weight: 500
         - asset: assets/fonts/SF-Pro-Display-Bold.otf
           weight: 700
-        - asset: assets/fonts/SF-Pro-Display-Thin-Italic.otf
-          weight: 100
-          style: italic
-        - asset: assets/fonts/SF-Pro-Display-Ultralight-Italic.otf
-          weight: 200
-          style: italic
-        - asset: assets/fonts/SF-Pro-Display-Light-Italic.otf
-          weight: 300
-          style: italic
-        - asset: assets/fonts/SF-Pro-Display-Semibold-Italic.otf
-          weight: 600
-          style: italic
-        - asset: assets/fonts/SF-Pro-Display-Heavy-Italic.otf
-          weight: 800
-          style: italic
-        - asset: assets/fonts/SF-Pro-Display-Black-Italic.otf
-          weight: 900
-          style: italic
