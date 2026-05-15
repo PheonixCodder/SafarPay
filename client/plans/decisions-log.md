@@ -108,3 +108,8 @@ Permanent record of decisions that affect product scope, architecture, auth beha
 
 - **Decision**: Open the personalization `ProfileScreen` from Settings through a reusable right-slide route helper under `lib/common/navigation`.
 - **Reason**: Settings profile navigation needs a polished page overlap transition, and keeping the route helper common allows future screens to reuse the same behavior without duplicating `PageRouteBuilder` code.
+
+### 0022 - Use shadcn sheet for reusable local edit drawers
+
+- **Decision**: Add `shadcn_ui` and use a common right-side `ShadSheet` drawer for editing existing values in settings/profile flows.
+- **Reason**: Existing-value edits need a focused contextual surface that can be reused across submenu pages while keeping the current profile screen and backend boundaries unchanged.

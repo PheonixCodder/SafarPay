@@ -12,6 +12,7 @@
 | Auth providers | Phone OTP, Google Sign-In, Firebase Core | Client-side auth entrypoints and platform setup |
 | HTTP | `http` through `SHttpClient` | Backend API communication |
 | UI assets | Local fonts, images, logos, icons | Branded client experience |
+| UI components | Material widgets, GetX shell, and `shadcn_ui` | Native Flutter UI with reusable shadcn overlays where planned |
 | Documentation | `client/context`, `client/context/feature-specs`, `client/plans` | Source of truth for prompts, plans, decisions, and progress |
 
 ## System Boundaries
@@ -23,6 +24,7 @@
 - `lib/common/widgets/navigation/` - shared bottom navigation shell widgets and placeholder tab screens.
 - `lib/common/widgets/containers/` - shared decorative containers and header surfaces.
 - `lib/common/widgets/images/` - shared image presentation widgets.
+- `lib/common/widgets/drawers/` - reusable contextual drawers and sheets for editing existing data.
 - `lib/common/widgets/ride/` - reusable ride UI building blocks shared across search, booking, and ride flows.
 - `lib/data/` - shared DTOs, demo data, and future client-side data abstractions.
 - `lib/data/rides/` - backend-aligned ride response models and demo ride data for UI development before live API integration.
@@ -72,4 +74,5 @@
 12. A Dart source file should contain one primary widget class unless a very small private helper is truly inseparable.
 13. Reusable widgets must move to `lib/common/widgets`; screen-only widgets stay under the owning screen's `widgets/` folder.
 14. Reusable page transitions belong in `lib/common/navigation` instead of feature screens.
-15. Local-only profile display data must not be treated as backend persistence.
+15. Reusable shadcn widgets must follow `client/.agents/skills/shadcn-ui-flutter/SKILL.md`.
+16. Local-only profile edits must not be treated as backend persistence.
