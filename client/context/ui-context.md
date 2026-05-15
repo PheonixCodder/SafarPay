@@ -75,6 +75,8 @@ Use `iconsax` icons for Flutter UI. Typical sizes come from `SSizes.iconSm`, `SS
 - Shared visual primitives such as rounded images, circular images, decorative containers, primary headers, and navigation tabs live in `lib/common/widgets` so reused UI keeps the same sizing and color tokens.
 - Settings: personalization settings uses a branded primary header, profile tile, focused settings menu rows, switch rows, and a full-width logout action composed from one-widget files.
 - Settings user-info navigation: profile edit and the `User Info` row open the personalization `ProfileScreen` with a reusable right-slide transition from `lib/common/navigation`.
+- Common edit drawer: existing-value edits use a right-side shadcn `ShadSheet` with SafarPay colors, compact labels, a single input, and clear cancel/save actions.
+- Profile user info: profile rows use boxed edit icons instead of right-arrow affordances and update visible values locally until backend persistence is planned.
 - Home: first navigation tab with app bar greeting and a large icon treatment.
 - Starter tabs: Trips and Rent use restrained empty states until their full feature units are built; Profile opens the Settings experience.
 

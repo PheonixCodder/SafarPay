@@ -44,6 +44,7 @@ SafarPay is a ride-hailing mobile client for riders who need a fast, trustworthy
 - Post-auth routing to `NavigationMenu` when permissions are complete.
 - Personalization settings starter screen with account, app setting rows, profile entry, and logout action.
 - Personalization profile screen is reachable from Settings through the profile edit action and `User Info` row.
+- Personalization profile values can be edited locally through a reusable common edit drawer.
 
 ### Navigation
 
@@ -77,6 +78,7 @@ SafarPay is a ride-hailing mobile client for riders who need a fast, trustworthy
 - Local home category assets and static category UI.
 - Personalization settings UI cleanup and reusable settings components.
 - Reusable page transition helpers for common non-auth navigation patterns.
+- Reusable shadcn edit drawer for existing-value edits.
 
 ### Out Of Scope
 
