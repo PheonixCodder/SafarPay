@@ -4,6 +4,7 @@ import 'package:iconsax/iconsax.dart';
 import '../../../../../utils/constants/colors.dart';
 import '../../../../../utils/constants/sizes.dart';
 import '../../../../../utils/constants/texts.dart';
+import '../../../../../utils/helpers/helpers.dart';
 import '../../../controllers/otp.dart';
 
 class SOtpHeader extends StatelessWidget {
@@ -23,10 +24,13 @@ class SOtpHeader extends StatelessWidget {
     return Column(
       children: [
         Container(
-          width: 72,
-          height: 72,
+          width: SSizes.authHeaderIconBoxSize,
+          height: SSizes.authHeaderIconBoxSize,
           decoration: BoxDecoration(
-            color: SColors.primary.withOpacity(0.12),
+            color: SHelperFunctions.withOpacity(
+              SColors.primary,
+              SOpacities.placeholder,
+            ),
             borderRadius: BorderRadius.circular(SSizes.cardRadiusLg),
           ),
           child: const Icon(
@@ -45,7 +49,7 @@ class SOtpHeader extends StatelessWidget {
         ),
         const SizedBox(height: SSizes.sm),
         FractionallySizedBox(
-          widthFactor: 0.9,
+          widthFactor: SSizes.authHeaderSubtitleWidthFactor,
           child: Text(
             '${STexts.otpSubTitle} ${controller.phoneNumber}.',
             textAlign: TextAlign.center,

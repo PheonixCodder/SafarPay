@@ -7,6 +7,7 @@ SafarPay uses a light, clean mobile design language for ride-hailing workflows. 
 ## Colors
 
 All app colors should come from `SColors` in `lib/utils/constants/colors.dart`.
+Reusable alpha values should come from `SOpacities`, and widgets should apply them through `SHelperFunctions.withOpacity`.
 
 | Role | Token | Value |
 | --- | --- | --- |
@@ -31,7 +32,7 @@ Do not hard-code new hex values in feature UI unless the color is first added to
 | App UI text | SF Pro | `pubspec.yaml` font family `SF-Pro` |
 | Material text styles | `STextTheme.lightTextTheme` | `lib/utils/theme/custom_themes/text_theme.dart` |
 
-Use theme text styles and override only weight, color, or alignment when needed.
+Use theme text styles and override only weight, color, or alignment when needed. SafarPay uses upright typography only; italic font faces are not part of the client visual language and should not be registered in `pubspec.yaml`. If a weight only exists as an italic asset, do not register or use that weight until a matching upright font file is available.
 
 ## Spacing And Radius
 
@@ -65,12 +66,26 @@ Use `iconsax` icons for Flutter UI. Typical sizes come from `SSizes.iconSm`, `SS
 - Profile: header, form, terms agreement, primary continue action.
 - Permissions: one focused permission request per page.
 - Google phone link: identity confirmation card followed by phone number form; no Google button after Google verification.
-- Home: centered starter state with app bar greeting and a large icon treatment.
+- Navigation menu: custom bottom bar anchored at the bottom with Home, Trips, Rent, and Profile tabs; active tab uses a primary-colored icon, label, and animated top indicator line with no pill highlight. The indicator position is calculated from the available tab width so it remains centered across screen sizes.
+- Ride search result: compact row with a rounded light icon tile, primary title, muted one-line address, muted right-aligned duration, and a divider aligned under the text area.
+- Home search: search field is followed by recent ride rows rendered with `SSearchResult`.
+- Home carousel: local banner images are displayed with `SHomeSlider`, `SSizes.imageCarouselHeight`, and `SSizes.cardRadiusLg`.
+- Home categories: light-mode service tiles are displayed with `SHomeCategories`; the layout uses one dominant Groceries tile, stacked City rides and City to City tiles, then Couriers and Freight tiles below.
+- Notification, category, and ride search widgets keep upgraded visual dimensions in `SSizes` rather than local literals.
+- Shared visual primitives such as rounded images, circular images, decorative containers, primary headers, and navigation tabs live in `lib/common/widgets` so reused UI keeps the same sizing and color tokens.
+- Settings: personalization settings uses a branded primary header, profile tile, focused settings menu rows, switch rows, and a full-width logout action composed from one-widget files.
+- Settings user-info navigation: profile edit and the `User Info` row open the personalization `ProfileScreen` with a reusable right-slide transition from `lib/common/navigation`.
+- Common edit drawer: existing-value edits use a right-side shadcn `ShadSheet` with SafarPay colors, compact labels, a single input, and clear cancel/save actions.
+- Profile user info: profile rows use boxed edit icons instead of right-arrow affordances and update visible values locally until backend persistence is planned.
+- Home: first navigation tab with app bar greeting and a large icon treatment.
+- Starter tabs: Trips and Rent use restrained empty states until their full feature units are built; Profile opens the Settings experience.
 
 ## Current Visual Assets
 
 - Logo: `assets/logos/logo.png`.
 - Google icon: `assets/logos/google-icon.png`.
 - Onboarding images: `assets/images/onboarding/ON1.jpg`, `ON2.jpg`, `ON3.jpg`.
+- Home banners: `assets/images/banners/banner1.png`, `banner2.png`.
+- Home categories: `assets/images/categories/groceries.png`, `city-rides.png`, `city-to-city.png`, `courier.png`, `freight.png`.
 - Icons: local SVG assets plus Iconsax for Flutter controls.
-- Fonts: SF Pro Display variants declared in `pubspec.yaml`.
+- Fonts: upright SF Pro Display variants declared in `pubspec.yaml`.

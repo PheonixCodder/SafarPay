@@ -34,11 +34,36 @@ class STexts {
   static const String permissionsCompleted = "Permissions completed.";
 
   // -- Home
-  static const String homeAppbarTitle = "Good day for shopping";
-  static const String homeAppbarSubTitle = "Taimoor Sikander";
+  static const String homeAppbarTitle = "Skip the wait. Command the road.";
+  static const String homeAppbarSubTitle = "DriveOn";
   static const String homeTitle = "Welcome to SafarPay";
   static const String homeSubTitle =
       "Your basic home screen is ready after permissions are completed.";
+  static const String navHome = "Home";
+  static const String searchBarText = "Where to?";
+  static const String navTrips = "Trips";
+  static const String navRent = "Rent";
+  static const String navProfile = "Profile";
+  static const String tripsTabTitle = "Trips";
+  static const String tripsTabSubTitle =
+      "Your upcoming and completed rides will appear here once ride booking is connected.";
+  static const String rentTabTitle = "Rent";
+  static const String rentTabSubTitle =
+      "Rental options and saved vehicle choices will appear here in a future ride feature.";
+  static const String profileTabTitle = "Profile";
+  static const String profileTabSubTitle =
+      "Account details, saved preferences, and safety settings will appear here as the profile area grows.";
+
+  // -- Categories
+  static const String groceries = "Groceries";
+  static const String groceriesEta = "in 30 min";
+  static const String categoryNew = "NEW";
+  static const String cityRides = "City Rides";
+  static const String freight = "Freight";
+  static const String courier = "Couriers";
+  static const String cityToCity = "City to City";
+  static const String categories = "Categories";
+  static const String categoriesExplore = "Explore";
 
   // -- Login
   static const String phoneNo = "Phone Number";
@@ -94,4 +119,61 @@ class STexts {
   static const String verificationCode = "verificationCode";
   static const String resendEmail = "Resend Code";
   static const String resendEmailIn = "Resend Code in";
+
+  // -- Settings
+  static const String settingsAccount = "Account";
+  static const String settingsProfileName = "John Doe";
+  static const String settingsProfileEmail = "john.doe@example.com";
+  static const String accountSettings = "Account Settings";
+  static const String appSettings = "App Settings";
+  static const String logout = "Logout";
+  static const String userInfo = "User Info";
+  static const String userInfoSubTitle =
+      "Update your basic info and image";
+  static const String settingsPayments = "Payments";
+  static const String settingsPaymentsSubTitle =
+      "Add, remove and manage payment methods";
+  static const String settingsSupport = "Help & Support";
+  static const String settingsSupportSubTitle =
+      "Find answers, explore guides, and contact our team for assistance.";
+  static const String driver = "Register as a Driver";
+  static const String driverSubTitle = "Turn your vehicle into profit and start earning on your own terms.";
+  static const String settingsBankAccount = "Bank Account";
+  static const String settingsBankAccountSubTitle =
+      "Withdraw balance to registered bank account";
+  static const String settingsLocation = "Location";
+  static const String settingsLocationSubTitle = "Set your location";
+  static const String settingsLocationTrailing = "Address";
+  static const String settingsPrivacySecurity = "Privacy & Security";
+  static const String settingsPrivacySecuritySubTitle = "Manage your privacy";
+  static const String settingsNotifications = "Notifications";
+  static const String settingsNotificationsSubTitle = "Manage notifications";
+  static const String settingsDarkMode = "Dark Mode";
+  static const String settingsDarkModeSubTitle = "Toggle dark mode";
+
+  // -- Edit Drawer
+  static const String editDrawerSave = "Save changes";
+  static const String editDrawerCancel = "Cancel";
+  static const String editDrawerRequired = "This field is required.";
+  static const String editDrawerTitlePrefix = "Edit";
+  static const String editDrawerDefaultDescription =
+      "Update this value and save when you're done.";
+
+  // -- Profile
+  static const String profileTitle = "Profile";
+  static const String changeProfilePicture = "Change Profile Picture";
+  static const String profileInformation = "Profile Information";
+  static const String personalInformation = "Personal Information";
+  static const String profileName = "Name";
+  static const String profileEmail = "E-mail";
+  static const String profilePhoneNumber = "Phone Number";
+  static const String profileGender = "Gender";
+  static const String profileDateOfBirth = "Date of Birth";
+  static const String profileEditDescription =
+      "Update this profile value. Your changes are saved locally for now.";
+  static const String profileDemoName = "Coding with T";
+  static const String profileDemoEmail = "coding_with_t@example.com";
+  static const String profileDemoPhone = "+92-317-8059528";
+  static const String profileDemoGender = "Male";
+  static const String profileDemoDateOfBirth = "10 Oct, 1994";
 }

@@ -4,6 +4,7 @@ import 'package:iconsax/iconsax.dart';
 import '../../../../../utils/constants/colors.dart';
 import '../../../../../utils/constants/sizes.dart';
 import '../../../../../utils/constants/texts.dart';
+import '../../../../../utils/helpers/helpers.dart';
 
 class SProfileHeader extends StatelessWidget {
   const SProfileHeader({super.key});
@@ -13,10 +14,13 @@ class SProfileHeader extends StatelessWidget {
     return Column(
       children: [
         Container(
-          width: 72,
-          height: 72,
+          width: SSizes.authHeaderIconBoxSize,
+          height: SSizes.authHeaderIconBoxSize,
           decoration: BoxDecoration(
-            color: SColors.primary.withOpacity(0.12),
+            color: SHelperFunctions.withOpacity(
+              SColors.primary,
+              SOpacities.placeholder,
+            ),
             borderRadius: BorderRadius.circular(SSizes.cardRadiusLg),
           ),
           child: const Icon(
@@ -35,7 +39,7 @@ class SProfileHeader extends StatelessWidget {
         ),
         const SizedBox(height: SSizes.sm),
         FractionallySizedBox(
-          widthFactor: 0.9,
+          widthFactor: SSizes.authHeaderSubtitleWidthFactor,
           child: Text(
             STexts.completeProfileSubTitle,
             textAlign: TextAlign.center,

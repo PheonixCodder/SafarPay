@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../constants/colors.dart';
+import '../../constants/sizes.dart';
+import '../../helpers/helpers.dart';
 
 class STextFormFieldTheme {
   STextFormFieldTheme._();
@@ -19,27 +21,45 @@ class STextFormFieldTheme {
     ),
     errorStyle: const TextStyle().copyWith(fontStyle: FontStyle.normal),
     floatingLabelStyle: const TextStyle().copyWith(
-      color: SColors.textPrimary.withOpacity(0.8),
+      color: SHelperFunctions.withOpacity(
+        SColors.textPrimary,
+        SOpacities.stronger,
+      ),
     ),
     border: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(14),
-      borderSide: const BorderSide(width: 1, color: SColors.borderPrimary),
+      borderRadius: BorderRadius.circular(SSizes.inputDecorationRadius),
+      borderSide: const BorderSide(
+        width: SSizes.inputDecorationBorderWidth,
+        color: SColors.borderPrimary,
+      ),
     ),
     enabledBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(14),
-      borderSide: const BorderSide(width: 1, color: SColors.borderPrimary),
+      borderRadius: BorderRadius.circular(SSizes.inputDecorationRadius),
+      borderSide: const BorderSide(
+        width: SSizes.inputDecorationBorderWidth,
+        color: SColors.borderPrimary,
+      ),
     ),
     focusedBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(14),
-      borderSide: const BorderSide(width: 1, color: SColors.primary),
+      borderRadius: BorderRadius.circular(SSizes.inputDecorationRadius),
+      borderSide: const BorderSide(
+        width: SSizes.inputDecorationBorderWidth,
+        color: SColors.primary,
+      ),
     ),
     errorBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(14),
-      borderSide: const BorderSide(width: 1, color: SColors.error),
+      borderRadius: BorderRadius.circular(SSizes.inputDecorationRadius),
+      borderSide: const BorderSide(
+        width: SSizes.inputDecorationBorderWidth,
+        color: SColors.error,
+      ),
     ),
     focusedErrorBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(14),
-      borderSide: const BorderSide(width: 2, color: SColors.warning),
+      borderRadius: BorderRadius.circular(SSizes.inputDecorationRadius),
+      borderSide: const BorderSide(
+        width: SSizes.inputDecorationFocusedErrorBorderWidth,
+        color: SColors.warning,
+      ),
     ),
   );
 }

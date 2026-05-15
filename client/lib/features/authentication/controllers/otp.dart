@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:get/get.dart';
 
-import '../../home/screens/home.dart';
+import '../../../navigation_menu.dart';
 import '../models/auth_models.dart';
 import '../repositories/auth_repository.dart';
 import '../screens/profile/profile.dart';
@@ -136,7 +136,7 @@ class SOtpController extends GetxController {
         await SPermissionsController.hasRequiredPermissions();
 
     if (permissionsCompleted) {
-      SAuthNavigation.offAll(const HomeScreen());
+      SAuthNavigation.offAll(const NavigationMenu());
       return;
     }
 

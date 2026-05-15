@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../../utils/constants/colors.dart';
 import '../../../../../utils/constants/sizes.dart';
+import '../../../../../utils/helpers/helpers.dart';
 
 class OnBoardingPage extends StatelessWidget {
   const OnBoardingPage({
@@ -41,8 +42,14 @@ class OnBoardingPage extends StatelessWidget {
               end: Alignment.bottomCenter,
               colors: [
                 SColors.transparent,
-                SColors.black.withOpacity(0.54),
-                SColors.black.withOpacity(0.87),
+                SHelperFunctions.withOpacity(
+                  SColors.black,
+                  SOpacities.onboardingGradientMid,
+                ),
+                SHelperFunctions.withOpacity(
+                  SColors.black,
+                  SOpacities.onboardingGradientDeep,
+                ),
                 SColors.black,
               ],
               stops: [0.4, 0.65, 0.85, 1],
@@ -83,7 +90,10 @@ class OnBoardingPage extends StatelessWidget {
                   subTitle,
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: SColors.textWhite.withOpacity(0.7),
+                    color: SHelperFunctions.withOpacity(
+                      SColors.textWhite,
+                      SOpacities.onboardingButtonText,
+                    ),
                     fontSize: SSizes.fontSizeMd,
                     height: 1.5,
                   ),

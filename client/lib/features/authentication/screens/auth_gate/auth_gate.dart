@@ -4,7 +4,7 @@ import '../../../../utils/constants/colors.dart';
 import '../../../../utils/constants/sizes.dart';
 import '../../../../utils/http/client.dart';
 import '../../../../utils/local_storage/token_storage.dart';
-import '../../../home/screens/home.dart';
+import '../../../../navigation_menu.dart';
 import '../../controllers/permissions.dart';
 import '../../repositories/auth_repository.dart';
 import '../auth_flow/auth_flow.dart';
@@ -54,7 +54,7 @@ class AuthGateScreen extends StatelessWidget {
     final permissionsCompleted =
         await SPermissionsController.hasRequiredPermissions();
 
-    if (permissionsCompleted) return const HomeScreen();
+    if (permissionsCompleted) return const NavigationMenu();
 
     return const PermissionsScreen();
   }

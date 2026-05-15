@@ -1,7 +1,7 @@
 import 'package:get/get.dart';
 import 'package:permission_handler/permission_handler.dart';
 
-import '../../home/screens/home.dart';
+import '../../../navigation_menu.dart';
 import '../../../utils/constants/texts.dart';
 import '../../../utils/helpers/helpers.dart';
 import '../../../utils/local_storage/storage.dart';
@@ -86,7 +86,7 @@ class SPermissionsController extends GetxController {
   Future<void> completePermissions() async {
     await SLocalStorage().saveData(_permissionsCompletedKey, true);
     SHelperFunctions.showSnackBar(STexts.permissionsCompleted);
-    SAuthNavigation.offAll(const HomeScreen());
+    SAuthNavigation.offAll(const NavigationMenu());
   }
 
   static Future<bool> hasRequiredPermissions() async {
