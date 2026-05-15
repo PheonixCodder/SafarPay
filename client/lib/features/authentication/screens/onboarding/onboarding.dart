@@ -6,6 +6,7 @@ import '../../../../utils/constants/images.dart';
 import '../../../../utils/constants/texts.dart';
 import '../../controllers/onboarding.dart';
 import 'widgets/onboarding.dart';
+import 'widgets/onboarding_dot_navigation.dart';
 import 'widgets/onboarding_navigation_buttons.dart';
 
 class OnBoardingScreen extends StatefulWidget {

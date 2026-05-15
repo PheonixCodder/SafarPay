@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 
 import '../../../../../utils/constants/colors.dart';
 import '../../../../../utils/constants/sizes.dart';
+import '../../../../../utils/helpers/helpers.dart';
 
 class SPermissionPage extends StatelessWidget {
   const SPermissionPage({
@@ -35,21 +36,26 @@ class SPermissionPage extends StatelessWidget {
               ),
               child: Center(
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 420),
+                  constraints: const BoxConstraints(
+                    maxWidth: SSizes.permissionContentMaxWidth,
+                  ),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Container(
-                        width: 118,
-                        height: 118,
+                        width: SSizes.permissionIconBoxSize,
+                        height: SSizes.permissionIconBoxSize,
                         decoration: BoxDecoration(
-                          color: SColors.secondary.withOpacity(0.12),
+                          color: SHelperFunctions.withOpacity(
+                            SColors.secondary,
+                            SOpacities.placeholder,
+                          ),
                           shape: BoxShape.circle,
                         ),
                         child: Icon(
                           icon,
                           color: SColors.black,
-                          size: 44,
+                          size: SSizes.permissionIconSize,
                         ),
                       ),
                       const SizedBox(height: SSizes.spaceBtwSections),
@@ -64,7 +70,7 @@ class SPermissionPage extends StatelessWidget {
                       ),
                       const SizedBox(height: SSizes.spaceBtnItems),
                       FractionallySizedBox(
-                        widthFactor: 0.86,
+                        widthFactor: SSizes.permissionSubtitleWidthFactor,
                         child: Text(
                           subTitle,
                           textAlign: TextAlign.center,
@@ -88,14 +94,20 @@ class SPermissionPage extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: SColors.white,
                   borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(32),
-                    topRight: Radius.circular(32),
+                    topLeft: Radius.circular(SSizes.permissionSheetRadius),
+                    topRight: Radius.circular(SSizes.permissionSheetRadius),
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: SColors.black.withOpacity(0.08),
-                      blurRadius: 24,
-                      offset: const Offset(0, -8),
+                      color: SHelperFunctions.withOpacity(
+                        SColors.black,
+                        SOpacities.tinted,
+                      ),
+                      blurRadius: SSizes.permissionSheetShadowBlur,
+                      offset: const Offset(
+                        0,
+                        SSizes.permissionSheetShadowOffsetY,
+                      ),
                     ),
                   ],
                 ),

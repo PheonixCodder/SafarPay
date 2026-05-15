@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import '../../home/screens/home.dart';
+import '../../../navigation_menu.dart';
 import '../repositories/auth_repository.dart';
 import 'permissions.dart';
 import '../screens/permissions/permissions.dart';
@@ -68,7 +68,7 @@ class SProfileController extends GetxController {
         await SPermissionsController.hasRequiredPermissions();
 
     if (hasRequiredPermissions) {
-      SAuthNavigation.offAll(const HomeScreen());
+      SAuthNavigation.offAll(const NavigationMenu());
       return;
     }
 

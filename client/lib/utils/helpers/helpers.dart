@@ -2,29 +2,32 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 
+import '../constants/colors.dart';
+
 class SHelperFunctions {
   SHelperFunctions._();
 
+  static Color withOpacity(Color color, double opacity) {
+    return color.withOpacity(opacity);
+  }
+
   static Color? getColor(String value) {
-    // Define your product specific colors here and it will match the attribute colors and show specific
     if (value == 'Green') {
-      return Colors.green;
-    } else if (value == 'Green') {
-      return Colors.green;
+      return SColors.success;
     } else if (value == 'Red') {
-      return Colors.red;
+      return SColors.error;
     } else if (value == 'Blue') {
-      return Colors.blue;
+      return SColors.info;
     } else if (value == 'Pink') {
-      return Colors.pink;
+      return SColors.pink;
     } else if (value == 'Grey') {
-      return Colors.grey;
+      return SColors.grey;
     } else if (value == 'Purple') {
-      return Colors.purple;
+      return SColors.purple;
     } else if (value == 'Black') {
-      return Colors.black;
+      return SColors.black;
     } else if (value == 'White') {
-      return Colors.white;
+      return SColors.white;
     }
     return null;
   }

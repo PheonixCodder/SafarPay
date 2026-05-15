@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 
 import '../../../../../utils/constants/colors.dart';
 import '../../../../../utils/constants/sizes.dart';
 import '../../../../../utils/constants/texts.dart';
-import '../../../../../utils/device/utility.dart';
+import '../../../../../utils/helpers/helpers.dart';
 import '../../../controllers/onboarding.dart';
 
 class OnBoardingNavigationButtons extends StatelessWidget {
@@ -66,7 +65,10 @@ class OnBoardingNavigationButtons extends StatelessWidget {
                   onPressed: controller.skipPage,
                   style: OutlinedButton.styleFrom(
                     side: BorderSide(
-                      color: SColors.primary.withOpacity(0.65),
+                      color: SHelperFunctions.withOpacity(
+                        SColors.primary,
+                        SOpacities.onboardingButtonBorder,
+                      ),
                     ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(
@@ -78,7 +80,10 @@ class OnBoardingNavigationButtons extends StatelessWidget {
                     STexts.onBoardingSkip,
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       fontSize: SSizes.fontSizeLg,
-                      color: SColors.textWhite.withOpacity(0.7),
+                      color: SHelperFunctions.withOpacity(
+                        SColors.textWhite,
+                        SOpacities.onboardingButtonText,
+                      ),
                     ),
                   ),
                 ),
@@ -86,37 +91,6 @@ class OnBoardingNavigationButtons extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class OnBoardingDotNavigation extends StatelessWidget {
-  const OnBoardingDotNavigation({
-    super.key,
-    required this.controller,
-  });
-
-  final OnBoardingController controller;
-
-  @override
-  Widget build(BuildContext context) {
-    return Positioned(
-      top: SDeviceUtils.getStatusBarHeight() + 75,
-      left: 0,
-      right: 0,
-      child: Center(
-        child: SmoothPageIndicator(
-          controller: controller.pageController,
-          onDotClicked: controller.dotNavigationClick,
-          count: OnBoardingController.pageCount,
-          effect: const ExpandingDotsEffect(
-            activeDotColor: SColors.white,
-            dotColor: SColors.grey,
-            dotHeight: 6,
-            dotWidth: 6,
-          ),
-        ),
       ),
     );
   }
