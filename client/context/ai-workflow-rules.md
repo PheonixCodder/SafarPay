@@ -24,6 +24,7 @@ Split an implementation step if it combines:
 - Documentation updates and code changes that can be safely delivered separately.
 - Multiple unrelated screens or feature folders.
 - Feature history reconstruction and actual app behavior changes.
+- Reusable-widget extraction and feature behavior changes.
 
 If a change cannot be verified quickly, narrow the scope.
 
@@ -52,6 +53,7 @@ Update the relevant context file whenever implementation changes:
 - Auth, token, permission, or storage behavior.
 - UI rules, theme usage, or component conventions.
 - Code standards or workflow expectations.
+- Widget ownership or file-organization rules.
 
 Update `context/progress-tracker.md` after each meaningful implementation change.
 Update the matching `context/feature-specs/*.prompt.md` and `plans/*.md` when a feature changes materially.
