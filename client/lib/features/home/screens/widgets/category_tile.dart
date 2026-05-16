@@ -110,7 +110,7 @@ class SCategoryTile extends StatelessWidget {
                           title,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: textTheme.titleLarge?.copyWith(
+                          style: textTheme.titleMedium?.copyWith(
                             fontSize: isLarge
                                 ? SSizes.homeCategoryLargeTitleFontSize
                                 : SSizes.homeCategorySmallTitleFontSize,
