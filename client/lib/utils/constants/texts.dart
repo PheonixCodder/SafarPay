@@ -128,8 +128,7 @@ class STexts {
   static const String appSettings = "App Settings";
   static const String logout = "Logout";
   static const String userInfo = "User Info";
-  static const String userInfoSubTitle =
-      "Update your basic info and image";
+  static const String userInfoSubTitle = "Update your basic info and image";
   static const String settingsPayments = "Payments";
   static const String settingsPaymentsSubTitle =
       "Add, remove and manage payment methods";
@@ -137,7 +136,8 @@ class STexts {
   static const String settingsSupportSubTitle =
       "Find answers, explore guides, and contact our team for assistance.";
   static const String driver = "Register as a Driver";
-  static const String driverSubTitle = "Turn your vehicle into profit and start earning on your own terms.";
+  static const String driverSubTitle =
+      "Turn your vehicle into profit and start earning on your own terms.";
   static const String settingsBankAccount = "Bank Account";
   static const String settingsBankAccountSubTitle =
       "Withdraw balance to registered bank account";
@@ -150,6 +150,50 @@ class STexts {
   static const String settingsNotificationsSubTitle = "Manage notifications";
   static const String settingsDarkMode = "Dark Mode";
   static const String settingsDarkModeSubTitle = "Toggle dark mode";
+
+  // -- Privacy Policy
+  static const String privacyPolicyTitle = "Privacy Policy";
+  static const String privacyPolicyEffectiveDate = "Effective May 16, 2026";
+  static const String privacyPolicySummary =
+      "SafarPay uses your data to keep rides reliable, payments clear, and safety support available when you need it.";
+  static const String privacyPolicyUpdated = "Updated";
+  static const String privacyPolicyDataControl = "Data controls";
+  static const String privacyPolicyDataControlSubTitle =
+      "Manage account, location, and communication choices from settings.";
+  static const String privacyPolicySecureHandling = "Secure handling";
+  static const String privacyPolicySecureHandlingSubTitle =
+      "Sensitive account and trip information is handled with restricted access.";
+  static const String privacyPolicyContactTitle = "Questions about privacy?";
+  static const String privacyPolicyContactSubTitle =
+      "Contact SafarPay support before using the app if any policy detail is unclear.";
+  static const String privacyPolicyContactAction = "Contact support";
+
+  // -- Notifications
+  static const String notificationsPageTitle = "Notifications";
+  static const String notificationsNewUpdates = "new updates";
+  static const String notificationsAllCaughtUp = "All caught up";
+  static const String notificationsInboxSummary =
+      "updates across trips, payments, offers, safety, and account activity";
+  static const String notificationsFilterAll = "All";
+  static const String notificationsFilterTrips = "Trips";
+  static const String notificationsFilterPayments = "Payments";
+  static const String notificationsFilterOffers = "Offers";
+  static const String notificationsFilterSafety = "Safety";
+  static const String notificationsFilterSystem = "System";
+  static const String notificationsEmptyTitle = "No notifications here";
+  static const String notificationsEmptySubTitle =
+      "New updates for this category will appear as your rides, payments, and account activity grow.";
+
+  // -- Help & Support
+  static const String helpSupportTitle = "Help & Support";
+  static const String helpSupportQuestion = "What can we help you with?";
+  static const String helpSupportLiveChat = "Live Chat";
+  static const String helpSupportContactUs = "Contact Us";
+  static const String helpSupportFaqs = "FAQ's";
+  static const String helpSupportTermsConditions = "Terms & Condition";
+  static const String helpSupportSomethingElse = "Something else";
+  static const String helpSupportPlaceholderSubTitle =
+      "This support section will be connected in a future unit.";
 
   // -- Edit Drawer
   static const String editDrawerSave = "Save changes";

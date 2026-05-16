@@ -32,30 +32,36 @@ Read these files in order before implementing code or making architectural decis
 24. `context/feature-specs/017-client-structure-cleanup.md` - prompt for client structure cleanup
 25. `context/feature-specs/018-settings-user-info-navigation.md` - prompt for Settings user-info navigation
 26. `context/feature-specs/019-common-edit-drawer.md` - prompt for reusable shadcn edit drawer
-27. `plans/000-client-product-and-architecture-plan.md` - canonical client product and architecture plan
-28. `plans/001-flutter-scaffold-plan.md` - Flutter scaffold plan
-29. `plans/002-design-system-foundation-plan.md` - shared design system plan
-30. `plans/003-onboarding-flow-plan.md` - onboarding implementation plan
-31. `plans/004-auth-gate-and-login-plan.md` - auth gate and login plan
-32. `plans/005-phone-otp-and-profile-plan.md` - phone OTP and profile plan
-33. `plans/006-permissions-and-home-plan.md` - permissions and home plan
-34. `plans/007-google-phone-link-screen-plan.md` - Google phone-link auth flow plan
-35. `plans/008-client-context-documentation-plan.md` - client documentation setup plan
-36. `plans/009-firebase-config-hardening-plan.md` - Firebase config hardening plan
-37. `plans/010-navigation-menu-plan.md` - post-auth navigation menu plan
-38. `plans/011-update-navigation-menu-design-plan.md` - custom navigation menu design plan
-39. `plans/012-navigation-menu-alignment-and-icon-size-plan.md` - navigation indicator alignment and icon size plan
-40. `plans/013-ride-search-result-widget-plan.md` - reusable ride search result widget plan
-41. `plans/014-demo-ride-data-and-home-recents-plan.md` - typed demo ride data and home recents plan
-42. `plans/015-home-carousel-plan.md` - home banner carousel plan
-43. `plans/016-home-categories-plan.md` - home service categories plan
-44. `plans/017-widget-design-token-cleanup-plan.md` - shared widget design token cleanup plan
-45. `plans/018-client-structure-cleanup-plan.md` - client structure cleanup plan
-46. `plans/019-settings-user-info-navigation-plan.md` - Settings user-info navigation plan
-47. `plans/020-common-edit-drawer-plan.md` - reusable shadcn edit drawer plan
-48. `plans/900-branch-split-and-merge-plan.md` - Git branch split and merge plan
-49. `plans/901-empty-folder-restoration-plan.md` - empty-folder preservation plan
-50. `plans/decisions-log.md` - permanent decision record
+27. `context/feature-specs/020-privacy-policy-page.md` - prompt for Settings Privacy Policy page
+28. `context/feature-specs/021-notifications-page.md` - prompt for Settings Notifications page
+29. `context/feature-specs/022-help-support-page.md` - prompt for Settings Help & Support page
+30. `plans/000-client-product-and-architecture-plan.md` - canonical client product and architecture plan
+31. `plans/001-flutter-scaffold-plan.md` - Flutter scaffold plan
+32. `plans/002-design-system-foundation-plan.md` - shared design system plan
+33. `plans/003-onboarding-flow-plan.md` - onboarding implementation plan
+34. `plans/004-auth-gate-and-login-plan.md` - auth gate and login plan
+35. `plans/005-phone-otp-and-profile-plan.md` - phone OTP and profile plan
+36. `plans/006-permissions-and-home-plan.md` - permissions and home plan
+37. `plans/007-google-phone-link-screen-plan.md` - Google phone-link auth flow plan
+38. `plans/008-client-context-documentation-plan.md` - client documentation setup plan
+39. `plans/009-firebase-config-hardening-plan.md` - Firebase config hardening plan
+40. `plans/010-navigation-menu-plan.md` - post-auth navigation menu plan
+41. `plans/011-update-navigation-menu-design-plan.md` - custom navigation menu design plan
+42. `plans/012-navigation-menu-alignment-and-icon-size-plan.md` - navigation indicator alignment and icon size plan
+43. `plans/013-ride-search-result-widget-plan.md` - reusable ride search result widget plan
+44. `plans/014-demo-ride-data-and-home-recents-plan.md` - typed demo ride data and home recents plan
+45. `plans/015-home-carousel-plan.md` - home banner carousel plan
+46. `plans/016-home-categories-plan.md` - home service categories plan
+47. `plans/017-widget-design-token-cleanup-plan.md` - shared widget design token cleanup plan
+48. `plans/018-client-structure-cleanup-plan.md` - client structure cleanup plan
+49. `plans/019-settings-user-info-navigation-plan.md` - Settings user-info navigation plan
+50. `plans/020-common-edit-drawer-plan.md` - reusable shadcn edit drawer plan
+51. `plans/021-privacy-policy-page-plan.md` - Settings Privacy Policy page plan
+52. `plans/022-notifications-page-plan.md` - Settings Notifications page plan
+53. `plans/023-help-support-page-plan.md` - Settings Help & Support page plan
+54. `plans/900-branch-split-and-merge-plan.md` - Git branch split and merge plan
+55. `plans/901-empty-folder-restoration-plan.md` - empty-folder preservation plan
+56. `plans/decisions-log.md` - permanent decision record
 
 Update `context/progress-tracker.md` after each meaningful implementation change.
 

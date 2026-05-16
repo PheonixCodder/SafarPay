@@ -19,9 +19,8 @@ class SSettingsLogoutButton extends StatelessWidget {
         onPressed: onPressed,
         style: OutlinedButton.styleFrom(
           side: const BorderSide(color: SColors.error),
-          foregroundColor: SColors.error,
         ),
-        child: const Text(STexts.logout),
+        child: const Text(STexts.logout, style: TextStyle(color: SColors.error),),
       ),
     );
   }

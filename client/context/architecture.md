@@ -31,6 +31,9 @@
 - `lib/features/authentication/` - onboarding, login, OTP, profile completion, permissions, auth models, repository, and auth navigation helpers.
 - `lib/features/home/` - post-auth starter home experience.
 - `lib/features/personalization/` - settings and profile-facing personalization surfaces.
+- `lib/features/personalization/screens/privacy_policy/` - Settings legal/privacy subpage with typed mapped policy content.
+- `lib/features/personalization/screens/notifications/` - Settings notifications subpage with typed mapped demo notifications and local filtering.
+- `lib/features/personalization/screens/help_support/` - Settings Help & Support hub and support option subpages.
 - `lib/navigation_menu.dart` - authenticated app shell with Home, Trips, Rent, and Profile tabs.
 - `lib/utils/` - constants, helpers, validation, HTTP, storage, logging, device utilities, and theme.
 - `context/feature-specs/` - reconstructed prompts/specs that explain how current feature code should be produced.
@@ -76,3 +79,6 @@
 14. Reusable page transitions belong in `lib/common/navigation` instead of feature screens.
 15. Reusable shadcn widgets must follow `client/.agents/skills/shadcn-ui-flutter/SKILL.md`.
 16. Local-only profile edits must not be treated as backend persistence.
+17. Settings privacy/legal copy should be rendered from typed mapped content rather than repeated directly in widgets.
+18. Demo notifications are local UI data until backend notification and push delivery are planned.
+19. Help & Support option destinations are placeholder subpages until support workflows are planned.
