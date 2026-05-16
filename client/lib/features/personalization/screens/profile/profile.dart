@@ -1,15 +1,47 @@
 import 'package:flutter/material.dart';
 
 import '../../../../common/widgets/appbar/appbar.dart';
+import '../../../../common/widgets/drawers/edit_value_drawer.dart';
 import '../../../../common/widgets/images/circular_image.dart';
 import '../../../../utils/constants/images.dart';
 import '../../../../utils/constants/sizes.dart';
 import '../../../../utils/constants/texts.dart';
+import '../../../../utils/validators/validator.dart';
 import 'widgets/profile_menu.dart';
 import 'widgets/section_heading.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  late String _name = STexts.profileDemoName;
+  late String _email = STexts.profileDemoEmail;
+  late String _phoneNumber = STexts.profileDemoPhone;
+  late String _gender = STexts.profileDemoGender;
+  late String _dateOfBirth = STexts.profileDemoDateOfBirth;
+
+  void _openEditDrawer({
+    required String fieldLabel,
+    required String currentValue,
+    required ValueChanged<String> onSave,
+    TextInputType keyboardType = TextInputType.text,
+    String? Function(String value)? validator,
+  }) {
+    showSEditValueDrawer(
+      context: context,
+      title: '${STexts.editDrawerTitlePrefix} $fieldLabel',
+      description: STexts.profileEditDescription,
+      fieldLabel: fieldLabel,
+      currentValue: currentValue,
+      keyboardType: keyboardType,
+      validator: validator,
+      onSave: (value) => setState(() => onSave(value)),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -51,8 +83,16 @@ class ProfileScreen extends StatelessWidget {
 
               SProfileMenu(
                 title: STexts.profileName,
-                value: STexts.profileDemoName,
-                onPressed: () {},
+                value: _name,
+                onPressed: () => _openEditDrawer(
+                  fieldLabel: STexts.profileName,
+                  currentValue: _name,
+                  validator: (value) => SValidator.validateNotEmpty(
+                    value,
+                    fieldName: STexts.profileName,
+                  ),
+                  onSave: (value) => _name = value,
+                ),
               ),
 
               const SizedBox(height: SSizes.spaceBtwItems),
@@ -67,23 +107,51 @@ class ProfileScreen extends StatelessWidget {
 
               SProfileMenu(
                 title: STexts.profileEmail,
-                value: STexts.profileDemoEmail,
-                onPressed: () {},
+                value: _email,
+                onPressed: () => _openEditDrawer(
+                  fieldLabel: STexts.profileEmail,
+                  currentValue: _email,
+                  keyboardType: TextInputType.emailAddress,
+                  validator: SValidator.validateEmail,
+                  onSave: (value) => _email = value,
+                ),
               ),
               SProfileMenu(
                 title: STexts.profilePhoneNumber,
-                value: STexts.profileDemoPhone,
-                onPressed: () {},
+                value: _phoneNumber,
+                onPressed: () => _openEditDrawer(
+                  fieldLabel: STexts.profilePhoneNumber,
+                  currentValue: _phoneNumber,
+                  keyboardType: TextInputType.phone,
+                  validator: SValidator.validatePhoneNumber,
+                  onSave: (value) => _phoneNumber = value,
+                ),
               ),
               SProfileMenu(
                 title: STexts.profileGender,
-                value: STexts.profileDemoGender,
-                onPressed: () {},
+                value: _gender,
+                onPressed: () => _openEditDrawer(
+                  fieldLabel: STexts.profileGender,
+                  currentValue: _gender,
+                  validator: (value) => SValidator.validateNotEmpty(
+                    value,
+                    fieldName: STexts.profileGender,
+                  ),
+                  onSave: (value) => _gender = value,
+                ),
               ),
               SProfileMenu(
                 title: STexts.profileDateOfBirth,
-                value: STexts.profileDemoDateOfBirth,
-                onPressed: () {},
+                value: _dateOfBirth,
+                onPressed: () => _openEditDrawer(
+                  fieldLabel: STexts.profileDateOfBirth,
+                  currentValue: _dateOfBirth,
+                  validator: (value) => SValidator.validateNotEmpty(
+                    value,
+                    fieldName: STexts.profileDateOfBirth,
+                  ),
+                  onSave: (value) => _dateOfBirth = value,
+                ),
               ),
             ],
           ),

@@ -13,6 +13,7 @@
 - Keep each Dart source file focused on one primary widget class.
 - Move widgets shared by multiple screens or features into `lib/common/widgets`.
 - Put reusable route transitions under `lib/common/navigation`.
+- Read `client/.agents/skills/shadcn-ui-flutter/SKILL.md` before introducing or changing shadcn widgets.
 
 ## Dart And Flutter
 
@@ -25,6 +26,7 @@
 - Avoid local opacity literals in shared widgets; use `SOpacities`.
 - New shared widget classes should use the `S` prefix. Do not keep obsolete `T*` compatibility aliases after references have been migrated.
 - Prefer theme text styles instead of ad hoc `TextStyle` trees.
+- Use shadcn components only for planned shared overlays/forms where they add a clear interaction benefit.
 
 ## GetX
 
@@ -56,6 +58,7 @@
 - `lib/common/widgets/navigation/` - reusable navigation shell pieces.
 - `lib/common/widgets/containers/` - reusable decorative and layout containers.
 - `lib/common/widgets/images/` - reusable image presentation widgets.
+- `lib/common/widgets/drawers/` - reusable drawer/sheet components.
 - `lib/data/` - shared DTOs, backend-aligned models, demo records, and future data providers.
 - `lib/features/<feature>/controllers/` - GetX controllers and flow state.
 - `lib/features/<feature>/models/` - feature-specific data models.
