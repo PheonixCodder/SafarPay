@@ -12,7 +12,7 @@ class SCategoryBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(
-        horizontal: SSizes.md,
+        horizontal: SSizes.sm,
         vertical: SSizes.homeCategoryBadgeVerticalPadding,
       ),
       decoration: BoxDecoration(
@@ -36,7 +36,7 @@ class SCategoryBadge extends StatelessWidget {
       ),
       child: Text(
         STexts.categoryNew,
-        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
               color: SColors.textWhite,
               fontWeight: FontWeight.w800,
               letterSpacing: SSizes.homeCategoryBadgeLetterSpacing,

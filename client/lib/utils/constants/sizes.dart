@@ -92,8 +92,8 @@ class SSizes {
   static const double homeCategorySmallImageBottom = -10.0;
   static const double homeCategoryLargeTitleWidth = 170.0;
   static const double homeCategorySmallTitleWidth = 95.0;
-  static const double homeCategoryLargeTitleFontSize = 26.0;
-  static const double homeCategorySmallTitleFontSize = 17.0;
+  static const double homeCategoryLargeTitleFontSize = 18.0;
+  static const double homeCategorySmallTitleFontSize = 13.0;
   static const double homeCategorySubtitleVerticalPadding = 6.0;
   static const double homeCategoryBadgeVerticalPadding = 7.0;
   static const double homeCategoryBadgeShadowBlur = 12.0;

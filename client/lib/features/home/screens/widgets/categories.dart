@@ -25,7 +25,7 @@ class SHomeCategories extends StatelessWidget {
               Expanded(
                 child: Text(
                   STexts.categories,
-                  style: textTheme.headlineMedium?.copyWith(
+                  style: textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.w800,
                     color: SColors.textPrimary,
                     letterSpacing: SSizes.homeCategoryTitleLetterSpacing,
@@ -46,7 +46,7 @@ class SHomeCategories extends StatelessWidget {
                 ),
                 child: Text(
                   STexts.categoriesExplore,
-                  style: textTheme.labelLarge?.copyWith(
+                  style: textTheme.labelMedium?.copyWith(
                     color: SColors.primary,
                     fontWeight: FontWeight.w700,
                   ),
