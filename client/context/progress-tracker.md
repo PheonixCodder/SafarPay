@@ -35,6 +35,7 @@ Update this file after every meaningful implementation change.
 - Settings `Privacy & Security` now opens a dedicated Privacy Policy page with expandable mapped policy sections.
 - Settings `Notifications` now opens a dedicated timeline-style Notifications page with mapped demo notifications and local category filters.
 - Settings `Help & Support` now opens a reference-matched support hub with five placeholder support option subpages.
+- Bottom navigation Trips now opens a four-tab ride history page with ongoing, scheduled, canceled, completed, and ride details views.
 
 ## In Progress
 
@@ -78,6 +79,7 @@ Update this file after every meaningful implementation change.
 - Settings legal and privacy content should render from typed mapped content files so copy can be updated without rewriting page layout.
 - Settings notification feeds should render from typed mapped demo content until backend notification APIs are integrated.
 - Help & Support option rows should remain a simple support hub until live support workflows are planned.
+- Trips list and details screens should consume backend-aligned ride DTOs and avoid backend mutation flows until ride APIs are connected.
 
 ## Session Notes
 
@@ -91,3 +93,4 @@ Update this file after every meaningful implementation change.
 - Privacy Policy page work added `context/feature-specs/020-privacy-policy-page.md` and `plans/021-privacy-policy-page-plan.md`.
 - Notifications page work added `context/feature-specs/021-notifications-page.md` and `plans/022-notifications-page-plan.md`.
 - Help & Support page work added `context/feature-specs/022-help-support-page.md` and `plans/023-help-support-page-plan.md`.
+- Trips page work added `context/feature-specs/023-rides-trips-page.md` and `plans/024-rides-trips-page-plan.md`.

@@ -54,6 +54,42 @@ class STexts {
   static const String profileTabSubTitle =
       "Account details, saved preferences, and safety settings will appear here as the profile area grows.";
 
+  // -- Trips
+  static const String tripsTitle = "Trips";
+  static const String tripsOngoing = "Ongoing";
+  static const String tripsScheduled = "Scheduled";
+  static const String tripsCanceled = "Canceled";
+  static const String tripsCompleted = "Completed";
+  static const String tripsPickup = "Pickup";
+  static const String tripsDropoff = "Dropoff";
+  static const String tripsViewDetails = "View details";
+  static const String tripsPayment = "Payment";
+  static const String tripsPrice = "Price";
+  static const String tripsScheduledFor = "Scheduled for";
+  static const String tripsCancellationReason = "Cancellation reason";
+  static const String tripsCreated = "Created";
+  static const String tripsCompletedAt = "Completed";
+  static const String tripsCanceledAt = "Canceled";
+  static const String tripsStops = "Stops";
+  static const String tripsRideDetails = "Ride Details";
+  static const String tripsRoute = "Route";
+  static const String tripsRideSummary = "Ride summary";
+  static const String tripsService = "Service";
+  static const String tripsCategory = "Category";
+  static const String tripsPricing = "Pricing";
+  static const String tripsPaymentMethod = "Payment method";
+  static const String tripsProofs = "Proof images";
+  static const String tripsVerificationCodes = "Verification codes";
+  static const String tripsOperational = "Operational";
+  static const String tripsDriverAssigned = "Driver assigned";
+  static const String tripsDriverPending = "Finding driver";
+  static const String tripsNoOngoing = "No ongoing rides";
+  static const String tripsNoScheduled = "No scheduled rides";
+  static const String tripsNoCanceled = "No canceled rides";
+  static const String tripsNoCompleted = "No completed rides";
+  static const String tripsEmptySubTitle =
+      "Rides in this state will appear here once they are available.";
+
   // -- Categories
   static const String groceries = "Groceries";
   static const String groceriesEta = "in 30 min";

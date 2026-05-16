@@ -34,6 +34,7 @@
 - `lib/features/personalization/screens/privacy_policy/` - Settings legal/privacy subpage with typed mapped policy content.
 - `lib/features/personalization/screens/notifications/` - Settings notifications subpage with typed mapped demo notifications and local filtering.
 - `lib/features/personalization/screens/help_support/` - Settings Help & Support hub and support option subpages.
+- `lib/features/rides/screens/trips/` - Trips tab for ongoing, scheduled, canceled, and completed ride lists plus ride details.
 - `lib/navigation_menu.dart` - authenticated app shell with Home, Trips, Rent, and Profile tabs.
 - `lib/utils/` - constants, helpers, validation, HTTP, storage, logging, device utilities, and theme.
 - `context/feature-specs/` - reconstructed prompts/specs that explain how current feature code should be produced.
@@ -82,3 +83,4 @@
 17. Settings privacy/legal copy should be rendered from typed mapped content rather than repeated directly in widgets.
 18. Demo notifications are local UI data until backend notification and push delivery are planned.
 19. Help & Support option destinations are placeholder subpages until support workflows are planned.
+20. Trips ride UI should consume backend-aligned `RideResponse` data and keep editing/backend mutations out of the list-only feature unit.

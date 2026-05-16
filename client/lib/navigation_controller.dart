@@ -5,6 +5,7 @@ import 'package:iconsax/iconsax.dart';
 
 import 'common/widgets/navigation/navigation_placeholder_screen.dart';
 import 'features/home/screens/home/home.dart';
+import 'features/rides/screens/trips/trips.dart';
 import 'utils/constants/texts.dart';
 
 class SNavigationController extends GetxController {
@@ -12,11 +13,7 @@ class SNavigationController extends GetxController {
 
   final List<Widget> screens = [
     const HomeScreen(),
-    const SNavigationPlaceholderScreen(
-      icon: Iconsax.clock,
-      title: STexts.tripsTabTitle,
-      subtitle: STexts.tripsTabSubTitle,
-    ),
+    const TripsScreen(),
     const SNavigationPlaceholderScreen(
       icon: Iconsax.car,
       title: STexts.rentTabTitle,

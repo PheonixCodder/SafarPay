@@ -196,6 +196,7 @@ class SDemoRides {
       dropoffLongitude: 74.3102,
       finalPrice: null,
       createdAt: DateTime.utc(2026, 5, 5, 8, 5),
+      scheduledAt: DateTime.utc(2026, 5, 20, 8, 30),
     ),
   ];
 
@@ -220,6 +221,7 @@ class SDemoRides {
     DateTime? acceptedAt,
     DateTime? completedAt,
     DateTime? cancelledAt,
+    DateTime? scheduledAt,
     String? cancellationReason,
   }) {
     final rideId = _id('10000000-0000-4000-8000', index);
@@ -263,8 +265,8 @@ class SDemoRides {
       passengerPaymentMethod: PassengerPaymentMethod.cash,
       passengerPaymentMethodId: null,
       paymentCollectionMode: PaymentCollectionMode.driverCollected,
-      scheduledAt: null,
-      isScheduled: false,
+      scheduledAt: scheduledAt,
+      isScheduled: scheduledAt != null,
       isRisky: false,
       autoAcceptDriver: false,
       acceptedAt: acceptedAt,

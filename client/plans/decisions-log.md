@@ -129,3 +129,7 @@ Permanent record of decisions that affect product scope, architecture, auth beha
 - **Decision**: Open Help & Support from Settings as a primary-header support hub with a scooter illustration and simple option rows.
 - **Reason**: The supplied reference is specific; matching it closely keeps support navigation familiar while the destination workflows remain placeholder subpages.
 
+### 0026 - Use segmented ride lists for Trips
+
+- **Decision**: Replace the Trips placeholder with a four-tab ride operations page backed by `RideResponse` demo data.
+- **Reason**: Trips are state-based operational records, so a segmented list keeps ongoing, scheduled, canceled, and completed rides scannable without a box-heavy dashboard layout.
