@@ -51,6 +51,7 @@
 - Use `STexts` for service category labels and badges.
 - Keep long legal/help content in typed mapped content files when a page renders repeated sections.
 - Keep repeated demo notification feeds in typed mapped content files until backend notification APIs are connected.
+- Keep ride list UI backed by backend-aligned ride DTOs; add UI formatting helpers instead of changing API response models for presentation-only needs.
 - Preserve mobile ergonomics: full-width primary buttons, clear form labels, and readable helper text.
 
 ## File Organization

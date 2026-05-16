@@ -208,6 +208,20 @@ class SSizes {
   static const double helpSupportOptionIconSize = 22.0;
   static const double helpSupportOptionArrowSize = 22.0;
 
+  // Trips dimensions
+  static const double tripsTabBarHeight = 48.0;
+  static const double tripsTabBarPadding = 4.0;
+  static const double tripsTabIndicatorRadius = 14.0;
+  static const double tripsCardRadius = 20.0;
+  static const double tripsCardPadding = 16.0;
+  static const double tripsRouteDotSize = 9.0;
+  static const double tripsRouteLineWidth = 2.0;
+  static const double tripsStatusChipRadius = 100.0;
+  static const double tripsDetailsButtonRadius = 12.0;
+  static const double tripsDetailsButtonHeight = 42.0;
+  static const double tripsMetaIconSize = 16.0;
+  static const double tripsEmptyIconBoxSize = 78.0;
+
   // Loading indicator size
   static const double loadingIndicatorSize = 36.0;
 

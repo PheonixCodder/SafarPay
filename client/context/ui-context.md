@@ -80,6 +80,7 @@ Use `iconsax` icons for Flutter UI. Typical sizes come from `SSizes.iconSm`, `SS
 - Privacy Policy: the Settings `Privacy & Security` row opens an informational subpage with `SAppBar`, the shared right-slide transition, a white summary panel, compact trust cues, and expandable policy sections rendered from mapped content.
 - Notifications: the Settings `Notifications` row opens a timeline-style inbox subpage with a compact summary panel, horizontal filter chips, grouped date labels, and soft notification rows for trips, payments, offers, safety, and system updates.
 - Help & Support: the Settings `Help & Support` row opens a reference-matched support hub with a teal `SPrimaryHeaderContainer`, centered scooter support illustration, and a rounded white options sheet with simple icon rows.
+- Trips: the bottom navigation Trips tab opens a clean ride operations page with `SAppBar`, a segmented four-tab control, compact route-first ride cards, and a shared ride details screen.
 - Home: first navigation tab with app bar greeting and a large icon treatment.
 - Starter tabs: Trips and Rent use restrained empty states until their full feature units are built; Profile opens the Settings experience.
 
