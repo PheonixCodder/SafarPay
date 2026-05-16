@@ -95,9 +95,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
 
-              const SizedBox(height: SSizes.spaceBtwItems),
-              const Divider(),
-              const SizedBox(height: SSizes.spaceBtwItems),
+              const SizedBox(height: SSizes.spaceBtwSections),
 
               const SSectionHeading(
                 title: STexts.personalInformation,

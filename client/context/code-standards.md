@@ -49,6 +49,8 @@
 - Use `iconsax` where icons are needed.
 - Use declared local assets through `SImages` instead of hard-coded asset paths in widgets.
 - Use `STexts` for service category labels and badges.
+- Keep long legal/help content in typed mapped content files when a page renders repeated sections.
+- Keep repeated demo notification feeds in typed mapped content files until backend notification APIs are connected.
 - Preserve mobile ergonomics: full-width primary buttons, clear form labels, and readable helper text.
 
 ## File Organization

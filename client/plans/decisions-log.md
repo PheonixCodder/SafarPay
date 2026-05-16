@@ -113,3 +113,19 @@ Permanent record of decisions that affect product scope, architecture, auth beha
 
 - **Decision**: Add `shadcn_ui` and use a common right-side `ShadSheet` drawer for editing existing values in settings/profile flows.
 - **Reason**: Existing-value edits need a focused contextual surface that can be reused across submenu pages while keeping the current profile screen and backend boundaries unchanged.
+
+### 0023 - Render Settings privacy content from mapped sections
+
+- **Decision**: Open Privacy Policy from Settings as a personalization subpage and render policy copy from typed mapped section data.
+- **Reason**: Legal/privacy copy will change over time, so the page layout should stay stable while policy content can be edited in one content file.
+
+### 0024 - Use a timeline feed for Settings notifications
+
+- **Decision**: Open Notifications from Settings as a personalization subpage and render demo notifications as a timeline feed with local filters.
+- **Reason**: Ride-hailing notifications are time-based updates; a timeline feed feels more professional and less boxy than a category-card grid.
+
+### 0025 - Match the reference layout for Help & Support
+
+- **Decision**: Open Help & Support from Settings as a primary-header support hub with a scooter illustration and simple option rows.
+- **Reason**: The supplied reference is specific; matching it closely keeps support navigation familiar while the destination workflows remain placeholder subpages.
+

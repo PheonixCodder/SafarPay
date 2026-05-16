@@ -8,6 +8,9 @@ import '../../../../utils/constants/colors.dart';
 import '../../../../utils/constants/sizes.dart';
 import '../../../../utils/constants/texts.dart';
 import '../../models/settings_menu_item.dart';
+import '../help_support/help_support.dart';
+import '../notifications/notifications.dart';
+import '../privacy_policy/privacy_policy.dart';
 import '../profile/profile.dart';
 import 'widgets/settings_list.dart';
 import 'widgets/settings_logout_button.dart';
@@ -59,13 +62,50 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
+  void _openPrivacyPolicyScreen(BuildContext context) {
+    Navigator.of(context).push(
+      SRightSlidePageRoute(page: const PrivacyPolicyScreen()),
+    );
+  }
+
+  void _openNotificationsScreen(BuildContext context) {
+    Navigator.of(context).push(
+      SRightSlidePageRoute(page: const NotificationsScreen()),
+    );
+  }
+
+  void _openHelpSupportScreen(BuildContext context) {
+    Navigator.of(context).push(
+      SRightSlidePageRoute(page: const HelpSupportScreen()),
+    );
+  }
+
   VoidCallback? _accountItemAction(
     BuildContext context,
     SSettingsMenuItem item,
     int index,
   ) {
-    if (index != 0 || item.title != STexts.userInfo) return null;
-    return () => _openProfileScreen(context);
+    if (index == 0 && item.title == STexts.userInfo) {
+      return () => _openProfileScreen(context);
+    }
+    if (index == 2 && item.title == STexts.settingsNotifications) {
+      return () => _openNotificationsScreen(context);
+    }
+    return null;
+  }
+
+  VoidCallback? _appItemAction(
+    BuildContext context,
+    SSettingsMenuItem item,
+    int index,
+  ) {
+    if (index == 0 && item.title == STexts.settingsPrivacySecurity) {
+      return () => _openPrivacyPolicyScreen(context);
+    }
+    if (index == 1 && item.title == STexts.settingsSupport) {
+      return () => _openHelpSupportScreen(context);
+    }
+    return null;
   }
 
   @override
@@ -82,8 +122,8 @@ class SettingsScreen extends StatelessWidget {
                       STexts.settingsAccount,
                       style:
                           Theme.of(context).textTheme.headlineMedium?.copyWith(
-                            color: SColors.white,
-                          ),
+                                color: SColors.white,
+                              ),
                     ),
                   ),
                   const SizedBox(height: SSizes.spaceBtwSections),
@@ -108,7 +148,11 @@ class SettingsScreen extends StatelessWidget {
                   const SizedBox(height: SSizes.spaceBtwSections),
                   const SSettingsSectionHeading(title: STexts.appSettings),
                   const SizedBox(height: SSizes.spaceBtnItems),
-                  const SSettingsList(items: _appSettings),
+                  SSettingsList(
+                    items: _appSettings,
+                    onItemTap: (item, index) =>
+                        _appItemAction(context, item, index),
+                  ),
                   const SizedBox(height: SSizes.spaceBtwSections),
                   const SSettingsLogoutButton(),
                   const SizedBox(height: SSizes.spaceBtwSections),

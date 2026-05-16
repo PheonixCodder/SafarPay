@@ -32,6 +32,9 @@ Update this file after every meaningful implementation change.
 - Client widget structure was cleaned up with reusable widgets moved to `lib/common/widgets`, multi-widget files split, and settings rebuilt from focused components.
 - Settings profile edit and `User Info` row now navigate to the personalization profile screen through a reusable right-slide transition.
 - A reusable shadcn edit drawer was planned for local profile value edits from personalization profile rows.
+- Settings `Privacy & Security` now opens a dedicated Privacy Policy page with expandable mapped policy sections.
+- Settings `Notifications` now opens a dedicated timeline-style Notifications page with mapped demo notifications and local category filters.
+- Settings `Help & Support` now opens a reference-matched support hub with five placeholder support option subpages.
 
 ## In Progress
 
@@ -72,6 +75,9 @@ Update this file after every meaningful implementation change.
 - Reusable widgets belong in `lib/common/widgets`; screen-local widgets should live in the owning screen's `widgets/` folder with one primary widget per file.
 - Reusable non-auth page transitions live in `lib/common/navigation`.
 - Reusable shadcn drawers live in `lib/common/widgets/drawers` and use the local shadcn-ui-flutter skill docs.
+- Settings legal and privacy content should render from typed mapped content files so copy can be updated without rewriting page layout.
+- Settings notification feeds should render from typed mapped demo content until backend notification APIs are integrated.
+- Help & Support option rows should remain a simple support hub until live support workflows are planned.
 
 ## Session Notes
 
@@ -82,3 +88,6 @@ Update this file after every meaningful implementation change.
 - The client structure cleanup added `context/feature-specs/017-client-structure-cleanup.md` and `plans/018-client-structure-cleanup-plan.md`.
 - Settings user-info navigation added `context/feature-specs/018-settings-user-info-navigation.md` and `plans/019-settings-user-info-navigation-plan.md`.
 - Common edit drawer work added `context/feature-specs/019-common-edit-drawer.md` and `plans/020-common-edit-drawer-plan.md`.
+- Privacy Policy page work added `context/feature-specs/020-privacy-policy-page.md` and `plans/021-privacy-policy-page-plan.md`.
+- Notifications page work added `context/feature-specs/021-notifications-page.md` and `plans/022-notifications-page-plan.md`.
+- Help & Support page work added `context/feature-specs/022-help-support-page.md` and `plans/023-help-support-page-plan.md`.

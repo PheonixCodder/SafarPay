@@ -25,4 +25,7 @@ class SImages {
 
   // -- User
   static const String user = "assets/images/banners/banner1.png";
+
+  // -- Support
+  static const String supportScooter = "assets/images/support/support.png";
 }

@@ -179,6 +179,35 @@ class SSizes {
   static const double profileEditIconRadius = 14.0;
   static const double profileMenuVerticalPadding = spaceBtnItems / 1.5;
 
+  // Privacy policy dimensions
+  static const double privacyPolicyHeroIconBoxSize = 56.0;
+  static const double privacyPolicyHeroIconSize = 28.0;
+  static const double privacyPolicyCardRadius = 20.0;
+  static const double privacyPolicyTileRadius = 18.0;
+  static const double privacyPolicyStatusDotSize = 8.0;
+  static const double privacyPolicyFooterIconBoxSize = 42.0;
+  static const double privacyPolicyFooterIconSize = 20.0;
+
+  // Notifications dimensions
+  static const double notificationHeaderRadius = 22.0;
+  static const double notificationHeroIconBoxSize = 56.0;
+  static const double notificationHeroIconSize = 28.0;
+  static const double notificationFilterHeight = 42.0;
+  static const double notificationTileRadius = 18.0;
+  static const double notificationTimelineIconBoxSize = 42.0;
+  static const double notificationTimelineIconSize = 20.0;
+  static const double notificationUnreadDotSize = 12.0;
+
+  // Help and support dimensions
+  static const double helpSupportHeaderHeight = 285.0;
+  static const double helpSupportImageHeight = 150.0;
+  static const double helpSupportImageTopSpacing = 8.0;
+  static const double helpSupportSheetTop = 253.0;
+  static const double helpSupportSheetRadius = 20.0;
+  static const double helpSupportOptionHeight = 52.0;
+  static const double helpSupportOptionIconSize = 22.0;
+  static const double helpSupportOptionArrowSize = 22.0;
+
   // Loading indicator size
   static const double loadingIndicatorSize = 36.0;
 
