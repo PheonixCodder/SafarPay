@@ -3,7 +3,7 @@ import 'package:iconsax/iconsax.dart';
 
 import '../../../../../utils/constants/colors.dart';
 import '../../../../../utils/constants/sizes.dart';
-import '../help_support_option.dart';
+import '../models/help_support_option.dart';
 
 class SHelpSupportOptionTile extends StatelessWidget {
   const SHelpSupportOptionTile({

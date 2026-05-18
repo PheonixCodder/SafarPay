@@ -9,7 +9,9 @@ import '../../../../../utils/helpers/helpers.dart';
 import '../screens/ride/ride.dart';
 import 'ride_details_button.dart';
 import 'ride_display_utils.dart';
+import 'ride_highlight_row.dart';
 import 'ride_route_summary.dart';
+import 'ride_status_chip.dart';
 
 class SRideCard extends StatelessWidget {
   const SRideCard({
@@ -78,20 +80,20 @@ class SRideCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: SSizes.sm),
-              _StatusChip(label: statusText, color: accentColor),
+              SRideStatusChip(label: statusText, color: accentColor),
             ],
           ),
           const SizedBox(height: SSizes.md),
           SRideRouteSummary(ride: ride),
           const SizedBox(height: SSizes.md),
           if (highlightLabel != null && highlightValue != null) ...[
-            _HighlightRow(label: highlightLabel!, value: highlightValue!),
+            SRideHighlightRow(label: highlightLabel!, value: highlightValue!),
             const SizedBox(height: SSizes.md),
           ],
           Row(
             children: [
               Expanded(
-                child: _HighlightRow(
+                child: SRideHighlightRow(
                   label: STexts.tripsPrice,
                   value: SRideDisplayUtils.money(ride.finalPrice),
                 ),
@@ -106,67 +108,6 @@ class SRideCard extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _StatusChip extends StatelessWidget {
-  const _StatusChip({required this.label, required this.color});
-
-  final String label;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: SSizes.sm,
-        vertical: SSizes.xs,
-      ),
-      decoration: BoxDecoration(
-        color: SHelperFunctions.withOpacity(color, SOpacities.placeholder),
-        borderRadius: BorderRadius.circular(SSizes.tripsStatusChipRadius),
-      ),
-      child: Text(
-        label,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: color,
-              fontWeight: FontWeight.w800,
-            ),
-      ),
-    );
-  }
-}
-
-class _HighlightRow extends StatelessWidget {
-  const _HighlightRow({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: SColors.textSecondary,
-                fontWeight: FontWeight.w700,
-              ),
-        ),
-        const SizedBox(height: SSizes.xs),
-        Text(
-          value,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: SColors.textPrimary,
-                fontWeight: FontWeight.w800,
-              ),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-      ],
     );
   }
 }

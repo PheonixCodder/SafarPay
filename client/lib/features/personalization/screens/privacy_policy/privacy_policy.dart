@@ -4,7 +4,7 @@ import '../../../../common/widgets/appbar/appbar.dart';
 import '../../../../utils/constants/colors.dart';
 import '../../../../utils/constants/sizes.dart';
 import '../../../../utils/constants/texts.dart';
-import 'privacy_policy_content.dart';
+import 'content/privacy_policy_content.dart';
 import 'widgets/privacy_policy_footer.dart';
 import 'widgets/privacy_policy_header.dart';
 import 'widgets/privacy_policy_section_tile.dart';

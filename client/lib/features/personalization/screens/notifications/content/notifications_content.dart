@@ -1,6 +1,6 @@
 import 'package:iconsax/iconsax.dart';
 
-import 'notification_item.dart';
+import '../models/notification_item.dart';
 
 class SNotificationsContent {
   SNotificationsContent._();

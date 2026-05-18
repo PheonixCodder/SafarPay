@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../../utils/constants/colors.dart';
 import '../../../../../utils/constants/sizes.dart';
+import 'trips_tab_button.dart';
 
 class STripsTabBar extends StatelessWidget {
   const STripsTabBar({
@@ -55,9 +56,11 @@ class STripsTabBar extends StatelessWidget {
                 children: [
                   for (var index = 0; index < tabs.length; index++)
                     Expanded(
-                      child: _TripsTabButton(
+                      child: STripsTabButtonItem(
                         label: tabs[index],
                         isSelected: selectedIndex == index,
+                        duration: _duration,
+                        curve: _curve,
                         onTap: () => onTabSelected(index),
                       ),
                     ),
@@ -66,37 +69,6 @@ class STripsTabBar extends StatelessWidget {
             ],
           );
         },
-      ),
-    );
-  }
-}
-
-class _TripsTabButton extends StatelessWidget {
-  const _TripsTabButton({
-    required this.label,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(SSizes.tripsTabIndicatorRadius),
-      child: Center(
-        child: AnimatedDefaultTextStyle(
-          duration: STripsTabBar._duration,
-          curve: STripsTabBar._curve,
-          style: Theme.of(context).textTheme.labelMedium!.copyWith(
-                color: isSelected ? SColors.white : SColors.textSecondary,
-                fontWeight: FontWeight.w800,
-              ),
-          child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
-        ),
       ),
     );
   }
