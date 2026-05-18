@@ -133,3 +133,8 @@ Permanent record of decisions that affect product scope, architecture, auth beha
 
 - **Decision**: Replace the Trips placeholder with a four-tab ride operations page backed by `RideResponse` demo data.
 - **Reason**: Trips are state-based operational records, so a segmented list keeps ongoing, scheduled, canceled, and completed rides scannable without a box-heavy dashboard layout.
+
+### 0027 - Split mixed client work through a safety snapshot
+
+- **Decision**: Before creating feature PRs from the current mixed client worktree, create a local safety branch named `codex/safety-unsplit-client-work` and restore explicit path groups from that snapshot into each PR branch.
+- **Reason**: The worktree contains multiple independent client features and refactors. A safety snapshot preserves all code while allowing each PR to be reviewed and merged with a narrow scope.
