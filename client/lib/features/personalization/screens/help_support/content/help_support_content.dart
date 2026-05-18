@@ -1,12 +1,13 @@
 import 'package:iconsax/iconsax.dart';
 
-import '../../../../utils/constants/texts.dart';
-import 'help_support_option.dart';
-import 'screens/contact/contact.dart';
-import 'screens/faqs/faqs.dart';
-import 'screens/live_chat/live_chat.dart';
-import 'screens/something_else/something_else.dart';
-import 'screens/terms_conditions/terms_conditions.dart';
+import 'package:client/features/personalization/screens/help_support/screens/contact/contact.dart';
+import 'package:client/features/personalization/screens/help_support/screens/faqs/faqs.dart';
+import 'package:client/features/personalization/screens/help_support/screens/live_chat/live_chat.dart';
+import 'package:client/features/personalization/screens/help_support/screens/something_else/something_else.dart';
+import 'package:client/features/personalization/screens/help_support/screens/terms_conditions/terms_conditions.dart';
+import 'package:client/utils/constants/texts.dart';
+
+import '../models/help_support_option.dart';
 
 class SHelpSupportContent {
   SHelpSupportContent._();

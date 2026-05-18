@@ -1,6 +1,6 @@
 import 'package:iconsax/iconsax.dart';
 
-import 'privacy_policy_section.dart';
+import '../models/privacy_policy_section.dart';
 
 class SPrivacyPolicyContent {
   SPrivacyPolicyContent._();

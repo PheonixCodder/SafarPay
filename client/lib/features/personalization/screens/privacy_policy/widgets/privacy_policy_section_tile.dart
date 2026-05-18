@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../../utils/constants/colors.dart';
 import '../../../../../utils/constants/sizes.dart';
 import '../../../../../utils/helpers/helpers.dart';
-import '../privacy_policy_section.dart';
+import '../models/privacy_policy_section.dart';
 
 class SPrivacyPolicySectionTile extends StatelessWidget {
   const SPrivacyPolicySectionTile({

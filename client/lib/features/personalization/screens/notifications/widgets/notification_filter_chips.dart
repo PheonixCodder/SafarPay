@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../../utils/constants/colors.dart';
 import '../../../../../utils/constants/sizes.dart';
 import '../../../../../utils/helpers/helpers.dart';
-import '../notification_item.dart';
+import '../models/notification_item.dart';
 
 class SNotificationFilterOption {
   const SNotificationFilterOption({

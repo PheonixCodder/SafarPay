@@ -4,7 +4,7 @@ import '../../../../../common/navigation/right_slide_page_route.dart';
 import '../../../../../utils/constants/colors.dart';
 import '../../../../../utils/constants/sizes.dart';
 import '../../../../../utils/constants/texts.dart';
-import '../help_support_content.dart';
+import '../content/help_support_content.dart';
 import 'help_support_option_tile.dart';
 
 class SHelpSupportSheet extends StatelessWidget {
