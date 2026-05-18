@@ -20,7 +20,10 @@ class SSettingsLogoutButton extends StatelessWidget {
         style: OutlinedButton.styleFrom(
           side: const BorderSide(color: SColors.error),
         ),
-        child: const Text(STexts.logout, style: TextStyle(color: SColors.error),),
+        child: const Text(
+          STexts.logout,
+          style: TextStyle(color: SColors.error),
+        ),
       ),
     );
   }

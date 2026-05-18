@@ -124,8 +124,8 @@ class _SEditValueDrawerState extends State<SEditValueDrawer> {
               Text(
                 _errorText!,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.error,
-                ),
+                      color: Theme.of(context).colorScheme.error,
+                    ),
               ),
           ],
         ),

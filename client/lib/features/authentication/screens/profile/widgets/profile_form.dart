@@ -66,8 +66,9 @@ class SProfileForm extends StatelessWidget {
             width: double.infinity,
             child: Obx(
               () => ElevatedButton(
-                onPressed:
-                    controller.isSubmitting.value ? null : controller.submitProfile,
+                onPressed: controller.isSubmitting.value
+                    ? null
+                    : controller.submitProfile,
                 child: const Text(STexts.continueText),
               ),
             ),

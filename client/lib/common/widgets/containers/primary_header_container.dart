@@ -10,15 +10,17 @@ class SPrimaryHeaderContainer extends StatelessWidget {
   const SPrimaryHeaderContainer({
     super.key,
     required this.child,
+    this.height,
   });
 
   final Widget child;
+  final double? height;
 
   @override
   Widget build(BuildContext context) {
     return SCurvedEdgesWidget(
       child: SizedBox(
-        height: SSizes.primaryHeaderHeight,
+        height: height ?? SSizes.primaryHeaderHeight,
         child: Container(
           color: SColors.primary,
           child: Stack(

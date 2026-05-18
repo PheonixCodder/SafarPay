@@ -74,13 +74,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const SizedBox(height: SSizes.spaceBtwItems / 2),
               const Divider(),
               const SizedBox(height: SSizes.spaceBtwItems),
-
               const SSectionHeading(
                 title: STexts.profileInformation,
                 showActionButton: false,
               ),
               const SizedBox(height: SSizes.spaceBtwItems),
-
               SProfileMenu(
                 title: STexts.profileName,
                 value: _name,
@@ -94,15 +92,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   onSave: (value) => _name = value,
                 ),
               ),
-
               const SizedBox(height: SSizes.spaceBtwSections),
-
               const SSectionHeading(
                 title: STexts.personalInformation,
                 showActionButton: false,
               ),
               const SizedBox(height: SSizes.spaceBtwItems),
-
               SProfileMenu(
                 title: STexts.profileEmail,
                 value: _email,
