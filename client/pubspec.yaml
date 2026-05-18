@@ -28,6 +28,8 @@ dependencies:
   mapbox_maps_flutter: ^2.23.0
   web_socket_channel: ^3.0.3
   connectivity_plus: ^6.1.5
+  image_picker: ^1.2.1
+  camera: ^0.11.3
   firebase_core: ^4.8.0
   carousel_slider: ^5.1.2
   shadcn_ui: ^0.54.0
@@ -56,6 +58,8 @@ flutter:
     - assets/images/onboarding/
     - assets/images/banners/
     - assets/images/categories/
+    - assets/images/driver/
+    - assets/images/rides/
     - assets/images/support/
 
   fonts:

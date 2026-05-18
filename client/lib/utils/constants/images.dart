@@ -23,6 +23,20 @@ class SImages {
   static const String courier = "assets/images/categories/courier.png";
   static const String cityToCity = "assets/images/categories/city-to-city.png";
 
+  // -- Driver Registration
+  static const String driverRegistrationHeader =
+      "assets/images/driver/register_image.png";
+  static const String driverVehicleCar = "assets/images/rides/car.png";
+  static const String driverVehicleMotorcycle =
+      "assets/images/driver/motorcycle.png";
+  static const String driverVehicleRickshaw =
+      "assets/images/driver/rickshaw.png";
+  static const String driverVehicleVan = "assets/images/driver/van.png";
+  static const String driverVehiclePickup = "assets/images/driver/pickup.png";
+  static const String driverVehicleMiniTruck =
+      "assets/images/driver/mini-truck.png";
+  static const String driverVehicleTruck = "assets/images/driver/truck.png";
+
   // -- User
   static const String user = "assets/images/banners/banner1.png";
 

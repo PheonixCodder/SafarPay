@@ -8,6 +8,7 @@ import '../../../../utils/constants/colors.dart';
 import '../../../../utils/constants/sizes.dart';
 import '../../../../utils/constants/texts.dart';
 import '../../models/settings_menu_item.dart';
+import '../driver_registration/screens/entry/driver_registration.dart';
 import '../help_support/help_support.dart';
 import '../notifications/notifications.dart';
 import '../privacy_policy/privacy_policy.dart';
@@ -74,6 +75,12 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
+  void _openDriverRegistrationScreen(BuildContext context) {
+    Navigator.of(context).push(
+      SRightSlidePageRoute(page: const DriverRegistrationScreen()),
+    );
+  }
+
   void _openHelpSupportScreen(BuildContext context) {
     Navigator.of(context).push(
       SRightSlidePageRoute(page: const HelpSupportScreen()),
@@ -90,6 +97,9 @@ class SettingsScreen extends StatelessWidget {
     }
     if (index == 2 && item.title == STexts.settingsNotifications) {
       return () => _openNotificationsScreen(context);
+    }
+    if (index == 3 && item.title == STexts.driver) {
+      return () => _openDriverRegistrationScreen(context);
     }
     return null;
   }
