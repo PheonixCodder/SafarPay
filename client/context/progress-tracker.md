@@ -36,11 +36,13 @@ Update this file after every meaningful implementation change.
 - Settings `Notifications` now opens a dedicated timeline-style Notifications page with mapped demo notifications and local category filters.
 - Settings `Help & Support` now opens a reference-matched support hub with five placeholder support option subpages.
 - Bottom navigation Trips now opens a four-tab ride history page with ongoing, scheduled, canceled, completed, and ride details views.
+- Passenger map/location foundation was added with Mapbox Flutter SDK, foreground GPS, backend-mediated search/routes, ride preview, and live tracking UI.
+- Driver registration was added with Settings entry, category and vehicle selection, verification status, step submission forms, demo backend responses, and submit-review flow.
+- Client screen structure was normalized so Home widgets live under the owning Home screen folder.
 
 ## In Progress
 
 - Documentation history is being reorganized into feature-first prompt and plan files.
-- Current mixed client work is being split into scoped PR branches using a local safety snapshot first.
 - Firebase generated config is being removed from Git tracking while preserved locally for development.
 - Flutter analyzer still reports existing info-level cleanup items in unrelated files.
 
@@ -96,3 +98,4 @@ Update this file after every meaningful implementation change.
 - Help & Support page work added `context/feature-specs/022-help-support-page.md` and `plans/023-help-support-page-plan.md`.
 - Trips page work added `context/feature-specs/023-rides-trips-page.md` and `plans/024-rides-trips-page-plan.md`.
 - Branch split workflow work added `context/feature-specs/031-branch-split-and-pr-merge.md` and updated `plans/900-branch-split-and-merge-plan.md`.
+- Client screen structure normalization work added `context/feature-specs/030-client-screen-structure-normalization.md` and `plans/031-client-screen-structure-normalization-plan.md`.

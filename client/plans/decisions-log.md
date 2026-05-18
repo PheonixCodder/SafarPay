@@ -138,3 +138,8 @@ Permanent record of decisions that affect product scope, architecture, auth beha
 
 - **Decision**: Before creating feature PRs from the current mixed client worktree, create a local safety branch named `codex/safety-unsplit-client-work` and restore explicit path groups from that snapshot into each PR branch.
 - **Reason**: The worktree contains multiple independent client features and refactors. A safety snapshot preserves all code while allowing each PR to be reviewed and merged with a narrow scope.
+
+### 0028 - Keep screen-local widgets under owning screen folders
+
+- **Decision**: Home screen widgets now live under `lib/features/home/screens/home/widgets`, and the old `lib/features/home/screens/widgets` files are removed.
+- **Reason**: Screen-local widgets should stay with the screen that owns them, matching the one-screen-file plus widgets-folder convention used across the client.
