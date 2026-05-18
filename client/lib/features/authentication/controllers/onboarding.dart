@@ -11,7 +11,7 @@ class OnBoardingController extends GetxController {
 
   final PageController pageController = PageController();
   final RxInt currentPageIndex = 0.obs;
-  
+
   bool get isLastPage => currentPageIndex.value == lastPageIndex;
 
   void updatePageIndicator(int index) {

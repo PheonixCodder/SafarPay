@@ -44,9 +44,9 @@ class OnBoardingNavigationButtons extends StatelessWidget {
                       ? STexts.onBoardingGetStarted
                       : STexts.onBoardingNext,
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: SColors.textWhite,
-                    fontSize: SSizes.fontSizeLg,
-                  ),
+                        color: SColors.textWhite,
+                        fontSize: SSizes.fontSizeLg,
+                      ),
                 ),
               ),
             ),
@@ -79,12 +79,12 @@ class OnBoardingNavigationButtons extends StatelessWidget {
                   child: Text(
                     STexts.onBoardingSkip,
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontSize: SSizes.fontSizeLg,
-                      color: SHelperFunctions.withOpacity(
-                        SColors.textWhite,
-                        SOpacities.onboardingButtonText,
-                      ),
-                    ),
+                          fontSize: SSizes.fontSizeLg,
+                          color: SHelperFunctions.withOpacity(
+                            SColors.textWhite,
+                            SOpacities.onboardingButtonText,
+                          ),
+                        ),
                   ),
                 ),
               ),

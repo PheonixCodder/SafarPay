@@ -62,11 +62,13 @@ class SPermissionPage extends StatelessWidget {
                       Text(
                         title,
                         textAlign: TextAlign.center,
-                        style:
-                            Theme.of(context).textTheme.headlineMedium?.copyWith(
-                                  color: SColors.textPrimary,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                        style: Theme.of(context)
+                            .textTheme
+                            .headlineMedium
+                            ?.copyWith(
+                              color: SColors.textPrimary,
+                              fontWeight: FontWeight.bold,
+                            ),
                       ),
                       const SizedBox(height: SSizes.spaceBtnItems),
                       FractionallySizedBox(
@@ -111,15 +113,18 @@ class SPermissionPage extends StatelessWidget {
                     ),
                   ],
                 ),
-                child: Align( // Use Align instead of Center
-                  alignment: Alignment.topCenter, // This prevents vertical expansion
-                  heightFactor: 1.0, // Forces the container to hug the height of the child
+                child: Align(
+                  // Use Align instead of Center
+                  alignment:
+                      Alignment.topCenter, // This prevents vertical expansion
+                  heightFactor:
+                      1.0, // Forces the container to hug the height of the child
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 420),
                     child: SizedBox(
                       width: double.infinity,
                       child: Obx(
-                            () => ElevatedButton(
+                        () => ElevatedButton(
                           onPressed: isRequesting.value ? null : onPressed,
                           child: Text(buttonText),
                         ),

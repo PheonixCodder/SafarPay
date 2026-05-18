@@ -45,7 +45,6 @@ class SNotificationCounterIcon extends StatelessWidget {
                 size: SSizes.iconMd,
               ),
             ),
-
             Positioned(
               top: SSizes.notificationBadgeOffset,
               right: SSizes.notificationBadgeOffset,
@@ -72,10 +71,10 @@ class SNotificationCounterIcon extends StatelessWidget {
                   child: Text(
                     count.toString(),
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: SColors.white,
-                      fontWeight: FontWeight.w800,
-                      fontSize: SSizes.notificationBadgeFontSize,
-                    ),
+                          color: SColors.white,
+                          fontWeight: FontWeight.w800,
+                          fontSize: SSizes.notificationBadgeFontSize,
+                        ),
                   ),
                 ),
               ),

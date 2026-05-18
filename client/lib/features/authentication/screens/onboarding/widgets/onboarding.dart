@@ -75,10 +75,10 @@ class OnBoardingPage extends StatelessWidget {
                 title,
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  color: SColors.textWhite,
-                  fontWeight: FontWeight.bold,
-                  fontSize: SSizes.xl + SSizes.xs / 2,
-                ),
+                      color: SColors.textWhite,
+                      fontWeight: FontWeight.bold,
+                      fontSize: SSizes.xl + SSizes.xs / 2,
+                    ),
               ),
 
               const SizedBox(height: SSizes.spaceBtnItems),
@@ -90,13 +90,13 @@ class OnBoardingPage extends StatelessWidget {
                   subTitle,
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: SHelperFunctions.withOpacity(
-                      SColors.textWhite,
-                      SOpacities.onboardingButtonText,
-                    ),
-                    fontSize: SSizes.fontSizeMd,
-                    height: 1.5,
-                  ),
+                        color: SHelperFunctions.withOpacity(
+                          SColors.textWhite,
+                          SOpacities.onboardingButtonText,
+                        ),
+                        fontSize: SSizes.fontSizeMd,
+                        height: 1.5,
+                      ),
                 ),
               ),
             ],

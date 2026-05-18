@@ -6,6 +6,7 @@ import '../../../../../utils/constants/colors.dart';
 import '../../../../../utils/constants/images.dart';
 import '../../../../../utils/constants/sizes.dart';
 import '../../../../../utils/constants/texts.dart';
+import '../../../../../utils/helpers/helpers.dart';
 
 class SSettingsProfileTile extends StatelessWidget {
   const SSettingsProfileTile({
@@ -25,7 +26,7 @@ class SSettingsProfileTile extends StatelessWidget {
         color: SColors.white,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: SColors.grey.withOpacity(0.15),
+          color: SHelperFunctions.withOpacity(SColors.grey, 0.15),
         ),
       ),
       child: Stack(
@@ -58,8 +59,7 @@ class SSettingsProfileTile extends StatelessWidget {
               Text(
                 STexts.settingsProfileEmail,
                 textAlign: TextAlign.center,
-                style: textTheme.bodyMedium?.copyWith(
-                ),
+                style: textTheme.bodyMedium?.copyWith(),
               ),
             ],
           ),
@@ -69,7 +69,7 @@ class SSettingsProfileTile extends StatelessWidget {
             bottom: 55,
             right: 4,
             child: Material(
-              color: SColors.primary.withOpacity(0.12),
+              color: SHelperFunctions.withOpacity(SColors.primary, 0.12),
               borderRadius: BorderRadius.circular(14),
               child: InkWell(
                 borderRadius: BorderRadius.circular(14),

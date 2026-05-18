@@ -25,8 +25,7 @@ class SCircularImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ImageProvider<Object> imageProvider =
-    isNetworkImage
+    final ImageProvider<Object> imageProvider = isNetworkImage
         ? NetworkImage(imageUrl) as ImageProvider<Object>
         : AssetImage(imageUrl) as ImageProvider<Object>;
 

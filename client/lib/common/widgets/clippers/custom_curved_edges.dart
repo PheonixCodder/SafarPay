@@ -8,7 +8,8 @@ class SCustomCurvedEdges extends CustomClipper<Path> {
     final path = Path()..lineTo(0, size.height);
 
     final firstCurve = Offset(0, size.height - SSizes.curvedEdgeDepth);
-    final lastCurve = Offset(SSizes.curvedEdgeHorizontalInset, size.height - SSizes.curvedEdgeDepth);
+    final lastCurve = Offset(
+        SSizes.curvedEdgeHorizontalInset, size.height - SSizes.curvedEdgeDepth);
     path.quadraticBezierTo(
       firstCurve.dx,
       firstCurve.dy,
@@ -28,7 +29,8 @@ class SCustomCurvedEdges extends CustomClipper<Path> {
       secondLastCurve.dy,
     );
 
-    final thirdFirstCurve = Offset(size.width, size.height - SSizes.curvedEdgeDepth);
+    final thirdFirstCurve =
+        Offset(size.width, size.height - SSizes.curvedEdgeDepth);
     final thirdLastCurve = Offset(size.width, size.height);
     path.quadraticBezierTo(
       thirdFirstCurve.dx,
