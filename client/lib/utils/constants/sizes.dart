@@ -222,6 +222,11 @@ class SSizes {
   static const double tripsMetaIconSize = 16.0;
   static const double tripsEmptyIconBoxSize = 78.0;
 
+  // Passenger map and ride flow dimensions
+  static const double rideMapPreviewHeight = 320.0;
+  static const double rideMapTrackingHeight = 460.0;
+  static const double rideSheetRadius = 24.0;
+
   // Loading indicator size
   static const double loadingIndicatorSize = 36.0;
 

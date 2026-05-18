@@ -29,7 +29,8 @@ enum ServiceCategory {
   final String value;
 
   static ServiceCategory fromJson(String value) {
-    return ServiceCategory.values.firstWhere((category) => category.value == value);
+    return ServiceCategory.values
+        .firstWhere((category) => category.value == value);
   }
 }
 
@@ -76,7 +77,8 @@ enum PassengerPaymentMethod {
   final String value;
 
   static PassengerPaymentMethod fromJson(String value) {
-    return PassengerPaymentMethod.values.firstWhere((method) => method.value == value);
+    return PassengerPaymentMethod.values
+        .firstWhere((method) => method.value == value);
   }
 }
 
@@ -89,7 +91,8 @@ enum PaymentCollectionMode {
   final String value;
 
   static PaymentCollectionMode fromJson(String value) {
-    return PaymentCollectionMode.values.firstWhere((mode) => mode.value == value);
+    return PaymentCollectionMode.values
+        .firstWhere((mode) => mode.value == value);
   }
 }
 
@@ -214,7 +217,8 @@ class RideResponse {
         VerificationCodeResponse.fromJson,
       ),
       pickupStop: _toNullableModel(json['pickup_stop'], StopResponse.fromJson),
-      dropoffStop: _toNullableModel(json['dropoff_stop'], StopResponse.fromJson),
+      dropoffStop:
+          _toNullableModel(json['dropoff_stop'], StopResponse.fromJson),
     );
   }
 
@@ -244,7 +248,8 @@ class RideResponse {
       'created_at': createdAt.toIso8601String(),
       'stops': stops.map((stop) => stop.toJson()).toList(),
       'proof_images': proofImages.map((proof) => proof.toJson()).toList(),
-      'verification_codes': verificationCodes.map((code) => code.toJson()).toList(),
+      'verification_codes':
+          verificationCodes.map((code) => code.toJson()).toList(),
       'pickup_stop': pickupStop?.toJson(),
       'dropoff_stop': dropoffStop?.toJson(),
     };

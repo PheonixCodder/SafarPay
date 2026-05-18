@@ -26,7 +26,7 @@ class SLoggerHelper {
   }
 
   static void verbose(String message) {
-    _logger.v(message);
+    _logger.t(message);
   }
 
   static void wtf(String message) {
@@ -34,7 +34,9 @@ class SLoggerHelper {
   }
 
   // Log with custom level
-  static void log(Level level, String message, {dynamic error, StackTrace? stackTrace}) {
-    _logger.log(level, message, error: error, stackTrace: stackTrace ?? StackTrace.current);
+  static void log(Level level, String message,
+      {dynamic error, StackTrace? stackTrace}) {
+    _logger.log(level, message,
+        error: error, stackTrace: stackTrace ?? StackTrace.current);
   }
 }

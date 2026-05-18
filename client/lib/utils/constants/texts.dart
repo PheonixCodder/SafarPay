@@ -41,6 +41,18 @@ class STexts {
       "Your basic home screen is ready after permissions are completed.";
   static const String navHome = "Home";
   static const String searchBarText = "Where to?";
+  static const String rideSearchTitle = "Plan your ride";
+  static const String rideSearchSubTitle = "Choose a pickup and dropoff.";
+  static const String rideSearchPickup = "Pickup";
+  static const String rideSearchDropoffHint = "Search dropoff";
+  static const String rideSearchUseSearchPickup = "Set pickup by search";
+  static const String rideSearchNoResults = "Search for a destination.";
+  static const String ridePreviewTitle = "Ride Preview";
+  static const String ridePreviewConfirm = "Confirm ride";
+  static const String ridePreviewRequesting = "Requesting...";
+  static const String ridePreviewUnavailable = "Route preview unavailable";
+  static const String rideTrackingTitle = "Live Ride";
+  static const String rideTrackingConnecting = "Connecting to ride tracking...";
   static const String navTrips = "Trips";
   static const String navRent = "Rent";
   static const String navProfile = "Profile";
@@ -174,6 +186,81 @@ class STexts {
   static const String driver = "Register as a Driver";
   static const String driverSubTitle =
       "Turn your vehicle into profit and start earning on your own terms.";
+  static const String driverRegistrationTitle =
+      "How do you want to work with us";
+  static const String driverVehicleSelectionTitle = "Choose your vehicle";
+  static const String driverVerificationTitle = "Driver Registration";
+  static const String driverVerificationHeaderSubtitle =
+      "Complete your checklist and submit it for SafarPay review.";
+  static const String driverVerificationUnavailable =
+      "Driver registration unavailable";
+  static const String driverVerificationNotStartedTitle =
+      "Start your driver registration";
+  static const String driverVerificationNotStartedMessage =
+      "Complete each section to prepare your profile for verification review.";
+  static const String driverVerificationPendingTitle =
+      "Registration in progress";
+  static const String driverVerificationPendingMessage =
+      "Finish the remaining sections, then submit your profile for review.";
+  static const String driverVerificationUnderReviewTitle = "Under review";
+  static const String driverVerificationUnderReviewMessage =
+      "Your submitted details are locked while SafarPay reviews your driver profile.";
+  static const String driverVerificationRejectedTitle = "Action required";
+  static const String driverVerificationRejectedMessage =
+      "One or more sections need correction before your driver profile can be approved.";
+  static const String driverVerificationVerifiedTitle = "Already registered";
+  static const String driverVerificationVerifiedMessage =
+      "You are already approved for this vehicle. No further action is needed.";
+  static const String driverVerificationSubmitReview = "Submit for Review";
+  static const String driverVerificationSubmittingReview = "Submitting...";
+  static const String driverRegistrationStepSave = "Submit Step";
+  static const String driverRegistrationStepSaving = "Submitting...";
+  static const String driverRegistrationCamera = "Camera";
+  static const String driverRegistrationGallery = "Gallery";
+  static const String driverRegistrationRemoveImage = "Remove image";
+  static const String driverRegistrationExpiryDate = "Expiry Date";
+  static const String driverRegistrationSelectDate = "Select date";
+  static const String driverRegistrationCnicTitle = "CNIC Info";
+  static const String driverRegistrationCnicNumber = "CNIC Number";
+  static const String driverRegistrationCnicFront = "CNIC Front";
+  static const String driverRegistrationCnicBack = "CNIC Back";
+  static const String driverRegistrationLicenseTitle = "Driver's License";
+  static const String driverRegistrationLicenseNumber = "License Number";
+  static const String driverRegistrationLicenseFront = "License Front";
+  static const String driverRegistrationLicenseBack = "License Back";
+  static const String driverRegistrationSelfieTitle = "Selfie with License";
+  static const String driverRegistrationSelfieCapture =
+      "Capture a live selfie while holding your driving license.";
+  static const String driverRegistrationSelfieCaptureAction = "Capture";
+  static const String driverRegistrationSelfieRetry = "Retry";
+  static const String driverRegistrationSelfieUse = "Use this photo";
+  static const String driverRegistrationVehicleInfoTitle = "Vehicle Info";
+  static const String driverRegistrationBrand = "Brand";
+  static const String driverRegistrationModel = "Model";
+  static const String driverRegistrationColor = "Color";
+  static const String driverRegistrationVehicleType = "Vehicle Type";
+  static const String driverRegistrationMaxPassengers = "Max Passengers";
+  static const String driverRegistrationPlateNumber = "Plate Number";
+  static const String driverRegistrationProductionYear = "Production Year";
+  static const String driverRegistrationRegistrationFront =
+      "Registration Front";
+  static const String driverRegistrationRegistrationBack = "Registration Back";
+  static const String driverRegistrationVehiclePhotoFront =
+      "Vehicle Photo Front";
+  static const String driverRegistrationVehiclePhotoBack =
+      "Vehicle Photo Back";
+  static const String driverRegistrationFrontSideHelp =
+      "Clear image of the front side.";
+  static const String driverRegistrationBackSideHelp =
+      "Clear image of the back side.";
+  static const String driverRegistrationRegistrationFrontHelp =
+      "Front side of the vehicle registration document.";
+  static const String driverRegistrationRegistrationBackHelp =
+      "Back side of the vehicle registration document.";
+  static const String driverRegistrationVehicleFrontHelp =
+      "Front view of the vehicle.";
+  static const String driverRegistrationVehicleBackHelp =
+      "Back view of the vehicle.";
   static const String settingsBankAccount = "Bank Account";
   static const String settingsBankAccountSubTitle =
       "Withdraw balance to registered bank account";

@@ -31,23 +31,27 @@ class SHttpClient {
 
   static Future<Map<String, dynamic>> get(
     String endpoint, {
+    SApiService service = SApiService.auth,
     bool requiresAuth = false,
   }) {
     return _send(
       'GET',
       endpoint,
+      service: service,
       requiresAuth: requiresAuth,
     );
   }
 
   static Future<Map<String, dynamic>> post(
     String endpoint, {
+    SApiService service = SApiService.auth,
     Map<String, dynamic>? body,
     bool requiresAuth = false,
   }) {
     return _send(
       'POST',
       endpoint,
+      service: service,
       body: body,
       requiresAuth: requiresAuth,
     );
@@ -55,18 +59,62 @@ class SHttpClient {
 
   static Future<void> delete(
     String endpoint, {
+    SApiService service = SApiService.auth,
     bool requiresAuth = true,
   }) async {
     await _send(
       'DELETE',
       endpoint,
+      service: service,
       requiresAuth: requiresAuth,
     );
+  }
+
+  static Future<void> putBytesToAbsoluteUrl(
+    String url, {
+    required List<int> bytes,
+    String contentType = 'image/jpeg',
+  }) async {
+    final uri = Uri.parse(url);
+    final headers = <String, String>{
+      'Content-Type': contentType,
+    };
+
+    SLoggerHelper.info('PUT ${uri.host}${uri.path}');
+
+    try {
+      final response = await _client
+          .put(uri, headers: headers, body: bytes)
+          .timeout(SApiConstants.connectTimeout);
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw SHttpException(
+          message: 'Document upload failed. Please try again.',
+          statusCode: response.statusCode,
+          body: response.body,
+        );
+      }
+    } on TimeoutException catch (error) {
+      SLoggerHelper.error('Document upload timed out', error);
+      throw const SHttpException(
+        message: 'Document upload timed out. Please try again.',
+        statusCode: 0,
+      );
+    } on SHttpException {
+      rethrow;
+    } catch (error) {
+      SLoggerHelper.error('Document upload failed', error);
+      throw const SHttpException(
+        message: 'Unable to upload document. Please check your connection.',
+        statusCode: 0,
+      );
+    }
   }
 
   static Future<Map<String, dynamic>> _send(
     String method,
     String endpoint, {
+    SApiService service = SApiService.auth,
     Map<String, dynamic>? body,
     bool requiresAuth = false,
     bool allowRefresh = true,
@@ -74,6 +122,7 @@ class SHttpClient {
     final response = await _rawRequest(
       method,
       endpoint,
+      service: service,
       body: body,
       requiresAuth: requiresAuth,
     );
@@ -84,6 +133,7 @@ class SHttpClient {
         return _send(
           method,
           endpoint,
+          service: service,
           body: body,
           requiresAuth: requiresAuth,
           allowRefresh: false,
@@ -97,10 +147,12 @@ class SHttpClient {
   static Future<http.Response> _rawRequest(
     String method,
     String endpoint, {
+    SApiService service = SApiService.auth,
     Map<String, dynamic>? body,
     bool requiresAuth = false,
   }) async {
-    final uri = Uri.parse('${SApiConstants.authBaseUrl}$endpoint');
+    final baseUrl = SApiConstants.baseUrlFor(service);
+    final uri = Uri.parse('$baseUrl$endpoint');
     final headers = <String, String>{
       'Accept': 'application/json',
       'Content-Type': 'application/json',
@@ -184,8 +236,7 @@ class SHttpClient {
       if (detail is String && detail.isNotEmpty) return detail;
       if (detail is List && detail.isNotEmpty) {
         final firstError = detail.first;
-        if (firstError is Map<String, dynamic> &&
-            firstError['msg'] is String) {
+        if (firstError is Map<String, dynamic> && firstError['msg'] is String) {
           return firstError['msg'] as String;
         }
       }

@@ -69,9 +69,7 @@ class SSearchResult extends StatelessWidget {
                         letterSpacing: SSizes.rideSearchTitleLetterSpacing,
                       ),
                     ),
-
                     const SizedBox(height: SSizes.rideSearchTextGap),
-
                     Text(
                       address,
                       maxLines: 1,
@@ -113,7 +111,6 @@ class SSearchResult extends StatelessWidget {
               ),
             ],
           ),
-
           if (showDivider)
             Padding(
               padding: const EdgeInsets.only(
