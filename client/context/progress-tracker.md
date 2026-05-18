@@ -40,6 +40,7 @@ Update this file after every meaningful implementation change.
 ## In Progress
 
 - Documentation history is being reorganized into feature-first prompt and plan files.
+- Current mixed client work is being split into scoped PR branches using a local safety snapshot first.
 - Firebase generated config is being removed from Git tracking while preserved locally for development.
 - Flutter analyzer still reports existing info-level cleanup items in unrelated files.
 
@@ -94,3 +95,4 @@ Update this file after every meaningful implementation change.
 - Notifications page work added `context/feature-specs/021-notifications-page.md` and `plans/022-notifications-page-plan.md`.
 - Help & Support page work added `context/feature-specs/022-help-support-page.md` and `plans/023-help-support-page-plan.md`.
 - Trips page work added `context/feature-specs/023-rides-trips-page.md` and `plans/024-rides-trips-page-plan.md`.
+- Branch split workflow work added `context/feature-specs/031-branch-split-and-pr-merge.md` and updated `plans/900-branch-split-and-merge-plan.md`.
