@@ -4,6 +4,48 @@ Permanent record of decisions that affect product scope, architecture, auth beha
 
 ## Decisions
 
+### Driver Registration Verification State
+
+- Date: 2026-05-17
+- Decision: The Flutter driver registration checklist reads canonical state from Verification service `GET /api/v1/verification/me`.
+- Rationale: The backend already aggregates identity, license, selfie, vehicle, rejection, under-review, and verified states. The client should render that contract instead of duplicating backend review logic.
+
+### Driver Registration Vehicle Display Mapping
+
+- Date: 2026-05-17
+- Decision: Driver registration earning-category vehicle options are display choices only until the detailed vehicle submission form is implemented.
+- Rationale: The current Verification backend vehicle enum supports `moto`, `economy`, `comfort`, and `freight`, while the desired client UI includes vehicles such as Rickshaw, Van, Pickup, Mini truck, and Truck.
+
+### Driver Verification Demo Status Mode
+
+- Date: 2026-05-17
+- Decision: Temporarily return backend-shaped demo Verification `/me` responses from the driver verification repository while the backend is unavailable.
+- Rationale: Keeping demo data at the repository boundary lets the status screen and controller exercise the same production data flow while making every UI state testable offline.
+
+### Driver Verification Submit Review Eligibility
+
+- Date: 2026-05-17
+- Decision: Show the driver `Submit for Review` action only when all four Verification `/me` groups are `pending` and `overall_status` is `pending`.
+- Rationale: The backend does not expose a separate ready flag. The grouped `/me` contract already proves whether identity, license, selfie, and vehicle information have all been submitted.
+
+### Driver Registration Presigned Upload Flow
+
+- Date: 2026-05-17
+- Decision: Each driver registration step first posts metadata to the Verification service, then uploads images to the exact presigned PUT URLs returned for that step.
+- Rationale: The backend owns document keys, storage policy, and review state. The client should not invent file keys or upload destinations.
+
+### Driver Registration Vehicle Type Mapping
+
+- Date: 2026-05-17
+- Decision: Client display vehicles map to the current Verification backend enum values: motorcycle to `moto`, freight-class vehicles to `freight`, and standard passenger vehicles to `economy` unless the form explicitly selects `comfort`.
+- Rationale: The backend currently accepts only `moto`, `economy`, `comfort`, and `freight`, while the UI uses more specific vehicle labels.
+
+### Client Screen Folder Convention
+
+- Date: 2026-05-17
+- Decision: Feature screens use one folder per screen, one main screen file, screen-local widgets under `widgets/`, and owned subscreens under `screens/`.
+- Rationale: The previous tree mixed root screen files, widgets, content files, and subscreens inconsistently across features. A single convention reduces navigation/import confusion and keeps widget ownership explicit.
+
 ### 0001 - Use feature-first Flutter structure
 
 - **Decision**: Keep client code organized under `lib/features/<feature>` with shared utilities in `lib/utils` and reusable widgets in `lib/common`.
@@ -134,12 +176,27 @@ Permanent record of decisions that affect product scope, architecture, auth beha
 - **Decision**: Replace the Trips placeholder with a four-tab ride operations page backed by `RideResponse` demo data.
 - **Reason**: Trips are state-based operational records, so a segmented list keeps ongoing, scheduled, canceled, and completed rides scannable without a box-heavy dashboard layout.
 
-### 0027 - Split mixed client work through a safety snapshot
+### 0027 - Keep search bar UI common and result composition feature-owned
+
+- **Decision**: Move the reusable search bar surface to `lib/common/widgets/searchbar` and keep Home recent ride rows inside the Home feature.
+- **Reason**: The search bar visual primitive will be reused across ride flows, while result data, demo rides, and destination rows are feature-specific composition.
+
+### 0028 - Keep Mapbox APIs backend-mediated
+
+- **Decision**: The Flutter client uses Mapbox only for native map rendering. Geocoding, reverse geocoding, route calculation, ETA enrichment, and pickup validation are called through SafarPay backend services.
+- **Reason**: Backend mediation keeps protected Mapbox capabilities, authorization, caching, rate limiting, and audit behavior centralized while the passenger app stays focused on UX and live state rendering.
+
+### 0029 - Passenger location starts as foreground-only
+
+- **Decision**: Passenger map and tracking flows use foreground device location only and do not persist raw GPS history locally.
+- **Reason**: Foreground location is enough for pickup selection and active ride UI in v1. Background location has privacy, platform, and product implications that should be handled in a separate approved feature plan.
+
+### 0030 - Split mixed client work through a safety snapshot
 
 - **Decision**: Before creating feature PRs from the current mixed client worktree, create a local safety branch named `codex/safety-unsplit-client-work` and restore explicit path groups from that snapshot into each PR branch.
 - **Reason**: The worktree contains multiple independent client features and refactors. A safety snapshot preserves all code while allowing each PR to be reviewed and merged with a narrow scope.
 
-### 0028 - Keep screen-local widgets under owning screen folders
+### 0031 - Keep screen-local widgets under owning screen folders
 
 - **Decision**: Home screen widgets now live under `lib/features/home/screens/home/widgets`, and the old `lib/features/home/screens/widgets` files are removed.
 - **Reason**: Screen-local widgets should stay with the screen that owns them, matching the one-screen-file plus widgets-folder convention used across the client.

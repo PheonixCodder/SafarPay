@@ -2,7 +2,7 @@
 
 ## Overview
 
-SafarPay is a ride-hailing mobile client for riders who need a fast, trustworthy way to start a trip, verify their identity, and move into the main app experience. The current client has the Flutter scaffold, shared design foundation, onboarding, phone OTP authentication, Google authentication with phone linking, profile completion, permissions, and a four-tab post-auth navigation shell in place.
+SafarPay is a ride-hailing mobile client for riders who need a fast, trustworthy way to start a trip, verify their identity, and move into the main app experience. The current client has the Flutter scaffold, shared design foundation, onboarding, phone OTP authentication, Google authentication with phone linking, profile completion, permissions, a four-tab post-auth navigation shell, passenger map foundations, and the starter driver registration entry flow in place.
 
 ## Goals
 
@@ -57,10 +57,19 @@ SafarPay is a ride-hailing mobile client for riders who need a fast, trustworthy
 - Home shows two recent demo ride destinations below the search bar.
 - Home includes a local banner carousel for ride and promotion imagery.
 - Home includes static service category entry points for Groceries, City rides, City to City, Couriers, and Freight.
+- Home search opens the passenger ride planning flow with pickup detection, backend geocode search, route preview, and live tracking foundations.
+
+### Driver Registration
+
+- Settings opens a driver registration flow from `Register as a Driver`.
+- Users choose an earning category, choose a vehicle option for that category, and then see a Verification-service-backed checklist.
+- The checklist reads `GET /api/v1/verification/me` and renders CNIC, license, selfie, and vehicle status groups.
+- CNIC, license, selfie-with-license, and vehicle info pages collect their own data, request presigned upload URLs from the Verification service, and upload documents directly to those URLs.
 
 ### Client Foundation
 
 - Centralized theme, colors, sizes, strings, validators, helpers, HTTP client, and local storage utilities.
+- Native Mapbox map rendering, foreground GPS, backend geospatial repositories, and ride tracking WebSocket primitives.
 - Feature-first structure under `lib/features`.
 - Context, feature-spec, plan, and decision documentation under `client/context` and `client/plans`.
 
@@ -79,12 +88,13 @@ SafarPay is a ride-hailing mobile client for riders who need a fast, trustworthy
 - Personalization settings UI cleanup and reusable settings components.
 - Reusable page transition helpers for common non-auth navigation patterns.
 - Reusable shadcn edit drawer for existing-value edits.
+- Driver registration entry, vehicle selection, Verification `/me` status rendering, KYC step submissions, and presigned document upload UI.
 
 ### Out Of Scope
 
 - Backend service implementation.
 - Payment backend implementation.
-- Full ride booking, bidding, live tracking, rental, profile management, and wallet UI beyond starter placeholders.
+- Full ride booking, bidding, production live tracking, rental, profile management, driver KYC document submission, and wallet UI beyond starter placeholders.
 - Production analytics, crash reporting, and release automation until explicitly planned.
 - Real auth API integration is out of scope for the current completed UI/mock phase.
 

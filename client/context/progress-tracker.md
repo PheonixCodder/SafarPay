@@ -36,9 +36,13 @@ Update this file after every meaningful implementation change.
 - Settings `Notifications` now opens a dedicated timeline-style Notifications page with mapped demo notifications and local category filters.
 - Settings `Help & Support` now opens a reference-matched support hub with five placeholder support option subpages.
 - Bottom navigation Trips now opens a four-tab ride history page with ongoing, scheduled, canceled, completed, and ride details views.
-- Passenger map/location foundation was added with Mapbox Flutter SDK, foreground GPS, backend-mediated search/routes, ride preview, and live tracking UI.
-- Driver registration was added with Settings entry, category and vehicle selection, verification status, step submission forms, demo backend responses, and submit-review flow.
-- Client screen structure was normalized so Home widgets live under the owning Home screen folder.
+- Home search now uses a reusable common `SSearchBar` while keeping recent ride rows in the Home feature.
+- Passenger map/location foundation was added with Mapbox Flutter SDK, device GPS service, backend location/geospatial repositories, ride tracking WebSocket parsing, reusable map widget, ride search, route preview, and tracking screens.
+- Driver registration entry flow was added from Settings with earning category selection, vehicle selection, Verification `/me` status parsing, and a status checklist.
+- Driver registration verification demo mode was added so all `/me` checklist states can be previewed without running the backend.
+- Driver registration submit-review CTA and polished verification header layout were added for ready-to-submit checklist states.
+- Driver registration step submission pages were implemented with per-step forms, presigned upload handling, realtime selfie capture, and backend-offline demo responses.
+- Client screen structure normalization was applied across feature screens so screen files, widgets, subscreens, and content/model files follow one convention.
 
 ## In Progress
 
@@ -52,12 +56,17 @@ Update this file after every meaningful implementation change.
 - Decide when to connect mocked auth repository methods to real backend endpoints.
 - Clean existing analyzer info items when the team chooses a lint-cleanup pass.
 - Add real ride booking, bidding, location tracking, and payment client screens as separate planned feature units.
+- Finalize the production ride creation payload and replace the preview tracking placeholder ride id with the created ride id.
+- Verify the real driver registration submission forms, presigned upload flow, and submit-review readiness with the Verification backend when it is available.
+- Restore the real Verification `/me` HTTP call after backend testing is available and remove or disable temporary demo status mode.
+- Restore the real Verification submit-review HTTP call after backend testing is available and reload `/me` after successful submission.
 - Rotate or restrict the previously exposed Firebase API keys in Google Cloud/Firebase and resolve the GitHub secret-scanning alerts.
 
 ## Open Questions
 
 - What exact backend response shape will production Google verification return when phone linking is required?
 - Should the client support driver-specific onboarding or remain rider-only for the current phase?
+- Should Verification backend expand `VehicleType` beyond `moto`, `economy`, `comfort`, and `freight`, or should the client map display vehicles into those four backend values?
 - Which generated platform file changes should be committed, if any, after plugin changes?
 
 ## Architecture Decisions
@@ -83,6 +92,10 @@ Update this file after every meaningful implementation change.
 - Settings notification feeds should render from typed mapped demo content until backend notification APIs are integrated.
 - Help & Support option rows should remain a simple support hub until live support workflows are planned.
 - Trips list and details screens should consume backend-aligned ride DTOs and avoid backend mutation flows until ride APIs are connected.
+- Reusable search bar UI should stay under `lib/common/widgets/searchbar`, with feature-owned result rendering kept out of the shared widget.
+- Mapbox client usage is limited to native map rendering; geocoding, route calculation, and ETA logic stay behind backend services.
+- Passenger v1 uses foreground location only and does not persist raw GPS history locally.
+- Driver registration reads the canonical state from Verification `/me`; display vehicle choices remain separate from backend verification enum values until submission forms are implemented.
 
 ## Session Notes
 
@@ -97,5 +110,11 @@ Update this file after every meaningful implementation change.
 - Notifications page work added `context/feature-specs/021-notifications-page.md` and `plans/022-notifications-page-plan.md`.
 - Help & Support page work added `context/feature-specs/022-help-support-page.md` and `plans/023-help-support-page-plan.md`.
 - Trips page work added `context/feature-specs/023-rides-trips-page.md` and `plans/024-rides-trips-page-plan.md`.
-- Branch split workflow work added `context/feature-specs/031-branch-split-and-pr-merge.md` and updated `plans/900-branch-split-and-merge-plan.md`.
+- Common search bar work added `context/feature-specs/024-common-searchbar-widget.md` and `plans/025-common-searchbar-widget-plan.md`.
+- Passenger map/location work added `context/feature-specs/025-passenger-map-location-tracking.md` and `plans/026-passenger-map-location-tracking-plan.md`.
+- Driver registration work added `context/feature-specs/026-driver-registration-flow.md` and `plans/027-driver-registration-flow-plan.md`.
+- Driver verification demo status work added `context/feature-specs/027-driver-verification-demo-status.md` and `plans/028-driver-verification-demo-status-plan.md`.
+- Driver submit-review/header polish work added `context/feature-specs/028-driver-submit-review-and-header-polish.md` and `plans/029-driver-submit-review-and-header-polish-plan.md`.
+- Driver registration step submission page work added `context/feature-specs/029-driver-registration-step-submission-pages.md` and `plans/030-driver-registration-step-submission-pages-plan.md`.
 - Client screen structure normalization work added `context/feature-specs/030-client-screen-structure-normalization.md` and `plans/031-client-screen-structure-normalization-plan.md`.
+- Branch split workflow work added `context/feature-specs/031-branch-split-and-pr-merge.md` and updated `plans/900-branch-split-and-merge-plan.md`.
