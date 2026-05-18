@@ -36,35 +36,49 @@ Read these files in order before implementing code or making architectural decis
 28. `context/feature-specs/021-notifications-page.md` - prompt for Settings Notifications page
 29. `context/feature-specs/022-help-support-page.md` - prompt for Settings Help & Support page
 30. `context/feature-specs/023-rides-trips-page.md` - prompt for Trips ride history page
-31. `context/feature-specs/031-branch-split-and-pr-merge.md` - prompt for splitting current mixed client work into scoped PR branches
-32. `plans/000-client-product-and-architecture-plan.md` - canonical client product and architecture plan
-33. `plans/001-flutter-scaffold-plan.md` - Flutter scaffold plan
-34. `plans/002-design-system-foundation-plan.md` - shared design system plan
-35. `plans/003-onboarding-flow-plan.md` - onboarding implementation plan
-36. `plans/004-auth-gate-and-login-plan.md` - auth gate and login plan
-37. `plans/005-phone-otp-and-profile-plan.md` - phone OTP and profile plan
-38. `plans/006-permissions-and-home-plan.md` - permissions and home plan
-39. `plans/007-google-phone-link-screen-plan.md` - Google phone-link auth flow plan
-40. `plans/008-client-context-documentation-plan.md` - client documentation setup plan
-41. `plans/009-firebase-config-hardening-plan.md` - Firebase config hardening plan
-42. `plans/010-navigation-menu-plan.md` - post-auth navigation menu plan
-43. `plans/011-update-navigation-menu-design-plan.md` - custom navigation menu design plan
-44. `plans/012-navigation-menu-alignment-and-icon-size-plan.md` - navigation indicator alignment and icon size plan
-45. `plans/013-ride-search-result-widget-plan.md` - reusable ride search result widget plan
-46. `plans/014-demo-ride-data-and-home-recents-plan.md` - typed demo ride data and home recents plan
-47. `plans/015-home-carousel-plan.md` - home banner carousel plan
-48. `plans/016-home-categories-plan.md` - home service categories plan
-49. `plans/017-widget-design-token-cleanup-plan.md` - shared widget design token cleanup plan
-50. `plans/018-client-structure-cleanup-plan.md` - client structure cleanup plan
-51. `plans/019-settings-user-info-navigation-plan.md` - Settings user-info navigation plan
-52. `plans/020-common-edit-drawer-plan.md` - reusable shadcn edit drawer plan
-53. `plans/021-privacy-policy-page-plan.md` - Settings Privacy Policy page plan
-54. `plans/022-notifications-page-plan.md` - Settings Notifications page plan
-55. `plans/023-help-support-page-plan.md` - Settings Help & Support page plan
-56. `plans/024-rides-trips-page-plan.md` - Trips ride history page plan
-57. `plans/900-branch-split-and-merge-plan.md` - Git branch split and merge plan
-58. `plans/901-empty-folder-restoration-plan.md` - empty-folder preservation plan
-59. `plans/decisions-log.md` - permanent decision record
+31. `context/feature-specs/024-common-searchbar-widget.md` - prompt for common search bar widget
+32. `context/feature-specs/025-passenger-map-location-tracking.md` - prompt for passenger map and live ride tracking foundation
+33. `context/feature-specs/026-driver-registration-flow.md` - prompt for Settings-launched driver registration entry flow
+34. `context/feature-specs/027-driver-verification-demo-status.md` - prompt for backend-offline driver verification status demos
+35. `context/feature-specs/028-driver-submit-review-and-header-polish.md` - prompt for driver submit-review CTA and header polish
+36. `context/feature-specs/029-driver-registration-step-submission-pages.md` - prompt for driver registration step forms and presigned uploads
+37. `context/feature-specs/030-client-screen-structure-normalization.md` - prompt for client screen structure normalization
+38. `context/feature-specs/031-branch-split-and-pr-merge.md` - prompt for splitting current mixed client work into scoped PR branches
+39. `plans/000-client-product-and-architecture-plan.md` - canonical client product and architecture plan
+40. `plans/001-flutter-scaffold-plan.md` - Flutter scaffold plan
+41. `plans/002-design-system-foundation-plan.md` - shared design system plan
+42. `plans/003-onboarding-flow-plan.md` - onboarding implementation plan
+43. `plans/004-auth-gate-and-login-plan.md` - auth gate and login plan
+44. `plans/005-phone-otp-and-profile-plan.md` - phone OTP and profile plan
+45. `plans/006-permissions-and-home-plan.md` - permissions and home plan
+46. `plans/007-google-phone-link-screen-plan.md` - Google phone-link auth flow plan
+47. `plans/008-client-context-documentation-plan.md` - client documentation setup plan
+48. `plans/009-firebase-config-hardening-plan.md` - Firebase config hardening plan
+49. `plans/010-navigation-menu-plan.md` - post-auth navigation menu plan
+50. `plans/011-update-navigation-menu-design-plan.md` - custom navigation menu design plan
+51. `plans/012-navigation-menu-alignment-and-icon-size-plan.md` - navigation indicator alignment and icon size plan
+52. `plans/013-ride-search-result-widget-plan.md` - reusable ride search result widget plan
+53. `plans/014-demo-ride-data-and-home-recents-plan.md` - typed demo ride data and home recents plan
+54. `plans/015-home-carousel-plan.md` - home banner carousel plan
+55. `plans/016-home-categories-plan.md` - home service categories plan
+56. `plans/017-widget-design-token-cleanup-plan.md` - shared widget design token cleanup plan
+57. `plans/018-client-structure-cleanup-plan.md` - client structure cleanup plan
+58. `plans/019-settings-user-info-navigation-plan.md` - Settings user-info navigation plan
+59. `plans/020-common-edit-drawer-plan.md` - reusable shadcn edit drawer plan
+60. `plans/021-privacy-policy-page-plan.md` - Settings Privacy Policy page plan
+61. `plans/022-notifications-page-plan.md` - Settings Notifications page plan
+62. `plans/023-help-support-page-plan.md` - Settings Help & Support page plan
+63. `plans/024-rides-trips-page-plan.md` - Trips ride history page plan
+64. `plans/025-common-searchbar-widget-plan.md` - common search bar widget plan
+65. `plans/026-passenger-map-location-tracking-plan.md` - passenger map and live ride tracking foundation plan
+66. `plans/027-driver-registration-flow-plan.md` - Settings-launched driver registration entry flow plan
+67. `plans/028-driver-verification-demo-status-plan.md` - backend-offline driver verification status demo plan
+68. `plans/029-driver-submit-review-and-header-polish-plan.md` - driver submit-review CTA and header polish plan
+69. `plans/030-driver-registration-step-submission-pages-plan.md` - driver registration step forms and presigned upload plan
+70. `plans/031-client-screen-structure-normalization-plan.md` - client screen structure normalization plan
+71. `plans/900-branch-split-and-merge-plan.md` - Git branch split and merge plan
+72. `plans/901-empty-folder-restoration-plan.md` - empty-folder preservation plan
+73. `plans/decisions-log.md` - permanent decision record
 
 Update `context/progress-tracker.md` after each meaningful implementation change.
 
