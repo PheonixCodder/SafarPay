@@ -11,7 +11,9 @@
 - Keep shared constants in `SColors`, `SSizes`, and other files under `lib/utils/constants`.
 - Keep reusable opacity values in `SOpacities` and apply them through `SHelperFunctions.withOpacity`.
 - Keep each Dart source file focused on one primary widget class.
+- Feature screen folders should use `screens/<screen_name>/<screen_name>.dart` with screen-local widgets in `screens/<screen_name>/widgets/` and owned subscreens in `screens/<screen_name>/screens/`.
 - Move widgets shared by multiple screens or features into `lib/common/widgets`.
+- Move reusable search input surfaces into `lib/common/widgets/searchbar`; keep feature-specific result lists in the owning feature.
 - Put reusable route transitions under `lib/common/navigation`.
 - Read `client/.agents/skills/shadcn-ui-flutter/SKILL.md` before introducing or changing shadcn widgets.
 
@@ -62,11 +64,12 @@
 - `lib/common/widgets/containers/` - reusable decorative and layout containers.
 - `lib/common/widgets/images/` - reusable image presentation widgets.
 - `lib/common/widgets/drawers/` - reusable drawer/sheet components.
+- `lib/common/widgets/searchbar/` - reusable presentational search inputs.
 - `lib/data/` - shared DTOs, backend-aligned models, demo records, and future data providers.
 - `lib/features/<feature>/controllers/` - GetX controllers and flow state.
 - `lib/features/<feature>/models/` - feature-specific data models.
 - `lib/features/<feature>/repositories/` - API/repository boundary for a feature.
-- `lib/features/<feature>/screens/` - screen widgets and screen-local widgets.
+- `lib/features/<feature>/screens/<screen_name>/` - one main screen file, optional `widgets/`, and optional owned `screens/`.
 - `lib/features/<feature>/screens/<screen>/widgets/` - focused screen-only widget files.
 - `lib/features/<feature>/utils/` - feature-specific navigation and helpers.
 - `lib/utils/` - app-wide constants, helpers, HTTP, storage, logging, theme, and validators.

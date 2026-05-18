@@ -68,11 +68,11 @@ Use `iconsax` icons for Flutter UI. Typical sizes come from `SSizes.iconSm`, `SS
 - Google phone link: identity confirmation card followed by phone number form; no Google button after Google verification.
 - Navigation menu: custom bottom bar anchored at the bottom with Home, Trips, Rent, and Profile tabs; active tab uses a primary-colored icon, label, and animated top indicator line with no pill highlight. The indicator position is calculated from the available tab width so it remains centered across screen sizes.
 - Ride search result: compact row with a rounded light icon tile, primary title, muted one-line address, muted right-aligned duration, and a divider aligned under the text area.
-- Home search: search field is followed by recent ride rows rendered with `SSearchResult`.
+- Home search: the search field uses common `SSearchBar`; recent ride rows remain Home-owned and render with `SSearchResult`.
 - Home carousel: local banner images are displayed with `SHomeSlider`, `SSizes.imageCarouselHeight`, and `SSizes.cardRadiusLg`.
 - Home categories: light-mode service tiles are displayed with `SHomeCategories`; the layout uses one dominant Groceries tile, stacked City rides and City to City tiles, then Couriers and Freight tiles below.
 - Notification, category, and ride search widgets keep upgraded visual dimensions in `SSizes` rather than local literals.
-- Shared visual primitives such as rounded images, circular images, decorative containers, primary headers, and navigation tabs live in `lib/common/widgets` so reused UI keeps the same sizing and color tokens.
+- Shared visual primitives such as rounded images, circular images, decorative containers, search bars, primary headers, and navigation tabs live in `lib/common/widgets` so reused UI keeps the same sizing and color tokens.
 - Settings: personalization settings uses a branded primary header, profile tile, focused settings menu rows, switch rows, and a full-width logout action composed from one-widget files.
 - Settings user-info navigation: profile edit and the `User Info` row open the personalization `ProfileScreen` with a reusable right-slide transition from `lib/common/navigation`.
 - Common edit drawer: existing-value edits use a right-side shadcn `ShadSheet` with SafarPay colors, compact labels, a single input, and clear cancel/save actions.
@@ -80,6 +80,7 @@ Use `iconsax` icons for Flutter UI. Typical sizes come from `SSizes.iconSm`, `SS
 - Privacy Policy: the Settings `Privacy & Security` row opens an informational subpage with `SAppBar`, the shared right-slide transition, a white summary panel, compact trust cues, and expandable policy sections rendered from mapped content.
 - Notifications: the Settings `Notifications` row opens a timeline-style inbox subpage with a compact summary panel, horizontal filter chips, grouped date labels, and soft notification rows for trips, payments, offers, safety, and system updates.
 - Help & Support: the Settings `Help & Support` row opens a reference-matched support hub with a teal `SPrimaryHeaderContainer`, centered scooter support illustration, and a rounded white options sheet with simple icon rows.
+- Driver registration: the Settings `Register as a Driver` row opens a light-mode earning category list with image tiles, titles, subtitles, and chevrons. Category selection opens a matching vehicle selection list. Vehicle selection opens a teal `SPrimaryHeaderContainer` verification checklist with a stacked vehicle chip, category title, helper copy, right-aligned driver artwork, an overall status notice, and four actionable status cards for CNIC, license, selfie, and vehicle details. Each card opens a focused light-mode form with document upload tiles or a realtime selfie capture surface. When all four status groups are submitted, a full-width primary `Submit for Review` button appears beneath the checklist.
 - Trips: the bottom navigation Trips tab opens a clean ride operations page with `SAppBar`, a segmented four-tab control, compact route-first ride cards, and a shared ride details screen.
 - Home: first navigation tab with app bar greeting and a large icon treatment.
 - Starter tabs: Trips and Rent use restrained empty states until their full feature units are built; Profile opens the Settings experience.
@@ -91,5 +92,6 @@ Use `iconsax` icons for Flutter UI. Typical sizes come from `SSizes.iconSm`, `SS
 - Onboarding images: `assets/images/onboarding/ON1.jpg`, `ON2.jpg`, `ON3.jpg`.
 - Home banners: `assets/images/banners/banner1.png`, `banner2.png`.
 - Home categories: `assets/images/categories/groceries.png`, `city-rides.png`, `city-to-city.png`, `courier.png`, `freight.png`.
+- Driver registration: `assets/images/driver/register_image.png`, vehicle placeholders under `assets/images/driver/`, and `assets/images/rides/car.png`.
 - Icons: local SVG assets plus Iconsax for Flutter controls.
 - Fonts: upright SF Pro Display variants declared in `pubspec.yaml`.
