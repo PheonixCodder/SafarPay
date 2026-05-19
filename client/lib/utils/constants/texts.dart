@@ -317,6 +317,9 @@ class STexts {
   static const String helpSupportSomethingElse = "Something else";
   static const String helpSupportPlaceholderSubTitle =
       "This support section will be connected in a future unit.";
+  static const String contactTitle = "Let's get in touch!";
+  static const String contactSupportPhone = "+92 317 805 9528";
+  static const String contactSupportEmail = "support@safarpay.com";
 
   // -- Edit Drawer
   static const String editDrawerSave = "Save changes";
