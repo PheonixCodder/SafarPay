@@ -7,6 +7,8 @@ import '../data/device_location_service.dart';
 import '../data/live_ride_socket_event.dart';
 import '../data/live_ride_socket_repository.dart';
 import '../data/location_repository.dart';
+import '../data/ride_socket_event.dart';
+import '../data/ride_socket_repository.dart';
 import '../domain/location_models.dart';
 
 class SRideTrackingController extends GetxController {
@@ -14,24 +16,29 @@ class SRideTrackingController extends GetxController {
     required this.rideId,
     SLocationRepository locationRepository = const SLocationRepository(),
     SLiveRideSocketRepository? socketRepository,
+    SRideSocketRepository? rideSocketRepository,
     SDeviceLocationService deviceLocationService =
         const SDeviceLocationService(),
   })  : _locationRepository = locationRepository,
         _socketRepository = socketRepository ?? SLiveRideSocketRepository(),
+        _rideSocketRepository = rideSocketRepository ?? SRideSocketRepository(),
         _deviceLocationService = deviceLocationService;
 
   final String rideId;
   final SLocationRepository _locationRepository;
   final SLiveRideSocketRepository _socketRepository;
+  final SRideSocketRepository _rideSocketRepository;
   final SDeviceLocationService _deviceLocationService;
 
   final RxBool isConnecting = false.obs;
   final RxString statusMessage = 'Connecting to ride tracking...'.obs;
+  final RxString rideStatus = ''.obs;
   final Rxn<SDriverLiveLocation> driverLocation = Rxn<SDriverLiveLocation>();
   final Rxn<SPassengerLiveLocation> passengerLocation =
       Rxn<SPassengerLiveLocation>();
 
   StreamSubscription<SLiveRideSocketEvent>? _socketSubscription;
+  StreamSubscription<SRideSocketEvent>? _rideSocketSubscription;
   StreamSubscription<SCoordinate>? _passengerSubscription;
 
   List<SMapMarker> get markers {
@@ -62,8 +69,10 @@ class SRideTrackingController extends GetxController {
   @override
   void onClose() {
     _socketSubscription?.cancel();
+    _rideSocketSubscription?.cancel();
     _passengerSubscription?.cancel();
     _socketRepository.close();
+    _rideSocketRepository.close();
     super.onClose();
   }
 
@@ -89,6 +98,12 @@ class SRideTrackingController extends GetxController {
       },
     );
 
+    _rideSocketSubscription = _rideSocketRepository
+        .connectPassenger(rideId: rideId)
+        .listen(_handleRideSocketEvent, onError: (_) {
+      statusMessage.value = 'Ride status updates are reconnecting...';
+    });
+
     _passengerSubscription =
         _deviceLocationService.positionStream().listen((coordinate) {
       passengerLocation.value = SPassengerLiveLocation(
@@ -108,6 +123,15 @@ class SRideTrackingController extends GetxController {
       statusMessage.value = 'Driver location updated.';
     } else if (event.type == SLiveRideSocketEventType.error) {
       statusMessage.value = event.detail ?? 'Ride tracking error.';
+    }
+  }
+
+  void _handleRideSocketEvent(SRideSocketEvent event) {
+    if (event.type == SRideSocketEventType.rideUpdated) {
+      rideStatus.value = event.status ?? rideStatus.value;
+      statusMessage.value = 'Ride status updated.';
+    } else if (event.type == SRideSocketEventType.error) {
+      statusMessage.value = event.detail ?? 'Ride status error.';
     }
   }
 }

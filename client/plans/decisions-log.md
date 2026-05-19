@@ -4,6 +4,18 @@ Permanent record of decisions that affect product scope, architecture, auth beha
 
 ## Decisions
 
+### Passenger Map-First Hybrid Booking
+
+- Date: 2026-05-18
+- Decision: Passenger ride booking opens as a map-first draggable-sheet flow and creates non-fixed rides with backend `HYBRID` pricing for offer-style matching.
+- Rationale: The product direction matches inDrive-style passenger offers while preserving SafarPay's backend boundaries: Flutter renders maps and captures intent, while backend services own geocoding, routing, ride creation, bidding sessions, and authorization.
+
+### Passenger Bidding Session Contract
+
+- Date: 2026-05-18
+- Decision: Production live offer tracking requires Ride creation or the passenger Ride WebSocket to expose `bidding_session_id` for non-fixed rides.
+- Rationale: The current Bidding API reads sessions by session id, but the client starts from a newly created ride. A clear ride-to-session contract avoids fragile polling or fake live bid state.
+
 ### Driver Registration Verification State
 
 - Date: 2026-05-17
@@ -200,3 +212,28 @@ Permanent record of decisions that affect product scope, architecture, auth beha
 
 - **Decision**: Home screen widgets now live under `lib/features/home/screens/home/widgets`, and the old `lib/features/home/screens/widgets` files are removed.
 - **Reason**: Screen-local widgets should stay with the screen that owns them, matching the one-screen-file plus widgets-folder convention used across the client.
+
+### 0032 - Use temporary demo data for passenger location UI testing
+
+- **Decision**: While backend services are unavailable, Location, Geospatial, Ride, and Bidding repositories return centralized demo fixtures from `lib/features/location/data/demo`.
+- **Reason**: The map-first passenger booking UI needs to remain testable without changing the production contract. Real backend fetch blocks stay commented in place for quick restoration, and the passenger offer flow remains `HYBRID`.
+
+### 0033 - Gate demo location flow behind a compile-time switch
+
+- **Decision**: Use `SAFARPAY_USE_LOCATION_DEMO_DATA` to choose between centralized demo fixtures and real Location, Geospatial, Ride, and Bidding backend calls.
+- **Reason**: The UI still needs to run without backend services, but the production code paths should stay wired and testable without manual commenting or file edits.
+
+### 0034 - Keep Ride, Bidding, and Location WebSockets separate
+
+- **Decision**: Use separate repositories for Ride lifecycle WebSockets, Bidding negotiation WebSockets, and Location live-coordinate WebSockets.
+- **Reason**: These channels have different backend services, auth paths, event shapes, and ownership. Keeping them separate prevents ride state, bids, and GPS updates from becoming coupled in one socket abstraction.
+
+### 0035 - Force ride and bidding runtime paths to demo while backend is unavailable
+
+- **Decision**: Ride, Bidding, Location, Geospatial, and live socket repositories now return deterministic demo responses directly, with real HTTP/WebSocket code preserved as comments beside each method.
+- **Reason**: Backend services are not currently runnable, but the map-first passenger booking, matching, and tracking UI still needs full-flow data for testing. Preserving the real blocks keeps the restore path explicit.
+
+### 0036 - Home categories deep-link into passenger booking categories
+
+- **Decision**: Home service category tiles open `RideSearchScreen` with the matching `SPassengerServiceCategory` selected.
+- **Reason**: The Home category grid is a service entry surface; preserving the selected category through navigation keeps the booking flow consistent with the user's tap intent.

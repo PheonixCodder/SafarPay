@@ -1,5 +1,19 @@
 import '../../../features/location/domain/location_models.dart';
 
+class SMapController {
+  SMapboxCameraReader? _cameraReader;
+
+  void attachCameraReader(SMapboxCameraReader cameraReader) {
+    _cameraReader = cameraReader;
+  }
+
+  Future<SCoordinate?> centerCoordinate() {
+    return _cameraReader?.call() ?? Future.value();
+  }
+}
+
+typedef SMapboxCameraReader = Future<SCoordinate?> Function();
+
 enum SMapMarkerType {
   pickup,
   dropoff,

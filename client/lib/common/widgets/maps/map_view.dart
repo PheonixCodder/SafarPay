@@ -12,21 +12,33 @@ class SMapView extends StatefulWidget {
   const SMapView({
     super.key,
     required this.initialCenter,
+    this.controller,
     this.markers = const [],
     this.route,
     this.zoom = 13,
     this.isLoading = false,
     this.errorMessage,
+    this.fullBleed = false,
+    this.showStatusPill = true,
+    this.showRecenterButton = true,
+    this.showCenterPin = false,
+    this.borderRadius,
     this.onRecenter,
     this.onMapCreated,
   });
 
   final SCoordinate initialCenter;
+  final SMapController? controller;
   final List<SMapMarker> markers;
   final SRoutePreview? route;
   final double zoom;
   final bool isLoading;
   final String? errorMessage;
+  final bool fullBleed;
+  final bool showStatusPill;
+  final bool showRecenterButton;
+  final bool showCenterPin;
+  final double? borderRadius;
   final VoidCallback? onRecenter;
   final ValueChanged<MapboxMap>? onMapCreated;
 
@@ -48,7 +60,9 @@ class _SMapViewState extends State<SMapView> {
     return Stack(
       children: [
         ClipRRect(
-          borderRadius: BorderRadius.circular(SSizes.cardRadiusLg),
+          borderRadius: BorderRadius.circular(
+            widget.borderRadius ?? (widget.fullBleed ? 0 : SSizes.cardRadiusLg),
+          ),
           child: MapWidget(
             key: const ValueKey('safarpay-map'),
             styleUri: MapboxStyles.MAPBOX_STREETS,
@@ -67,16 +81,28 @@ class _SMapViewState extends State<SMapView> {
             onMapCreated: _handleMapCreated,
           ),
         ),
-        Positioned(
-          left: SSizes.md,
-          top: SSizes.md,
-          right: SSizes.md,
-          child: _MapStatusPill(
-            markers: widget.markers,
-            route: widget.route,
-            errorMessage: widget.errorMessage,
+        if (widget.showStatusPill)
+          Positioned(
+            left: SSizes.md,
+            top: SSizes.md,
+            right: SSizes.md,
+            child: _MapStatusPill(
+              markers: widget.markers,
+              route: widget.route,
+              errorMessage: widget.errorMessage,
+            ),
           ),
-        ),
+        if (widget.showCenterPin)
+          const Center(
+            child: _MapCenterPin(),
+          ),
+        if (widget.showCenterPin)
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.only(top: 44),
+              child: _MapPinShadow(),
+            ),
+          ),
         if (widget.isLoading)
           Positioned.fill(
             child: ColoredBox(
@@ -87,17 +113,18 @@ class _SMapViewState extends State<SMapView> {
               child: Center(child: CircularProgressIndicator()),
             ),
           ),
-        Positioned(
-          right: SSizes.md,
-          bottom: SSizes.md,
-          child: FloatingActionButton.small(
-            heroTag: 's-map-recenter',
-            backgroundColor: SColors.white,
-            foregroundColor: SColors.primary,
-            onPressed: widget.onRecenter ?? _recenter,
-            child: const Icon(Icons.my_location),
+        if (widget.showRecenterButton)
+          Positioned(
+            right: SSizes.md,
+            bottom: SSizes.md,
+            child: FloatingActionButton.small(
+              heroTag: 's-map-recenter',
+              backgroundColor: SColors.white,
+              foregroundColor: SColors.primary,
+              onPressed: widget.onRecenter ?? _recenter,
+              child: const Icon(Icons.my_location),
+            ),
           ),
-        ),
       ],
     );
   }
@@ -110,7 +137,18 @@ class _SMapViewState extends State<SMapView> {
         pulsingEnabled: true,
       ),
     );
+    widget.controller?.attachCameraReader(_centerCoordinate);
     widget.onMapCreated?.call(mapboxMap);
+  }
+
+  Future<SCoordinate?> _centerCoordinate() async {
+    final camera = await _mapboxMap?.getCameraState();
+    final center = camera?.center.coordinates;
+    final latitude = center?.lat.toDouble();
+    final longitude = center?.lng.toDouble();
+    if (latitude == null || longitude == null) return null;
+
+    return SCoordinate(latitude: latitude, longitude: longitude);
   }
 
   Future<void> _recenter() async {
@@ -125,6 +163,56 @@ class _SMapViewState extends State<SMapView> {
         zoom: widget.zoom,
       ),
       MapAnimationOptions(duration: 500),
+    );
+  }
+}
+
+class _MapCenterPin extends StatelessWidget {
+  const _MapCenterPin();
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: SColors.white,
+        borderRadius: BorderRadius.circular(SSizes.radiusFull),
+        boxShadow: [
+          BoxShadow(
+            color: SHelperFunctions.withOpacity(
+              SColors.pureBlack,
+              SOpacities.shadow,
+            ),
+            blurRadius: SSizes.shadowBlurLg,
+            offset: const Offset(0, SSizes.sm),
+          ),
+        ],
+      ),
+      child: const Padding(
+        padding: EdgeInsets.all(SSizes.sm),
+        child: Icon(
+          Icons.location_pin,
+          color: SColors.primary,
+          size: SSizes.iconLg,
+        ),
+      ),
+    );
+  }
+}
+
+class _MapPinShadow extends StatelessWidget {
+  const _MapPinShadow();
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: SHelperFunctions.withOpacity(
+          SColors.pureBlack,
+          SOpacities.placeholder,
+        ),
+        borderRadius: BorderRadius.circular(SSizes.radiusFull),
+      ),
+      child: const SizedBox(width: 22, height: 6),
     );
   }
 }
@@ -146,7 +234,7 @@ class _MapStatusPill extends StatelessWidget {
     final message = errorMessage ??
         (route == null
             ? '${markers.length} map point${markers.length == 1 ? '' : 's'}'
-            : '${route!.distanceKm.toStringAsFixed(1)} km • ${route!.durationMinutes.round()} min');
+            : '${route!.distanceKm.toStringAsFixed(1)} km - ${route!.durationMinutes.round()} min');
 
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -209,3 +297,4 @@ class _MapUnavailable extends StatelessWidget {
     );
   }
 }
+

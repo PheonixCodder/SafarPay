@@ -460,6 +460,123 @@ class VerificationCodeResponse {
   }
 }
 
+class ProofUploadUrlResponse {
+  const ProofUploadUrlResponse({
+    required this.presignedUrl,
+    required this.fileKey,
+    required this.expiresInSeconds,
+    required this.proofType,
+    required this.mimeType,
+  });
+
+  final String presignedUrl;
+  final String fileKey;
+  final int expiresInSeconds;
+  final ProofType proofType;
+  final String mimeType;
+
+  factory ProofUploadUrlResponse.fromJson(Map<String, dynamic> json) {
+    return ProofUploadUrlResponse(
+      presignedUrl: json['presigned_url'] as String,
+      fileKey: json['file_key'] as String,
+      expiresInSeconds: json['expires_in_seconds'] as int,
+      proofType: ProofType.fromJson(json['proof_type'] as String),
+      mimeType: json['mime_type'] as String,
+    );
+  }
+}
+
+class ProofImageWithUrlResponse extends ProofImageResponse {
+  const ProofImageWithUrlResponse({
+    required super.id,
+    required super.serviceRequestId,
+    required super.stopId,
+    required super.proofType,
+    required super.fileKey,
+    required super.fileName,
+    required super.mimeType,
+    required super.fileSizeBytes,
+    required super.isPrimary,
+    required super.uploadedByUserId,
+    required super.uploadedByDriverId,
+    required super.uploadedAt,
+    required this.viewUrl,
+  });
+
+  final String viewUrl;
+
+  factory ProofImageWithUrlResponse.fromJson(Map<String, dynamic> json) {
+    final proof = ProofImageResponse.fromJson(json);
+    return ProofImageWithUrlResponse(
+      id: proof.id,
+      serviceRequestId: proof.serviceRequestId,
+      stopId: proof.stopId,
+      proofType: proof.proofType,
+      fileKey: proof.fileKey,
+      fileName: proof.fileName,
+      mimeType: proof.mimeType,
+      fileSizeBytes: proof.fileSizeBytes,
+      isPrimary: proof.isPrimary,
+      uploadedByUserId: proof.uploadedByUserId,
+      uploadedByDriverId: proof.uploadedByDriverId,
+      uploadedAt: proof.uploadedAt,
+      viewUrl: json['view_url'] as String,
+    );
+  }
+}
+
+class DriverCandidateResponse {
+  const DriverCandidateResponse({
+    required this.driverId,
+    required this.distanceKm,
+    required this.vehicleType,
+    required this.rating,
+    required this.priorityScore,
+    required this.estimatedArrivalMinutes,
+  });
+
+  final String driverId;
+  final double distanceKm;
+  final String vehicleType;
+  final double? rating;
+  final double priorityScore;
+  final double? estimatedArrivalMinutes;
+
+  factory DriverCandidateResponse.fromJson(Map<String, dynamic> json) {
+    return DriverCandidateResponse(
+      driverId: json['driver_id'] as String,
+      distanceKm: _toDouble(json['distance_km']) ?? 0,
+      vehicleType: json['vehicle_type'] as String,
+      rating: _toDouble(json['rating']),
+      priorityScore: _toDouble(json['priority_score']) ?? 0,
+      estimatedArrivalMinutes: _toDouble(json['estimated_arrival_minutes']),
+    );
+  }
+}
+
+class NearbyDriversResponse {
+  const NearbyDriversResponse({
+    required this.rideId,
+    required this.candidates,
+    required this.count,
+  });
+
+  final String? rideId;
+  final List<DriverCandidateResponse> candidates;
+  final int count;
+
+  factory NearbyDriversResponse.fromJson(Map<String, dynamic> json) {
+    return NearbyDriversResponse(
+      rideId: json['ride_id'] as String?,
+      candidates: _toList(
+        json['candidates'],
+        DriverCandidateResponse.fromJson,
+      ),
+      count: json['count'] as int,
+    );
+  }
+}
+
 double? _toDouble(Object? value) {
   if (value == null) return null;
   if (value is double) return value;

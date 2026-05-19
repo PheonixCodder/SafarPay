@@ -43,6 +43,10 @@ class SApiConstants {
     'MAPBOX_ACCESS_TOKEN',
     defaultValue: '',
   );
+  static const bool useLocationDemoData = bool.fromEnvironment(
+    'SAFARPAY_USE_LOCATION_DEMO_DATA',
+    defaultValue: true,
+  );
 
   static const Duration connectTimeout = Duration(seconds: 20);
 
