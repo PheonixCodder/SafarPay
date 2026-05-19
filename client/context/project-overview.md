@@ -75,6 +75,7 @@ SafarPay is a ride-hailing mobile client for riders who need a fast, trustworthy
 - Feature-first structure under `lib/features`.
 - Context, feature-spec, plan, and decision documentation under `client/context` and `client/plans`.
 - Help & Support includes a local Terms & Conditions legal hub with typed static policy content and expandable detail pages.
+- Help & Support includes local FAQ categories, search, popular articles, article detail pages, related links, and helpful controls.
 
 ## Scope
 
@@ -90,6 +91,7 @@ SafarPay is a ride-hailing mobile client for riders who need a fast, trustworthy
 - Local home category assets and static category UI.
 - Personalization settings UI cleanup and reusable settings components.
 - Help & Support informational policy pages with local static Terms & Conditions content.
+- Help & Support FAQ categories, popular articles, and article details backed by local static content.
 - Reusable page transition helpers for common non-auth navigation patterns.
 - Reusable shadcn edit drawer for existing-value edits.
 - Driver registration entry, vehicle selection, Verification `/me` status rendering, KYC step submissions, and presigned document upload UI.
