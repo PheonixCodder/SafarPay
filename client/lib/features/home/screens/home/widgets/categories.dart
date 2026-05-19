@@ -1,3 +1,6 @@
+import 'package:client/common/navigation/right_slide_page_route.dart';
+import 'package:client/features/location/domain/ride_booking_models.dart';
+import 'package:client/features/location/screens/ride_search/ride_search_screen.dart';
 import 'package:client/utils/constants/colors.dart';
 import 'package:client/utils/constants/images.dart';
 import 'package:client/utils/constants/sizes.dart';
@@ -8,6 +11,17 @@ import 'category_tile.dart';
 
 class SHomeCategories extends StatelessWidget {
   const SHomeCategories({super.key});
+
+  void _openCategory(
+    BuildContext context,
+    SPassengerServiceCategory category,
+  ) {
+    Navigator.of(context).push(
+      SRightSlidePageRoute(
+        page: RideSearchScreen(initialCategory: category),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -61,7 +75,7 @@ class SHomeCategories extends StatelessWidget {
             height: SSizes.homeCategoryTopGridHeight,
             child: Row(
               children: [
-                const Expanded(
+                Expanded(
                   flex: 6,
                   child: SCategoryTile(
                     title: STexts.groceries,
@@ -69,24 +83,36 @@ class SHomeCategories extends StatelessWidget {
                     image: SImages.groceries,
                     isLarge: true,
                     showBadge: true,
+                    onTap: () => _openCategory(
+                      context,
+                      SPassengerServiceCategory.groceries,
+                    ),
                   ),
                 ),
                 const SizedBox(width: gap),
                 Expanded(
                   flex: 4,
                   child: Column(
-                    children: const [
+                    children: [
                       Expanded(
                         child: SCategoryTile(
                           title: STexts.cityRides,
                           image: SImages.cityRides,
+                          onTap: () => _openCategory(
+                            context,
+                            SPassengerServiceCategory.cityRides,
+                          ),
                         ),
                       ),
-                      SizedBox(height: gap),
+                      const SizedBox(height: gap),
                       Expanded(
                         child: SCategoryTile(
                           title: STexts.cityToCity,
                           image: SImages.cityToCity,
+                          onTap: () => _openCategory(
+                            context,
+                            SPassengerServiceCategory.cityToCity,
+                          ),
                         ),
                       ),
                     ],
@@ -102,18 +128,26 @@ class SHomeCategories extends StatelessWidget {
           SizedBox(
             height: SSizes.homeCategoryBottomGridHeight,
             child: Row(
-              children: const [
+              children: [
                 Expanded(
                   child: SCategoryTile(
                     title: STexts.courier,
                     image: SImages.courier,
+                    onTap: () => _openCategory(
+                      context,
+                      SPassengerServiceCategory.courier,
+                    ),
                   ),
                 ),
-                SizedBox(width: gap),
+                const SizedBox(width: gap),
                 Expanded(
                   child: SCategoryTile(
                     title: STexts.freight,
                     image: SImages.freight,
+                    onTap: () => _openCategory(
+                      context,
+                      SPassengerServiceCategory.freight,
+                    ),
                   ),
                 ),
               ],

@@ -12,6 +12,7 @@ class SCategoryTile extends StatelessWidget {
     this.subtitle,
     this.isLarge = false,
     this.showBadge = false,
+    this.onTap,
   });
 
   final String title;
@@ -19,141 +20,150 @@ class SCategoryTile extends StatelessWidget {
   final String? subtitle;
   final bool isLarge;
   final bool showBadge;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
 
-    return Container(
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(SSizes.homeCategoryTileRadius),
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(SSizes.homeCategoryTileRadius),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            SColors.white,
-            SHelperFunctions.withOpacity(
-              SColors.lightContainer,
-              SOpacities.nearSolid,
+        child: Ink(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(SSizes.homeCategoryTileRadius),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                SColors.white,
+                SHelperFunctions.withOpacity(
+                  SColors.lightContainer,
+                  SOpacities.nearSolid,
+                ),
+              ],
             ),
-          ],
-        ),
-        border: Border.all(
-          color: SHelperFunctions.withOpacity(
-            SColors.white,
-            SOpacities.border,
-          ),
-          width: SSizes.borderWidthSm,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: SHelperFunctions.withOpacity(
-              SColors.pureBlack,
-              SOpacities.soft,
+            border: Border.all(
+              color: SHelperFunctions.withOpacity(
+                SColors.white,
+                SOpacities.border,
+              ),
+              width: SSizes.borderWidthSm,
             ),
-            blurRadius: SSizes.shadowBlurLg,
-            offset: const Offset(0, SSizes.shadowOffsetYMd),
-          ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          Positioned(
-            top: SSizes.homeCategoryDecorCircleTop,
-            right: SSizes.homeCategoryDecorCircleRight,
-            child: Container(
-              width: SSizes.homeCategoryDecorCircleSize,
-              height: SSizes.homeCategoryDecorCircleSize,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
                 color: SHelperFunctions.withOpacity(
-                  SColors.primary,
-                  SOpacities.light,
+                  SColors.pureBlack,
+                  SOpacities.soft,
+                ),
+                blurRadius: SSizes.shadowBlurLg,
+                offset: const Offset(0, SSizes.shadowOffsetYMd),
+              ),
+            ],
+          ),
+          child: Stack(
+            children: [
+              Positioned(
+                top: SSizes.homeCategoryDecorCircleTop,
+                right: SSizes.homeCategoryDecorCircleRight,
+                child: Container(
+                  width: SSizes.homeCategoryDecorCircleSize,
+                  height: SSizes.homeCategoryDecorCircleSize,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: SHelperFunctions.withOpacity(
+                      SColors.primary,
+                      SOpacities.light,
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ),
-          Positioned(
-            right: isLarge
-                ? SSizes.homeCategoryLargeImageRight
-                : SSizes.homeCategorySmallImageRight,
-            bottom: isLarge
-                ? SSizes.homeCategoryLargeImageBottom
-                : SSizes.homeCategorySmallImageBottom,
-            child: Hero(
-              tag: title,
-              child: Image.asset(
-                image,
-                height: isLarge
-                    ? SSizes.homeCategoryLargeImageHeight
-                    : SSizes.homeCategorySmallImageHeight,
-                fit: BoxFit.contain,
+              Positioned(
+                right: isLarge
+                    ? SSizes.homeCategoryLargeImageRight
+                    : SSizes.homeCategorySmallImageRight,
+                bottom: isLarge
+                    ? SSizes.homeCategoryLargeImageBottom
+                    : SSizes.homeCategorySmallImageBottom,
+                child: Hero(
+                  tag: title,
+                  child: Image.asset(
+                    image,
+                    height: isLarge
+                        ? SSizes.homeCategoryLargeImageHeight
+                        : SSizes.homeCategorySmallImageHeight,
+                    fit: BoxFit.contain,
+                  ),
+                ),
               ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(SSizes.md),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+              Padding(
+                padding: const EdgeInsets.all(SSizes.md),
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: SizedBox(
-                        width: isLarge
-                            ? SSizes.homeCategoryLargeTitleWidth
-                            : SSizes.homeCategorySmallTitleWidth,
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: SizedBox(
+                            width: isLarge
+                                ? SSizes.homeCategoryLargeTitleWidth
+                                : SSizes.homeCategorySmallTitleWidth,
+                            child: Text(
+                              title,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: textTheme.titleMedium?.copyWith(
+                                fontSize: isLarge
+                                    ? SSizes.homeCategoryLargeTitleFontSize
+                                    : SSizes.homeCategorySmallTitleFontSize,
+                                fontWeight: FontWeight.w800,
+                                height: SSizes.homeCategoryTileTitleHeight,
+                                letterSpacing:
+                                    SSizes.homeCategoryTileTitleLetterSpacing,
+                                color: SColors.textPrimary,
+                              ),
+                            ),
+                          ),
+                        ),
+                        if (showBadge) ...[
+                          const SizedBox(width: SSizes.sm),
+                          const SCategoryBadge(),
+                        ],
+                      ],
+                    ),
+                    const Spacer(),
+                    if (subtitle != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: SSizes.sm,
+                          vertical: SSizes.homeCategorySubtitleVerticalPadding,
+                        ),
+                        decoration: BoxDecoration(
+                          color: SHelperFunctions.withOpacity(
+                            SColors.success,
+                            SOpacities.successTint,
+                          ),
+                          borderRadius:
+                              BorderRadius.circular(SSizes.cardRadiusMd),
+                        ),
                         child: Text(
-                          title,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: textTheme.titleMedium?.copyWith(
-                            fontSize: isLarge
-                                ? SSizes.homeCategoryLargeTitleFontSize
-                                : SSizes.homeCategorySmallTitleFontSize,
-                            fontWeight: FontWeight.w800,
-                            height: SSizes.homeCategoryTileTitleHeight,
-                            letterSpacing:
-                                SSizes.homeCategoryTileTitleLetterSpacing,
-                            color: SColors.textPrimary,
+                          subtitle!,
+                          style: textTheme.labelLarge?.copyWith(
+                            color: SColors.success,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                       ),
-                    ),
-                    if (showBadge) ...[
-                      const SizedBox(width: SSizes.sm),
-                      const SCategoryBadge(),
-                    ],
                   ],
                 ),
-                const Spacer(),
-                if (subtitle != null)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: SSizes.sm,
-                      vertical: SSizes.homeCategorySubtitleVerticalPadding,
-                    ),
-                    decoration: BoxDecoration(
-                      color: SHelperFunctions.withOpacity(
-                        SColors.success,
-                        SOpacities.successTint,
-                      ),
-                      borderRadius: BorderRadius.circular(SSizes.cardRadiusMd),
-                    ),
-                    child: Text(
-                      subtitle!,
-                      style: textTheme.labelLarge?.copyWith(
-                        color: SColors.success,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

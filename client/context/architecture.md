@@ -13,7 +13,7 @@
 | HTTP | `http` through `SHttpClient` | Backend API communication |
 | Maps | Mapbox Maps Flutter SDK | Native Android/iOS passenger map rendering |
 | Device location | `geolocator` + `permission_handler` | Foreground passenger GPS for pickup and live ride context |
-| Realtime | `web_socket_channel` | Passenger ride tracking WebSocket consumption |
+| Realtime | `web_socket_channel` | Passenger ride tracking and bidding WebSocket consumption |
 | Driver verification | Verification service HTTP APIs + presigned document uploads | Driver registration status, KYC step submissions, and direct upload to backend-issued object storage URLs |
 | UI assets | Local fonts, images, logos, icons | Branded client experience |
 | UI components | Material widgets, GetX shell, and `shadcn_ui` | Native Flutter UI with reusable shadcn overlays where planned |
@@ -33,10 +33,10 @@
 - `lib/common/widgets/ride/` - reusable ride UI building blocks shared across search, booking, and ride flows.
 - `lib/common/widgets/maps/` - reusable Mapbox-backed passenger map widgets and map marker presentation models.
 - `lib/data/` - shared DTOs, demo data, and future client-side data abstractions.
-- `lib/data/rides/` - backend-aligned ride response models and demo ride data for UI development before live API integration.
+- `lib/data/rides/` - backend-aligned ride response models, proof/nearby-driver DTOs, and demo ride data for UI development before live API integration.
 - `lib/features/authentication/` - onboarding, login, OTP, profile completion, permissions, auth models, repository, and auth navigation helpers.
 - `lib/features/home/` - post-auth starter home experience, using screen folders with screen-local widgets.
-- `lib/features/location/` - passenger location, geospatial, map, route preview, and live ride tracking client layer, with each screen isolated in its own screen folder.
+- `lib/features/location/` - passenger location, geospatial, map-first ride booking, route preview, hybrid offers, and live ride tracking client layer, with each screen isolated in its own screen folder.
 - `lib/features/personalization/` - settings and profile-facing personalization surfaces.
 - `lib/features/personalization/screens/driver_registration/` - Settings-launched driver onboarding entry, earning category and vehicle selection, Verification `/me` status rendering, KYC step forms, and presigned document upload orchestration.
 - `lib/features/personalization/screens/privacy_policy/` - Settings legal/privacy subpage with typed mapped policy content.
@@ -61,14 +61,16 @@
 - After permissions are complete, all auth success paths enter `NavigationMenu`; `HomeScreen` is not used as a direct auth destination.
 - Current auth is complete for client UI and mocked repository flows. Production backend endpoint activation remains pending.
 - Passenger map flows call backend Location and Geospatial services for geocoding, reverse geocoding, pickup validation, route preview, and live ride location reads.
-- Active ride tracking uses Location Service WebSocket query-token auth because mobile WebSocket clients cannot reliably set authorization headers during upgrade.
+- Passenger booking creates backend Ride requests with `HYBRID` pricing for offer-style flows and keeps `FIXED` support available for direct-price flows; passenger UI must not expose `BID_BASED`.
+- Temporary passenger ride/location demo mode is active while backend services are unavailable. Location, Geospatial, Ride, Bidding, and live socket repositories return demo fixtures directly, with real HTTP/WebSocket blocks commented beside each method for restoration.
+- Active ride tracking uses separate WebSockets for Location live coordinates, Ride lifecycle updates, and Bidding negotiation updates because each backend service owns a different event contract.
 - Driver registration status reads from Verification service `GET /api/v1/verification/me`; CNIC, license, selfie, and vehicle steps POST metadata to Verification endpoints, receive presigned upload URLs, and PUT image bytes directly to those URLs.
 
 ## Storage Model
 
 - **Secure token storage**: access token and refresh token only.
 - **Local app storage**: completion flags such as permissions status.
-- **Demo ride data**: typed static records under `lib/data/rides` until backend ride endpoints are connected.
+- **Demo ride data**: typed static records and feature fixtures currently power the ride, bidding, location, geospatial, and live socket flows until backend services are available.
 - **Mapbox token**: public client token is supplied through `MAPBOX_ACCESS_TOKEN` at build time and is used only for map rendering.
 - **Live GPS**: raw passenger GPS is not persisted locally; live coordinates remain in memory for active flows.
 - **Driver KYC images**: selected or captured verification images remain screen-local until uploaded to backend-issued presigned URLs; raw images are not persisted by the client feature.
@@ -104,3 +106,5 @@
 24. Driver registration display vehicle options stay separate from Verification backend `VehicleType` values; submission maps display vehicles into the current backend enum values `moto`, `economy`, `comfort`, and `freight`.
 25. The final driver review action must stay controlled by Verification `/me` readiness instead of local form completion flags.
 26. Feature screens use one screen folder per screen, with one main screen file, screen-local widgets in `widgets/`, and owned subscreens in `screens/`.
+27. Map-first passenger booking keeps map rendering common, while booking state, category catalog, and vehicle/fare composition stay feature-owned under Location.
+28. Ride lifecycle WebSockets, Bidding negotiation WebSockets, and Location live-coordinate WebSockets must remain separate repositories.

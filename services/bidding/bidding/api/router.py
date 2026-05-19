@@ -93,6 +93,21 @@ async def accept_bid(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from None
 
 
+@router.get("/sessions/by-ride/{ride_id}", response_model=ItemBidsResponse)
+async def get_bids_for_ride_session(
+    ride_id: UUID,
+    current_user: CurrentUser,
+    session_repo: Annotated[BiddingSessionRepositoryProtocol, Depends(get_session_repo)],
+    use_case: Annotated[GetItemBidsUseCase, Depends(get_item_bids_uc)],
+) -> ItemBidsResponse:
+    session = await session_repo.find_by_ride(ride_id)
+    if not session:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
+    if current_user.role != "admin" and session.passenger_user_id != current_user.user_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+    return await use_case.execute(session.id)
+
+
 @router.get("/sessions/{session_id}", response_model=ItemBidsResponse)
 async def get_bids_for_session(
     session_id: UUID,

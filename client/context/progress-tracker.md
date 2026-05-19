@@ -8,7 +8,7 @@ Update this file after every meaningful implementation change.
 
 ## Current Goal
 
-- Keep client context synchronized while cleaning client structure and preparing future ride-feature expansion.
+- Keep client context synchronized while expanding the passenger ride booking surface.
 
 ## Completed
 
@@ -38,6 +38,7 @@ Update this file after every meaningful implementation change.
 - Bottom navigation Trips now opens a four-tab ride history page with ongoing, scheduled, canceled, completed, and ride details views.
 - Home search now uses a reusable common `SSearchBar` while keeping recent ride rows in the Home feature.
 - Passenger map/location foundation was added with Mapbox Flutter SDK, device GPS service, backend location/geospatial repositories, ride tracking WebSocket parsing, reusable map widget, ride search, route preview, and tracking screens.
+- Passenger ride search was redesigned as a map-first booking flow with a draggable bottom sheet, backend search, map-pin pickup/dropoff selection, route preview, category/vehicle choices, and hybrid offer creation.
 - Driver registration entry flow was added from Settings with earning category selection, vehicle selection, Verification `/me` status parsing, and a status checklist.
 - Driver registration verification demo mode was added so all `/me` checklist states can be previewed without running the backend.
 - Driver registration submit-review CTA and polished verification header layout were added for ready-to-submit checklist states.
@@ -55,8 +56,8 @@ Update this file after every meaningful implementation change.
 - Manually test phone OTP and Google phone-link flows on a device or emulator.
 - Decide when to connect mocked auth repository methods to real backend endpoints.
 - Clean existing analyzer info items when the team chooses a lint-cleanup pass.
-- Add real ride booking, bidding, location tracking, and payment client screens as separate planned feature units.
-- Finalize the production ride creation payload and replace the preview tracking placeholder ride id with the created ride id.
+- Restore the commented real HTTP/WebSocket blocks and run an end-to-end backend test for passenger HYBRID matching when services are available.
+- Add the dedicated full-screen passenger bidding/offers experience after the bottom-sheet live offer state is validated against real drivers.
 - Verify the real driver registration submission forms, presigned upload flow, and submit-review readiness with the Verification backend when it is available.
 - Restore the real Verification `/me` HTTP call after backend testing is available and remove or disable temporary demo status mode.
 - Restore the real Verification submit-review HTTP call after backend testing is available and reload `/me` after successful submission.
@@ -68,6 +69,7 @@ Update this file after every meaningful implementation change.
 - Should the client support driver-specific onboarding or remain rider-only for the current phase?
 - Should Verification backend expand `VehicleType` beyond `moto`, `economy`, `comfort`, and `freight`, or should the client map display vehicles into those four backend values?
 - Which generated platform file changes should be committed, if any, after plugin changes?
+- Should grocery booking get a store-selection feature before enabling real `GROCERY` ride creation?
 
 ## Architecture Decisions
 
@@ -96,6 +98,7 @@ Update this file after every meaningful implementation change.
 - Mapbox client usage is limited to native map rendering; geocoding, route calculation, and ETA logic stay behind backend services.
 - Passenger v1 uses foreground location only and does not persist raw GPS history locally.
 - Driver registration reads the canonical state from Verification `/me`; display vehicle choices remain separate from backend verification enum values until submission forms are implemented.
+- Passenger ride booking uses a map-first shell with backend-mediated search/routes and HYBRID ride creation for inDrive-style offers.
 
 ## Session Notes
 
@@ -118,3 +121,8 @@ Update this file after every meaningful implementation change.
 - Driver registration step submission page work added `context/feature-specs/029-driver-registration-step-submission-pages.md` and `plans/030-driver-registration-step-submission-pages-plan.md`.
 - Client screen structure normalization work added `context/feature-specs/030-client-screen-structure-normalization.md` and `plans/031-client-screen-structure-normalization-plan.md`.
 - Branch split workflow work added `context/feature-specs/031-branch-split-and-pr-merge.md` and updated `plans/900-branch-split-and-merge-plan.md`.
+- Map-first passenger booking work added `context/feature-specs/032-map-first-passenger-booking-flow.md` and `plans/032-map-first-passenger-booking-flow-plan.md`.
+- Temporary location demo data mode added `context/feature-specs/033-location-demo-data-mode.md` and `plans/033-location-demo-data-mode-plan.md`; restore real repository HTTP calls when backend services are available.
+- Ride and Bidding backend integration work added `context/feature-specs/034-ride-bidding-api-websocket-integration.md` and `plans/034-ride-bidding-api-websocket-integration-plan.md`; use `SAFARPAY_USE_LOCATION_DEMO_DATA=false` to exercise real backend HTTP and WebSocket paths.
+- Ride and Bidding demo runtime mode added `context/feature-specs/035-ride-bidding-demo-runtime-mode.md` and `plans/035-ride-bidding-demo-runtime-mode-plan.md`; repositories and sockets currently return demo data directly while real backend fetch/connect blocks are commented in place.
+- Home category booking entry work added `context/feature-specs/036-home-category-to-ride-search.md` and `plans/036-home-category-to-ride-search-plan.md`; category tiles now open Ride Search with the tapped category preselected.
