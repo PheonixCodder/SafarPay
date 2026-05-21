@@ -43,6 +43,7 @@ class Settings(BaseSettings):
     WHATSAPP_TOKEN: str = ""
     WHATSAPP_PHONE_ID: str = ""
     WHATSAPP_AUTH_TEMPLATE_NAME: str = "safarpay_auth_otp"
+    AUTH_OTP_DELIVERY_MODE: str = "whatsapp"
 
     # ── Google OAuth (Mobile SDK — id_token verification only) ────────────────
     GOOGLE_CLIENT_ID: str = ""

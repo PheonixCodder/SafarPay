@@ -4,7 +4,7 @@ Update this file after every meaningful implementation change.
 
 ## Current Phase
 
-- Client foundation, authentication UI/mock phase, and post-auth navigation shell are complete; next phase is backend integration and ride-feature expansion.
+- Client foundation, authentication UI, real Auth API wiring, and post-auth navigation shell are complete; next phase is broader backend integration and ride-feature expansion.
 
 ## Current Goal
 
@@ -16,6 +16,7 @@ Update this file after every meaningful implementation change.
 - Shared utilities, theme constants, app text constants, validators, HTTP client, storage helpers, and auth feature structure were added.
 - Phone OTP registration flow was added with login, OTP, profile, and post-auth permission routing.
 - Google auth setup was added with Google token verification and a dedicated phone-link screen when a phone is required.
+- Authenticated `/me` user caching was added so Settings/Profile use saved user display data instead of static demo values.
 - `client/lib/data/.gitkeep` was added to preserve the empty data folder.
 - Client context documentation and plans folder were introduced.
 - Reconstructed feature-spec prompt files were planned for scaffold, design foundation, onboarding, auth gate/login, phone OTP/profile, permissions/home, Google phone linking, and documentation workflow.
@@ -44,6 +45,13 @@ Update this file after every meaningful implementation change.
 - Driver registration submit-review CTA and polished verification header layout were added for ready-to-submit checklist states.
 - Driver registration step submission pages were implemented with per-step forms, presigned upload handling, realtime selfie capture, and backend-offline demo responses.
 - Client screen structure normalization was applied across feature screens so screen files, widgets, subscreens, and content/model files follow one convention.
+- Driver-capable accounts can switch between passenger and driver app modes from Settings; driver mode currently shows Drive, Requests, Earnings, and Profile starter tabs.
+- Authentication mocks were removed from the Flutter auth repository; phone OTP, registration, refresh, logout, and `/me` now call the real Auth service.
+- Auth local Docker testing now uses backend console OTP mode so OTPs print in auth service logs while WhatsApp remains available outside console mode.
+- Existing phone OTP users now log in directly after verification; new phone users still continue to Complete Profile with a `registration_token`.
+- Auth profile demographics are persisted: Complete Profile collects email, gender, and DOB, and Profile edits name/email/gender/DOB through Auth.
+- Google login now handles verified emails that already exist in Auth: existing email + phone users verify OTP against the saved phone before tokens are issued; existing email + no phone users reuse the current phone-link flow.
+- Linked Google accounts with saved phones now also verify OTP against the saved phone before app tokens are issued.
 
 ## In Progress
 
@@ -54,7 +62,9 @@ Update this file after every meaningful implementation change.
 ## Next Up
 
 - Manually test phone OTP and Google phone-link flows on a device or emulator.
-- Decide when to connect mocked auth repository methods to real backend endpoints.
+- Manually test Google existing-email login on a device: one account with saved phone, one account without phone, and one brand-new Google email.
+- Manually test returning Google login on a previously linked account with a saved phone; it should route to OTP before Home.
+- Test real phone OTP registration on a physical device using `SAFARPAY_AUTH_BASE_URL=http://<laptop-wifi-ip>:8001/api/v1/auth`.
 - Clean existing analyzer info items when the team chooses a lint-cleanup pass.
 - Restore the commented real HTTP/WebSocket blocks and run an end-to-end backend test for passenger HYBRID matching when services are available.
 - Add the dedicated full-screen passenger bidding/offers experience after the bottom-sheet live offer state is validated against real drivers.
@@ -75,6 +85,8 @@ Update this file after every meaningful implementation change.
 
 - Phone OTP is the primary auth path; Google is a secondary provider.
 - Google phone linking is a dedicated screen, not a modified login-screen state.
+- Google existing-email login uses a masked-phone OTP step; the full saved phone is never returned to Flutter.
+- Any Google login that resolves to an Auth user with a saved phone must verify OTP before session creation, including already-linked Google accounts.
 - OTP verification remains centralized in `OtpScreen` and `SOtpController`.
 - Tokens are persisted only through `STokenStorage`.
 - App copy remains centralized in `STexts`.
@@ -98,7 +110,9 @@ Update this file after every meaningful implementation change.
 - Mapbox client usage is limited to native map rendering; geocoding, route calculation, and ETA logic stay behind backend services.
 - Passenger v1 uses foreground location only and does not persist raw GPS history locally.
 - Driver registration reads the canonical state from Verification `/me`; display vehicle choices remain separate from backend verification enum values until submission forms are implemented.
+- Vehicle verification belongs to the physical vehicle; adding that vehicle to another driver service requires explicit user consent before the client creates the service capability.
 - Passenger ride booking uses a map-first shell with backend-mediated search/routes and HYBRID ride creation for inDrive-style offers.
+- Driver mode is a local UI preference stored separately from auth role; auth roles `driver` and `admin` gate access to the switch.
 
 ## Session Notes
 
@@ -131,3 +145,13 @@ Update this file after every meaningful implementation change.
 - FAQ search/category interaction work added `context/feature-specs/039-faq-search-and-category-interactions.md` and `plans/039-faq-search-and-category-interactions-plan.md`; search and category taps now filter local FAQ articles and the `View All Articles` button remains removed.
 - Something Else support ticket work added `context/feature-specs/040-something-else-support-ticket.md` and `plans/040-something-else-support-ticket-plan.md`; the repository currently returns a demo response while the future Gateway `POST /support/tickets` call remains documented in code.
 - Contact Us page work added `context/feature-specs/041-contact-us-page.md` and `plans/041-contact-us-page-plan.md`; support phone/email now live in `STexts` and the screen renders local contact/social actions.
+- Auth user cache work added `context/feature-specs/043-auth-user-cache.md` and `plans/043-auth-user-cache-plan.md`; cached user profile data is UI-only and `/me` remains authoritative.
+- Driver mode switch work added `context/feature-specs/044-driver-mode-switch.md` and `plans/044-driver-mode-switch-plan.md`; auth `role` gates access while local app mode controls the active shell.
+- Real Auth API and console OTP work added `context/feature-specs/045-real-auth-api-and-console-otp.md` and `plans/045-real-auth-api-and-console-otp-plan.md`; Flutter auth mocks are removed and Docker auth prints OTP codes in console mode.
+- Existing phone login branching work added `context/feature-specs/046-existing-phone-login.md` and `plans/046-existing-phone-login-plan.md`; `/otp/verify` now returns `next_step` so existing phone users receive tokens while new users receive `registration_token`.
+- Auth profile demographics work added `context/feature-specs/047-auth-profile-demographics.md` and `plans/047-auth-profile-demographics-plan.md`; Auth owns email/gender/DOB persistence and phone remains read-only in Profile.
+- Google existing-email auth work added `context/feature-specs/048-google-existing-email-auth.md` and `plans/048-google-existing-email-auth-plan.md`; Auth now branches Google login by existing account/email state.
+- Google linked-phone OTP work added `context/feature-specs/049-google-linked-phone-otp-auth.md` and `plans/049-google-linked-phone-otp-auth-plan.md`; already-linked Google accounts with saved phones now use the same saved-phone OTP gate before tokens.
+- Driver vehicle taxonomy work added `context/feature-specs/050-driver-vehicle-taxonomy.md` and `plans/050-driver-vehicle-taxonomy-plan.md`; verification and ride now use canonical physical vehicle values while service type represents driver work capability.
+- Driver vehicle service reuse work added `context/feature-specs/051-driver-vehicle-service-reuse.md` and `plans/051-driver-vehicle-service-reuse-plan.md`; vehicle selection now uses real Verification state and reuses existing physical vehicles across services.
+- Driver vehicle service consent work added `context/feature-specs/052-driver-vehicle-service-consent.md` and `plans/052-driver-vehicle-service-consent-plan.md`; existing vehicles must be confirmed by the driver before attaching them to another service.

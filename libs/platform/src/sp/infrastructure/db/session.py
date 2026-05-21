@@ -32,16 +32,25 @@ def register_post_commit_hook(
     hooks.append(hook)
 
 
-@lru_cache
-def get_session_factory(settings: Settings) -> async_sessionmaker[AsyncSession]:
-    """Create a session factory bound to the cached engine."""
-    engine = get_db_engine(settings.POSTGRES_DB_URI, settings.POSTGRES_POOL_SIZE)
+@lru_cache(maxsize=4)
+def _get_session_factory(
+        db_url: str,
+        pool_size: int,
+) -> async_sessionmaker[AsyncSession]:
+    engine = get_db_engine(db_url, pool_size)
     return async_sessionmaker(
         bind=engine,
         class_=AsyncSession,
         expire_on_commit=False,
         autocommit=False,
         autoflush=False,
+    )
+
+
+def get_session_factory(settings: Settings) -> async_sessionmaker[AsyncSession]:
+    return _get_session_factory(
+        settings.POSTGRES_DB_URI,
+        settings.POSTGRES_POOL_SIZE,
     )
 
 

@@ -2,7 +2,7 @@
 
 ## Overview
 
-SafarPay is a ride-hailing mobile client for riders who need a fast, trustworthy way to start a trip, verify their identity, and move into the main app experience. The current client has the Flutter scaffold, shared design foundation, onboarding, phone OTP authentication, Google authentication with phone linking, profile completion, permissions, a four-tab post-auth navigation shell, passenger map-first booking foundations, and the starter driver registration entry flow in place.
+SafarPay is a ride-hailing mobile client for riders who need a fast, trustworthy way to start a trip, verify their identity, and move into the main app experience. The current client has the Flutter scaffold, shared design foundation, onboarding, phone OTP authentication, Google authentication with phone linking, profile completion, permissions, a role-gated post-auth navigation shell, passenger map-first booking foundations, and the starter driver registration entry flow in place.
 
 ## Goals
 
@@ -35,6 +35,7 @@ SafarPay is a ride-hailing mobile client for riders who need a fast, trustworthy
 - Google Sign-In flow.
 - Dedicated Google phone-link screen when a Google account needs a phone number.
 - Token storage with `flutter_secure_storage`.
+- Cached `/me` user profile storage for non-authoritative Settings/Profile display.
 - Mock repository implementations for auth endpoints until backend wiring is finalized.
 
 ### Profile And Permissions
@@ -44,12 +45,14 @@ SafarPay is a ride-hailing mobile client for riders who need a fast, trustworthy
 - Post-auth routing to `NavigationMenu` when permissions are complete.
 - Personalization settings starter screen with account, app setting rows, profile entry, and logout action.
 - Personalization profile screen is reachable from Settings through the profile edit action and `User Info` row.
-- Personalization profile values can be edited locally through a reusable common edit drawer.
+- Personalization profile values use cached authenticated user data and can be edited locally through a reusable common edit drawer.
+- Driver-capable accounts can switch between passenger and driver mode from Settings.
 
 ### Navigation
 
-- Four-tab shell with Home, Trips, Rent, and Profile destinations.
-- Home remains the first tab, Trips and Rent are starter states, and Profile opens the Settings experience.
+- Authenticated shell supports passenger and driver modes.
+- Passenger mode uses Home, Trips, Rent, and Profile destinations.
+- Driver mode currently uses Drive, Requests, Earnings, and Profile destinations as starter placeholders.
 
 ### Ride Data And Search
 
@@ -86,6 +89,8 @@ SafarPay is a ride-hailing mobile client for riders who need a fast, trustworthy
 - Flutter mobile client structure and UI.
 - Authentication screens and state flow.
 - Local token and preference storage.
+- Local cached authenticated user profile display.
+- Local passenger/driver app-mode preference for driver-capable users.
 - Firebase/Google setup files needed for client auth.
 - Shared UI constants and app theme.
 - Typed demo data for frontend UI development plus real backend route/socket paths for Ride and Bidding integration.

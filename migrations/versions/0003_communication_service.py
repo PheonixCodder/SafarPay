@@ -19,15 +19,15 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     op.execute("CREATE SCHEMA IF NOT EXISTS communication")
 
-    conversation_status = sa.Enum("ACTIVE", "CLOSED", name="conversation_status_enum", schema="communication")
-    participant_role = sa.Enum("PASSENGER", "DRIVER", name="participant_role_enum", schema="communication")
-    message_type = sa.Enum("TEXT", "IMAGE", "VOICE_NOTE", "SYSTEM", name="message_type_enum", schema="communication")
-    message_status = sa.Enum("SENT", "DELIVERED", "READ", "DELETED", name="message_status_enum", schema="communication")
-    media_type = sa.Enum("IMAGE", "VOICE_NOTE", name="media_type_enum", schema="communication")
-    media_upload_status = sa.Enum("PENDING", "UPLOADED", name="media_upload_status_enum", schema="communication")
-    call_status = sa.Enum("RINGING", "ACCEPTED", "ENDED", "MISSED", "REJECTED", "FAILED", name="call_status_enum", schema="communication")
-    signal_type = sa.Enum("OFFER", "ANSWER", "ICE_CANDIDATE", "CALL_CONTROL", name="signal_type_enum", schema="communication")
-    communication_event_type = sa.Enum(
+    conversation_status = postgresql.ENUM("ACTIVE", "CLOSED", name="conversation_status_enum", schema="communication", create_type=False)
+    participant_role = postgresql.ENUM("PASSENGER", "DRIVER", name="participant_role_enum", schema="communication", create_type=False)
+    message_type = postgresql.ENUM("TEXT", "IMAGE", "VOICE_NOTE", "SYSTEM", name="message_type_enum", schema="communication", create_type=False)
+    message_status = postgresql.ENUM("SENT", "DELIVERED", "READ", "DELETED", name="message_status_enum", schema="communication", create_type=False)
+    media_type = postgresql.ENUM("IMAGE", "VOICE_NOTE", name="media_type_enum", schema="communication", create_type=False)
+    media_upload_status = postgresql.ENUM("PENDING", "UPLOADED", name="media_upload_status_enum", schema="communication", create_type=False)
+    call_status = postgresql.ENUM("RINGING", "ACCEPTED", "ENDED", "MISSED", "REJECTED", "FAILED", name="call_status_enum", schema="communication", create_type=False)
+    signal_type = postgresql.ENUM("OFFER", "ANSWER", "ICE_CANDIDATE", "CALL_CONTROL", name="signal_type_enum", schema="communication", create_type=False)
+    communication_event_type = postgresql.ENUM(
         "CONVERSATION_OPENED",
         "CONVERSATION_CLOSED",
         "MESSAGE_SENT",
@@ -36,6 +36,7 @@ def upgrade() -> None:
         "CALL_UPDATED",
         name="communication_event_type_enum",
         schema="communication",
+        create_type=False,
     )
 
     for enum in [

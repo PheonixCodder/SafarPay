@@ -4,6 +4,12 @@ Permanent record of decisions that affect product scope, architecture, auth beha
 
 ## Decisions
 
+### Auth User Cache Is UI-Only
+
+- Date: 2026-05-19
+- Decision: Cache the authenticated `/me` user locally for Settings/Profile display, while keeping tokens in secure storage and treating backend `/me` as authoritative for role, active state, verification state, and onboarding state.
+- Rationale: The app needs real user display data after authentication, but local cache must not become trusted auth or authorization state.
+
 ### Passenger Map-First Hybrid Booking
 
 - Date: 2026-05-18
@@ -237,3 +243,43 @@ Permanent record of decisions that affect product scope, architecture, auth beha
 
 - **Decision**: Home service category tiles open `RideSearchScreen` with the matching `SPassengerServiceCategory` selected.
 - **Reason**: The Home category grid is a service entry surface; preserving the selected category through navigation keeps the booking flow consistent with the user's tap intent.
+
+### 0037 - Separate auth role capability from local app mode
+
+- **Decision**: Store passenger/driver mode as a local `GetStorage` UI preference, gated by cached `/me` roles `driver` and `admin`.
+- **Reason**: Auth `role` describes what the account is allowed to access, while app mode describes which authenticated shell is currently active. Keeping them separate lets approved drivers switch views without changing backend identity state.
+
+### 0038 - Use backend console OTP for local auth testing
+
+- **Decision**: Remove Flutter auth mocks and use the real Docker Auth service. Local Docker auth selects `AUTH_OTP_DELIVERY_MODE=console`, which logs OTPs instead of sending WhatsApp messages.
+- **Reason**: Phone OTP registration should exercise real backend persistence, verification, tokens, and `/me` behavior even when WhatsApp Business API credentials are unavailable locally.
+
+### 0039 - Let OTP verification choose login versus profile completion
+
+- **Decision**: `/otp/verify` returns an explicit `next_step`: existing phone users receive tokens, new phone users receive `registration_token`, and Google phone linking uses `purpose=phone_link`.
+- **Reason**: The OTP screen is shared, but existing users should not be forced through Complete Profile again. Making the backend return the next step keeps account existence authoritative in Auth service instead of duplicated in Flutter.
+
+### 0040 - Persist editable demographics in Auth profiles
+
+- **Decision**: Store `email`, `gender`, and `date_of_birth` on `auth.users`; register collects them, `/me` returns them, and `PATCH /me` updates name, email, gender, and DOB while phone remains read-only.
+- **Reason**: These fields are account profile data owned by Auth. Keeping phone immutable from Profile preserves the OTP-verified identity boundary while allowing normal profile edits through one authenticated route.
+
+### 0041 - Verify existing Google email accounts with saved-phone OTP
+
+- **Decision**: When Google email matches an existing Auth user with a phone, Auth sends OTP to the saved phone and returns a masked phone plus a short-lived Google login token; normal tokens are issued only after OTP verification.
+- **Reason**: Google verifies email ownership, but the saved phone remains the app identity anchor. OTP prevents a Google login from silently taking over an existing phone-backed account while avoiding duplicate users.
+
+### 0042 - Require saved-phone OTP for linked Google logins
+
+- **Decision**: When a Google account is already linked to an Auth user and that user has a saved phone, `/google/verify-token` sends OTP and returns `verify_existing_phone` instead of issuing tokens immediately.
+- **Reason**: The saved phone remains the account possession check even for returning Google users. This keeps linked-account Google login consistent with existing-email Google login and prevents bypassing phone verification before session creation.
+
+### 0043 - Normalize driver services and vehicle taxonomy
+
+- **Decision**: Use five service types for work capabilities and seven canonical vehicle types for physical vehicles across driver registration, ride requests, and matching.
+- **Reason**: Verification buckets like `economy`/`freight` and ride body styles like `SEDAN`/`HATCHBACK` created ambiguous matching rules. Canonical `VehicleType` plus service capabilities keeps registration, dispatch, and future backend matching coherent.
+
+### 0044 - Reuse driver vehicles across services
+
+- **Decision**: A driver reuses one physical vehicle per vehicle type and attaches additional services through `driver_service_capabilities` instead of creating duplicate vehicle rows.
+- **Reason**: A Car used for City Ride, Intercity, and Courier is the same asset and should share documents, verification state, and plate identity while exposing service-specific capability state to matching and UI flows.

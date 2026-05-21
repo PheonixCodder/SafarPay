@@ -1,7 +1,11 @@
-# Dockerfile for running Alembic migrations
-# Separate from the service Dockerfile since it needs ALL ORM models loaded
-FROM python:3.12-slim AS builder
+# Dockerfile for running Alembic migrations.
+# It installs only root migration dependencies and exposes service source
+# folders through PYTHONPATH so Alembic can import ORM models without pulling
+# heavy runtime stacks such as OCR/TensorFlow.
+FROM python:3.11-slim AS builder
+
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
 WORKDIR /app
 
 COPY pyproject.toml uv.lock* ./
@@ -9,13 +13,20 @@ COPY libs/platform/ ./libs/platform/
 COPY services/ ./services/
 COPY migrations/ ./migrations/
 
+ENV PYTHONPATH="/app/libs/platform/src:/app/services/auth:/app/services/bidding:/app/services/communication:/app/services/gateway:/app/services/geospatial:/app/services/location:/app/services/notification:/app/services/payment:/app/services/ride:/app/services/verification"
+
 RUN uv sync --frozen --no-dev
 
-FROM python:3.12-slim
+FROM python:3.11-slim
+
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
 WORKDIR /app
+
 COPY --from=builder /app /app
+
 ENV PATH="/app/.venv/bin:$PATH" \
+    PYTHONPATH="/app/libs/platform/src:/app/services/auth:/app/services/bidding:/app/services/communication:/app/services/gateway:/app/services/geospatial:/app/services/location:/app/services/notification:/app/services/payment:/app/services/ride:/app/services/verification" \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 

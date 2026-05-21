@@ -34,6 +34,23 @@ def upgrade() -> None:
     )
     op.execute(
         """
+        CREATE TABLE IF NOT EXISTS bidding.bid_events (
+            id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+            bid_id uuid NOT NULL REFERENCES bidding.bids(id) ON DELETE CASCADE,
+            event_type varchar(160) NOT NULL,
+            aggregate_id varchar(120),
+            aggregate_type varchar(80),
+            topic varchar(160) NOT NULL DEFAULT 'bidding-events',
+            payload jsonb NOT NULL DEFAULT '{}'::jsonb,
+            correlation_id varchar(120),
+            idempotency_key varchar(180),
+            processed_at timestamptz,
+            error_count integer NOT NULL DEFAULT 0,
+            last_error text,
+            created_at timestamptz NOT NULL DEFAULT now(),
+            updated_at timestamptz NOT NULL DEFAULT now()
+        );
+
         ALTER TABLE IF EXISTS bidding.bid_events
             ADD COLUMN IF NOT EXISTS aggregate_id varchar(120),
             ADD COLUMN IF NOT EXISTS aggregate_type varchar(80),
@@ -45,7 +62,7 @@ def upgrade() -> None:
 
         ALTER TABLE IF EXISTS bidding.bid_events
             ALTER COLUMN event_type TYPE varchar(160) USING event_type::text,
-            ALTER COLUMN payload TYPE jsonb USING public.safarpay_try_jsonb(payload);
+            ALTER COLUMN payload TYPE jsonb USING public.safarpay_try_jsonb(payload::text);
 
         UPDATE bidding.bid_events
         SET event_type = CASE event_type
