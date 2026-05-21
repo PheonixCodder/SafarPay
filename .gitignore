@@ -5,6 +5,7 @@ build/
 dist/
 wheels/
 *.egg-info
+verification_test/model_cache/*
 
 # Virtual environments
 .venv
