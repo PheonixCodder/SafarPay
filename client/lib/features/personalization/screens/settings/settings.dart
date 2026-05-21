@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:iconsax/iconsax.dart';
 
+import '../../../../app_mode_controller.dart';
 import '../../../../common/navigation/right_slide_page_route.dart';
 import '../../../../common/widgets/appbar/appbar.dart';
 import '../../../../common/widgets/containers/primary_header_container.dart';
 import '../../../../utils/constants/colors.dart';
 import '../../../../utils/constants/sizes.dart';
 import '../../../../utils/constants/texts.dart';
+import '../../../authentication/controllers/current_user_controller.dart';
+import '../../../authentication/repositories/auth_repository.dart';
+import '../../../authentication/screens/auth_flow/auth_flow.dart';
+import '../../../authentication/utils/auth_navigation.dart';
 import '../../models/settings_menu_item.dart';
 import '../driver_registration/screens/entry/driver_registration.dart';
 import '../help_support/help_support.dart';
@@ -14,6 +19,7 @@ import '../notifications/notifications.dart';
 import '../privacy_policy/privacy_policy.dart';
 import '../profile/profile.dart';
 import 'widgets/settings_list.dart';
+import 'widgets/settings_app_mode_button.dart';
 import 'widgets/settings_logout_button.dart';
 import 'widgets/settings_profile_tile.dart';
 import 'widgets/settings_section_heading.dart';
@@ -85,6 +91,14 @@ class SettingsScreen extends StatelessWidget {
     Navigator.of(context).push(
       SRightSlidePageRoute(page: const HelpSupportScreen()),
     );
+  }
+
+  Future<void> _logout(BuildContext context) async {
+    await SAuthRepository.instance.logout();
+    await SCurrentUserController.instance.clear();
+    await SAppModeController.instance.resetToPassengerMode();
+    if (!context.mounted) return;
+    SAuthNavigation.offAllFrom(context, const AuthFlowScreen());
   }
 
   VoidCallback? _accountItemAction(
@@ -164,7 +178,11 @@ class SettingsScreen extends StatelessWidget {
                         _appItemAction(context, item, index),
                   ),
                   const SizedBox(height: SSizes.spaceBtwSections),
-                  const SSettingsLogoutButton(),
+                  const SSettingsAppModeButton(),
+                  const SizedBox(height: SSizes.spaceBtnItems),
+                  SSettingsLogoutButton(
+                    onPressed: () => _logout(context),
+                  ),
                   const SizedBox(height: SSizes.spaceBtwSections),
                 ],
               ),
