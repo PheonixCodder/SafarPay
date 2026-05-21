@@ -10,18 +10,23 @@ from typing import Any
 
 import cv2
 import numpy as np
-from deepface import DeepFace
 from rapidfuzz import fuzz
 from sp.core.observability.metrics import MetricsCollector
 from verification.domain.exceptions import MLProcessingError
 from verification.domain.models import DocumentType
 
+logger = logging.getLogger("verification.engine")
+
+# Paddle and TensorFlow both load native runtimes. Paddle must initialize before
+# DeepFace/TensorFlow in this process; importing DeepFace first can segfault
+# when Paddle loads its core extension.
 try:
     from paddleocr import PaddleOCR
 except ImportError:
+    logger.exception("PaddleOCR import failed")
     PaddleOCR = None
 
-logger = logging.getLogger("verification.engine")
+from deepface import DeepFace
 
 MAX_IMAGE_SIZE_MB = 5
 FACE_MATCH_THRESHOLD = 0.6
@@ -194,16 +199,54 @@ class IdentityVerificationEngine:
             if candidate:
                 return candidate
 
-        # Fallback: longest alphabetic line that looks like a name (>=2 words, <40 chars).
-        best_line = ""
+        # Pakistani e-license OCR commonly has the holder name as a standalone
+        # uppercase line after headers and before relation/CNIC fields.
+        blocked_tokens = {
+            "LICENSE",
+            "POLICE",
+            "PUNJAB",
+            "TRAFFIC",
+            "PAKISTAN",
+            "CNIC",
+            "DATE",
+            "BIRTH",
+            "VALID",
+            "ISSUE",
+            "ADDRESS",
+            "ELECTRONIC",
+            "DRIVING",
+            "NATIONAL",
+            "IDENTITY",
+            "CARD",
+            "REPUBLIC",
+            "ISLAMIC",
+            "FATHER",
+            "GENDER",
+            "COUNTRY",
+            "STAY",
+            "SIGNATURE",
+            "HOLDER",
+        }
+        candidates: list[str] = []
         for line in text.split('\n'):
             cleaned = re.sub(r'[^A-Za-z\s]', '', line).strip()
-            if len(cleaned.split()) >= 2 and len(cleaned) < 40 and len(cleaned) > len(best_line):
-                best_line = cleaned
+            words = cleaned.split()
+            if not 2 <= len(words) <= 4 or len(cleaned) >= 40:
+                continue
+            upper_words = {word.upper() for word in words}
+            if upper_words & blocked_tokens:
+                continue
+            candidates.append(cleaned)
+
+        for candidate in candidates:
+            if candidate.isupper():
+                return candidate
+        if candidates:
+            return candidates[0]
 
         # Fail closed: if no plausible name line found, return empty so
         # cross-check surfaces NAME_MISMATCH instead of fuzzy-matching full OCR dumps.
-        return best_line
+        return ""
 
     def _normalize_name(self, text: str) -> str:
         """Lowercases and removes common noise from names."""
@@ -225,7 +268,7 @@ class IdentityVerificationEngine:
         for kw in keywords:
             idx = text_lower.find(kw)
             if idx != -1:
-                search_windows.append(text[idx:idx+40])
+                search_windows.append(text[idx:idx+120])
 
         search_windows.append(text) # Fallback to whole text
 
@@ -236,13 +279,19 @@ class IdentityVerificationEngine:
         ]
 
         for window in search_windows:
+            dates: list[date] = []
             for pattern in patterns:
                 for match in re.findall(pattern, window):
                     try:
                         dt = dateutil.parser.parse(match, dayfirst=True)
-                        return dt.date()
+                        dates.append(dt.date())
                     except (ValueError, OverflowError):
                         continue
+            future_dates = [candidate for candidate in dates if candidate >= date.today()]
+            if future_dates:
+                return max(future_dates)
+            if dates:
+                return max(dates)
 
         return None
 

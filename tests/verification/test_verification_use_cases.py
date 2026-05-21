@@ -19,8 +19,10 @@ from verification.domain.models import (
     Document,
     DocumentType,
     Driver,
+    DriverServiceCapability,
     DriverVehicle,
     EntityType,
+    ServiceType,
     Vehicle,
     VehicleType,
     VerificationRejection,
@@ -126,6 +128,51 @@ class FakeDriverVehicleRepo:
                 link.is_currently_selected = link.vehicle_id == vehicle_id
 
 
+class FakeDriverServiceCapabilityRepo:
+    def __init__(self) -> None:
+        self.capabilities: dict[tuple[UUID, UUID, ServiceType], DriverServiceCapability] = {}
+
+    async def find_by_driver_id(self, driver_id: UUID) -> list[DriverServiceCapability]:
+        return [
+            capability
+            for capability in self.capabilities.values()
+            if capability.driver_id == driver_id
+        ]
+
+    async def find_by_driver_and_service(
+        self,
+        driver_id: UUID,
+        service_type: ServiceType,
+    ) -> list[DriverServiceCapability]:
+        return [
+            capability
+            for capability in self.capabilities.values()
+            if capability.driver_id == driver_id
+            and capability.service_type == service_type
+        ]
+
+    async def upsert_capability(
+        self,
+        driver_id: UUID,
+        vehicle_id: UUID,
+        service_type: ServiceType,
+    ) -> DriverServiceCapability:
+        key = (driver_id, vehicle_id, service_type)
+        capability = self.capabilities.get(key)
+        if capability:
+            capability.is_active = True
+            return capability
+        capability = DriverServiceCapability(
+            id=uuid4(),
+            driver_id=driver_id,
+            vehicle_id=vehicle_id,
+            service_type=service_type,
+            is_active=True,
+        )
+        self.capabilities[key] = capability
+        return capability
+
+
 class FakeStorage:
     def __init__(self) -> None:
         self.deleted: list[tuple[str, str]] = []
@@ -211,6 +258,7 @@ class VerificationFixture:
         self.vehicle_repo = FakeVehicleRepo()
         self.document_repo = FakeDocumentRepo()
         self.driver_vehicle_repo = FakeDriverVehicleRepo()
+        self.driver_service_capability_repo = FakeDriverServiceCapabilityRepo()
         self.storage = FakeStorage()
         self.resolver = FakeRejectionResolver()
         self.engine = FakeIdentityEngine()
@@ -227,6 +275,7 @@ class VerificationFixture:
             vehicle_repo=self.vehicle_repo,
             document_repo=self.document_repo,
             driver_vehicle_repo=self.driver_vehicle_repo,
+            driver_service_capability_repo=self.driver_service_capability_repo,
             storage_provider=self.storage,
             rejection_resolver=cast(Any, self.resolver),
             identity_engine=cast(Any, self.engine),
@@ -344,6 +393,10 @@ async def test_identity_license_selfie_submission_create_and_update_documents(
     assert driver is not None
     first_doc = await fx.document_repo.find_by_entity_and_type(driver.id, "id_front")
     assert first_doc is not None
+    id_back = await fx.document_repo.find_by_entity_and_type(driver.id, "id_back")
+    assert id_back is not None
+    assert first_doc.expiry_date == date(2030, 1, 1)
+    assert id_back.expiry_date is None
     old_key = first_doc.file_key
 
     await fx.uc.submit_identity_documents(
@@ -354,6 +407,8 @@ async def test_identity_license_selfie_submission_create_and_update_documents(
     assert len(fx.storage.deleted) == 2
     assert first_doc.id in fx.resolver.resolved
     assert len(fx.resolver.resolved) == 2
+    assert first_doc.expiry_date == date(2031, 1, 1)
+    assert id_back.expiry_date is None
 
     license_resp = await fx.uc.submit_license_documents(
         user_id,
@@ -380,7 +435,7 @@ async def test_vehicle_submission_create_update_and_reject_invalid_ownership(
             brand="Toyota",
             model="Yaris",
             color="White",
-            vehicle_type=VehicleType.ECONOMY,
+            vehicle_type=VehicleType.CAR,
             max_passengers=4,
             plate_number="ABC-123",
             production_year=2024,
@@ -395,6 +450,18 @@ async def test_vehicle_submission_create_update_and_reject_invalid_ownership(
     driver = await fx.driver_repo.find_by_user_id(user_id)
     assert driver is not None
     vehicle = next(iter(fx.vehicle_repo.by_id.values()))
+    vehicle_docs = await fx.document_repo.find_by_entity_id(vehicle.id)
+    registration_docs = [
+        doc
+        for doc in vehicle_docs
+        if doc.document_type
+        in {
+            DocumentType.REGISTRATION_DOC_FRONT,
+            DocumentType.REGISTRATION_DOC_BACK,
+        }
+    ]
+    assert len(registration_docs) == 2
+    assert all(doc.expiry_date is None for doc in registration_docs)
 
     with pytest.raises(ValueError, match="already exists"):
         await fx.uc.submit_vehicle_info_and_documents(
@@ -404,7 +471,7 @@ async def test_vehicle_submission_create_update_and_reject_invalid_ownership(
                 brand="Honda",
                 model="City",
                 color="Black",
-                vehicle_type=VehicleType.ECONOMY,
+                vehicle_type=VehicleType.CAR,
                 max_passengers=4,
                 plate_number="XYZ-999",
                 production_year=2024,
@@ -418,7 +485,7 @@ async def test_vehicle_submission_create_update_and_reject_invalid_ownership(
             brand="Toyota",
             model="Corolla",
             color="Black",
-            vehicle_type=VehicleType.ECONOMY,
+            vehicle_type=VehicleType.CAR,
             max_passengers=4,
             plate_number="ABC-123",
             production_year=2025,
@@ -445,12 +512,129 @@ async def test_vehicle_submission_create_update_and_reject_invalid_ownership(
                 brand="Foreign",
                 model="Car",
                 color="Red",
-                vehicle_type=VehicleType.ECONOMY,
+                vehicle_type=VehicleType.CAR,
                 max_passengers=4,
                 plate_number="FOR-1",
                 production_year=2020,
             ),
         )
+
+
+@pytest.mark.asyncio
+async def test_canonical_vehicle_types_allow_distinct_driver_vehicles_and_reject_duplicates(
+    fx: VerificationFixture,
+) -> None:
+    user_id = uuid4()
+
+    await fx.uc.submit_vehicle_info_and_documents(
+        user_id,
+        VehicleSubmissionRequest(
+            vehicle_id=None,
+            brand="Toyota",
+            model="Yaris",
+            color="White",
+            vehicle_type=VehicleType.CAR,
+            max_passengers=4,
+            plate_number="CAR-001",
+            production_year=2024,
+        ),
+    )
+    await fx.uc.submit_vehicle_info_and_documents(
+        user_id,
+        VehicleSubmissionRequest(
+            vehicle_id=None,
+            brand="Honda",
+            model="CD70",
+            color="Black",
+            vehicle_type=VehicleType.MOTORCYCLE,
+            max_passengers=1,
+            plate_number="BIKE-001",
+            production_year=2024,
+        ),
+    )
+
+    driver = await fx.driver_repo.find_by_user_id(user_id)
+    assert driver is not None
+    links = await fx.driver_vehicle_repo.find_by_driver_id(driver.id)
+    assert {link.vehicle_type for link in links} == {
+        VehicleType.CAR,
+        VehicleType.MOTORCYCLE,
+    }
+
+    with pytest.raises(ValueError, match="already exists"):
+        await fx.uc.submit_vehicle_info_and_documents(
+            user_id,
+            VehicleSubmissionRequest(
+                vehicle_id=None,
+                brand="Suzuki",
+                model="Alto",
+                color="Silver",
+                vehicle_type=VehicleType.CAR,
+                max_passengers=4,
+                plate_number="CAR-002",
+                production_year=2024,
+            ),
+        )
+
+
+@pytest.mark.asyncio
+async def test_vehicle_summary_and_attach_service_reuse_existing_vehicle(
+    fx: VerificationFixture,
+) -> None:
+    user_id = uuid4()
+    response = await fx.uc.submit_vehicle_info_and_documents(
+        user_id,
+        VehicleSubmissionRequest(
+            vehicle_id=None,
+            brand="Toyota",
+            model="Yaris",
+            color="White",
+            vehicle_type=VehicleType.CAR,
+            service_type=ServiceType.CITY_RIDE,
+            max_passengers=4,
+            plate_number="CAR-101",
+            production_year=2024,
+        ),
+    )
+    assert "registration_doc_front" in response.urls
+
+    driver = await fx.driver_repo.find_by_user_id(user_id)
+    assert driver is not None
+    vehicle = next(iter(fx.vehicle_repo.by_id.values()))
+
+    city_summary = await fx.uc.get_driver_vehicle_summary(
+        user_id,
+        ServiceType.CITY_RIDE,
+    )
+    assert len(city_summary.vehicles) == 1
+    city_item = city_summary.vehicles[0]
+    assert city_item.vehicle_id == vehicle.id
+    assert city_item.vehicle_type == VehicleType.CAR
+    assert city_item.is_registered_for_service is True
+    assert {service.service_type for service in city_item.services} == {
+        ServiceType.CITY_RIDE,
+    }
+
+    courier_item = await fx.uc.attach_vehicle_to_service(
+        user_id,
+        vehicle.id,
+        ServiceType.COURIER,
+    )
+    assert courier_item.is_registered_for_service is True
+    assert {service.service_type for service in courier_item.services} == {
+        ServiceType.CITY_RIDE,
+        ServiceType.COURIER,
+    }
+
+    links = await fx.driver_vehicle_repo.find_by_driver_id(driver.id)
+    assert len(links) == 1
+
+    courier_status = await fx.uc.get_verification_status(
+        user_id,
+        service_type=ServiceType.COURIER,
+        vehicle_type=VehicleType.CAR,
+    )
+    assert courier_status.vehicle.status == "pending"
 
 
 @pytest.mark.asyncio

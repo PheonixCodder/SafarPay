@@ -16,10 +16,21 @@ class VerificationStatus(str, Enum):
 
 
 class VehicleType(str, Enum):
-    MOTO = "moto"
-    ECONOMY = "economy"
-    COMFORT = "comfort"
-    FREIGHT = "freight"
+    CAR = "CAR"
+    MOTORCYCLE = "MOTORCYCLE"
+    RICKSHAW = "RICKSHAW"
+    VAN = "VAN"
+    PICKUP = "PICKUP"
+    MINI_TRUCK = "MINI_TRUCK"
+    TRUCK = "TRUCK"
+
+
+class ServiceType(str, Enum):
+    CITY_RIDE = "CITY_RIDE"
+    INTERCITY = "INTERCITY"
+    FREIGHT = "FREIGHT"
+    COURIER = "COURIER"
+    GROCERY = "GROCERY"
 
 
 class EntityType(str, Enum):
@@ -59,7 +70,7 @@ class Vehicle:
     color: str
     plate_number: str
     max_passengers: int = 4
-    vehicle_type: VehicleType = VehicleType.ECONOMY
+    vehicle_type: VehicleType = VehicleType.CAR
     verification_status: VerificationStatus = VerificationStatus.PENDING
     is_active: bool = True
     created_at: datetime | None = None
@@ -86,9 +97,20 @@ class DriverVehicle:
     id: uuid.UUID
     driver_id: uuid.UUID
     vehicle_id: uuid.UUID
-    vehicle_type: VehicleType = VehicleType.ECONOMY
+    vehicle_type: VehicleType = VehicleType.CAR
     is_currently_selected: bool = False
     assigned_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+
+@dataclass
+class DriverServiceCapability:
+    id: uuid.UUID
+    driver_id: uuid.UUID
+    vehicle_id: uuid.UUID
+    service_type: ServiceType
+    is_active: bool = True
     created_at: datetime | None = None
     updated_at: datetime | None = None
 

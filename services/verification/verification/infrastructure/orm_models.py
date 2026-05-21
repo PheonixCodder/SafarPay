@@ -24,6 +24,7 @@ from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ..domain.models import DocumentType, EntityType, VehicleType, VerificationStatus
+from ..domain.models import ServiceType
 
 
 class DriverORM(Base, TimestampMixin):
@@ -46,6 +47,10 @@ class DriverORM(Base, TimestampMixin):
     # Relationships
     stats: Mapped[DriverStatsORM] = relationship(back_populates="driver", cascade="all, delete-orphan")
     vehicles: Mapped[list[DriverVehicleORM]] = relationship(back_populates="driver")
+    service_capabilities: Mapped[list[DriverServiceCapabilityORM]] = relationship(
+        back_populates="driver",
+        cascade="all, delete-orphan",
+    )
 
     # Four Images with Doc Table: id_front, id_back, selfie_id, license_front, license_back
 
@@ -64,7 +69,7 @@ class VehicleORM(Base, TimestampMixin):
     max_passengers: Mapped[int] = mapped_column(Integer, default=4)
     vehicle_type: Mapped[VehicleType] = mapped_column(
         SQLEnum(VehicleType, name="vehicle_type", schema="verification"),
-        default=VehicleType.ECONOMY
+        default=VehicleType.CAR
     )
     verification_status: Mapped[VerificationStatus] = mapped_column(
         SQLEnum(VerificationStatus, name="verification_status", schema="verification"),
@@ -119,13 +124,40 @@ class DriverVehicleORM(Base, TimestampMixin):
     vehicle_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("verification.vehicles.id", ondelete="CASCADE"))
     vehicle_type: Mapped[VehicleType] = mapped_column(
         SQLEnum(VehicleType, name="vehicle_type", schema="verification"),
-        default=VehicleType.ECONOMY
+        default=VehicleType.CAR
     )
     is_currently_selected: Mapped[bool] = mapped_column(Boolean, default=False)
     assigned_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
 
     driver: Mapped[DriverORM] = relationship(back_populates="vehicles")
     vehicle: Mapped[VehicleORM] = relationship(back_populates="drivers")
+
+
+class DriverServiceCapabilityORM(Base, TimestampMixin):
+    """Verified service capability for a driver and a registered vehicle."""
+    __tablename__ = "driver_service_capabilities"
+    __table_args__ = (
+        UniqueConstraint(
+            "driver_id",
+            "service_type",
+            "vehicle_id",
+            name="uq_driver_service_vehicle_capability",
+        ),
+        Index("ix_driver_service_capabilities_lookup", "service_type", "is_active"),
+        {"schema": "verification"},
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    driver_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("verification.drivers.id", ondelete="CASCADE"), nullable=False)
+    vehicle_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("verification.vehicles.id", ondelete="CASCADE"), nullable=False)
+    service_type: Mapped[ServiceType] = mapped_column(
+        SQLEnum(ServiceType, name="driver_service_type_enum", schema="verification"),
+        nullable=False,
+    )
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+    driver: Mapped[DriverORM] = relationship(back_populates="service_capabilities")
+    vehicle: Mapped[VehicleORM] = relationship()
 
 
 class VerificationRejectionORM(Base, TimestampMixin):

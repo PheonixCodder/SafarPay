@@ -4,8 +4,10 @@ from uuid import UUID
 
 from .models import (
     Driver,
+    DriverServiceCapability,
     Vehicle,
     VehicleType,
+    ServiceType,
     Document,
     DriverVehicle,
     VerificationRejection,
@@ -50,6 +52,22 @@ class DriverVehicleRepositoryProtocol(Protocol):
         self, driver_id: UUID, vehicle_id: UUID, vehicle_type: VehicleType
     ) -> DriverVehicle: ...
     async def set_active_vehicle(self, driver_id: UUID, vehicle_id: UUID) -> None: ...
+
+
+@runtime_checkable
+class DriverServiceCapabilityRepositoryProtocol(Protocol):
+    async def find_by_driver_id(self, driver_id: UUID) -> list[DriverServiceCapability]: ...
+    async def find_by_driver_and_service(
+        self,
+        driver_id: UUID,
+        service_type: ServiceType,
+    ) -> list[DriverServiceCapability]: ...
+    async def upsert_capability(
+        self,
+        driver_id: UUID,
+        vehicle_id: UUID,
+        service_type: ServiceType,
+    ) -> DriverServiceCapability: ...
 
 
 @runtime_checkable

@@ -19,10 +19,13 @@ enum SDriverVehicleType {
 }
 
 enum SVerificationVehicleType {
-  moto('moto'),
-  economy('economy'),
-  comfort('comfort'),
-  freight('freight');
+  car('CAR'),
+  motorcycle('MOTORCYCLE'),
+  rickshaw('RICKSHAW'),
+  van('VAN'),
+  pickup('PICKUP'),
+  miniTruck('MINI_TRUCK'),
+  truck('TRUCK');
 
   const SVerificationVehicleType(this.value);
 
@@ -30,10 +33,13 @@ enum SVerificationVehicleType {
 
   String get label {
     return switch (this) {
-      SVerificationVehicleType.moto => 'Moto',
-      SVerificationVehicleType.economy => 'Economy',
-      SVerificationVehicleType.comfort => 'Comfort',
-      SVerificationVehicleType.freight => 'Freight',
+      SVerificationVehicleType.car => 'Car',
+      SVerificationVehicleType.motorcycle => 'Motorcycle',
+      SVerificationVehicleType.rickshaw => 'Rickshaw',
+      SVerificationVehicleType.van => 'Van',
+      SVerificationVehicleType.pickup => 'Pickup',
+      SVerificationVehicleType.miniTruck => 'Mini Truck',
+      SVerificationVehicleType.truck => 'Truck',
     };
   }
 
@@ -41,17 +47,53 @@ enum SVerificationVehicleType {
     SDriverVehicleType vehicle,
   ) {
     return switch (vehicle) {
-      SDriverVehicleType.motorcycle => SVerificationVehicleType.moto,
-      SDriverVehicleType.pickup ||
-      SDriverVehicleType.miniTruck ||
-      SDriverVehicleType.truck =>
-        SVerificationVehicleType.freight,
-      SDriverVehicleType.car ||
-      SDriverVehicleType.rickshaw ||
-      SDriverVehicleType.van =>
-        SVerificationVehicleType.economy,
+      SDriverVehicleType.car => SVerificationVehicleType.car,
+      SDriverVehicleType.motorcycle => SVerificationVehicleType.motorcycle,
+      SDriverVehicleType.rickshaw => SVerificationVehicleType.rickshaw,
+      SDriverVehicleType.van => SVerificationVehicleType.van,
+      SDriverVehicleType.pickup => SVerificationVehicleType.pickup,
+      SDriverVehicleType.miniTruck => SVerificationVehicleType.miniTruck,
+      SDriverVehicleType.truck => SVerificationVehicleType.truck,
     };
   }
+}
+
+enum SVerificationServiceType {
+  cityRide('CITY_RIDE'),
+  intercity('INTERCITY'),
+  freight('FREIGHT'),
+  courier('COURIER'),
+  grocery('GROCERY');
+
+  const SVerificationServiceType(this.value);
+
+  final String value;
+
+  static SVerificationServiceType fromWorkCategory(
+    SDriverWorkCategoryType category,
+  ) {
+    return switch (category) {
+      SDriverWorkCategoryType.city => SVerificationServiceType.cityRide,
+      SDriverWorkCategoryType.courier => SVerificationServiceType.courier,
+      SDriverWorkCategoryType.intercity => SVerificationServiceType.intercity,
+      SDriverWorkCategoryType.freight => SVerificationServiceType.freight,
+      SDriverWorkCategoryType.grocery => SVerificationServiceType.grocery,
+    };
+  }
+}
+
+SVerificationServiceType? _parseVerificationServiceType(String? value) {
+  for (final serviceType in SVerificationServiceType.values) {
+    if (serviceType.value == value) return serviceType;
+  }
+  return null;
+}
+
+SVerificationVehicleType? _parseVerificationVehicleType(String? value) {
+  for (final vehicleType in SVerificationVehicleType.values) {
+    if (vehicleType.value == value) return vehicleType;
+  }
+  return null;
 }
 
 enum SVerificationOverallStatus {
@@ -319,6 +361,7 @@ class SVehicleSubmissionRequest {
     required this.model,
     required this.color,
     required this.vehicleType,
+    required this.serviceType,
     required this.maxPassengers,
     required this.plateNumber,
     required this.productionYear,
@@ -330,6 +373,7 @@ class SVehicleSubmissionRequest {
   final String model;
   final String color;
   final SVerificationVehicleType vehicleType;
+  final SVerificationServiceType serviceType;
   final int maxPassengers;
   final String plateNumber;
   final int productionYear;
@@ -341,6 +385,7 @@ class SVehicleSubmissionRequest {
       'model': model,
       'color': color,
       'vehicle_type': vehicleType.value,
+      'service_type': serviceType.value,
       'max_passengers': maxPassengers,
       'plate_number': plateNumber,
       'production_year': productionYear,
@@ -451,6 +496,110 @@ class SVerificationStatusResponse {
       SVerificationStep.selfie => selfie,
       SVerificationStep.vehicle => vehicle,
     };
+  }
+}
+
+class SDriverVehicleServiceStatus {
+  const SDriverVehicleServiceStatus({
+    required this.serviceType,
+    required this.isActive,
+  });
+
+  final SVerificationServiceType serviceType;
+  final bool isActive;
+
+  factory SDriverVehicleServiceStatus.fromJson(Map<String, dynamic> json) {
+    return SDriverVehicleServiceStatus(
+      serviceType: _parseVerificationServiceType(
+            json['service_type']?.toString(),
+          ) ??
+          SVerificationServiceType.cityRide,
+      isActive: json['is_active'] == true,
+    );
+  }
+}
+
+class SDriverVehicleSummaryItem {
+  const SDriverVehicleSummaryItem({
+    required this.vehicleType,
+    required this.isRegisteredForService,
+    required this.services,
+    required this.vehicleDocumentsStatus,
+    this.vehicleId,
+    this.vehicleStatus,
+    this.brand,
+    this.model,
+    this.plateNumber,
+  });
+
+  final SVerificationVehicleType vehicleType;
+  final String? vehicleId;
+  final bool isRegisteredForService;
+  final List<SDriverVehicleServiceStatus> services;
+  final SVerificationGroupStatus vehicleDocumentsStatus;
+  final SVerificationGroupStatus? vehicleStatus;
+  final String? brand;
+  final String? model;
+  final String? plateNumber;
+
+  factory SDriverVehicleSummaryItem.fromJson(Map<String, dynamic> json) {
+    final services = json['services'];
+    return SDriverVehicleSummaryItem(
+      vehicleType: _parseVerificationVehicleType(
+            json['vehicle_type']?.toString(),
+          ) ??
+          SVerificationVehicleType.car,
+      vehicleId: json['vehicle_id']?.toString(),
+      isRegisteredForService: json['is_registered_for_service'] == true,
+      services: services is List
+          ? services
+              .whereType<Map<String, dynamic>>()
+              .map(SDriverVehicleServiceStatus.fromJson)
+              .toList()
+          : const [],
+      vehicleDocumentsStatus: SVerificationStatusParser.group(
+        json['vehicle_documents_status']?.toString(),
+      ),
+      vehicleStatus: json['vehicle_status'] == null
+          ? null
+          : SVerificationStatusParser.group(json['vehicle_status']?.toString()),
+      brand: json['brand']?.toString(),
+      model: json['model']?.toString(),
+      plateNumber: json['plate_number']?.toString(),
+    );
+  }
+}
+
+class SDriverVehicleSummaryResponse {
+  const SDriverVehicleSummaryResponse({
+    required this.serviceType,
+    required this.vehicles,
+  });
+
+  final SVerificationServiceType serviceType;
+  final List<SDriverVehicleSummaryItem> vehicles;
+
+  factory SDriverVehicleSummaryResponse.fromJson(Map<String, dynamic> json) {
+    final vehicles = json['vehicles'];
+    return SDriverVehicleSummaryResponse(
+      serviceType: _parseVerificationServiceType(
+            json['service_type']?.toString(),
+          ) ??
+          SVerificationServiceType.cityRide,
+      vehicles: vehicles is List
+          ? vehicles
+              .whereType<Map<String, dynamic>>()
+              .map(SDriverVehicleSummaryItem.fromJson)
+              .toList()
+          : const [],
+    );
+  }
+
+  SDriverVehicleSummaryItem? itemFor(SVerificationVehicleType vehicleType) {
+    for (final item in vehicles) {
+      if (item.vehicleType == vehicleType) return item;
+    }
+    return null;
   }
 }
 

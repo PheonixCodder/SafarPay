@@ -15,6 +15,7 @@ from ..application.services.rejection_resolver import RejectionResolver
 from ..domain.interfaces import (
     DocumentRepositoryProtocol,
     DriverRepositoryProtocol,
+    DriverServiceCapabilityRepositoryProtocol,
     DriverVehicleRepositoryProtocol,
     StorageProviderProtocol,
     VehicleRepositoryProtocol,
@@ -24,6 +25,7 @@ from .outbox_publisher import VerificationOutboxPublisher
 from .repositories import (
     DocumentRepository,
     DriverRepository,
+    DriverServiceCapabilityRepository,
     DriverVehicleRepository,
     VehicleRepository,
     VerificationRejectionRepository,
@@ -52,6 +54,12 @@ def get_driver_vehicle_repository(
     session: DBSession,
 ) -> DriverVehicleRepositoryProtocol:
     return DriverVehicleRepository(session)
+
+
+def get_driver_service_capability_repository(
+    session: DBSession,
+) -> DriverServiceCapabilityRepositoryProtocol:
+    return DriverServiceCapabilityRepository(session)
 
 
 def get_verification_rejection_repository(
@@ -92,6 +100,10 @@ VehicleRepo = Annotated[VehicleRepositoryProtocol, Depends(get_vehicle_repositor
 DocumentRepo = Annotated[DocumentRepositoryProtocol, Depends(get_document_repository)]
 DriverVehicleRepo = Annotated[
     DriverVehicleRepositoryProtocol, Depends(get_driver_vehicle_repository)
+]
+DriverServiceCapabilityRepo = Annotated[
+    DriverServiceCapabilityRepositoryProtocol,
+    Depends(get_driver_service_capability_repository),
 ]
 VerificationRejectionRepo = Annotated[
     VerificationRejectionRepositoryProtocol, Depends(get_verification_rejection_repository)

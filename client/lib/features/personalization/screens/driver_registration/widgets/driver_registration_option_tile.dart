@@ -13,6 +13,7 @@ class SDriverRegistrationOptionTile extends StatelessWidget {
     this.subtitle,
     this.onTap,
     this.compact = false,
+    this.isCompleted = false,
   });
 
   final String title;
@@ -20,6 +21,7 @@ class SDriverRegistrationOptionTile extends StatelessWidget {
   final String image;
   final VoidCallback? onTap;
   final bool compact;
+  final bool isCompleted;
 
   @override
   Widget build(BuildContext context) {
@@ -70,9 +72,9 @@ class SDriverRegistrationOptionTile extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: SSizes.sm),
-              const Icon(
-                Iconsax.arrow_right_3,
-                color: SColors.textSecondary,
+              Icon(
+                isCompleted ? Iconsax.tick_circle : Iconsax.arrow_right_3,
+                color: isCompleted ? SColors.success : SColors.textSecondary,
                 size: SSizes.iconMd,
               ),
             ],

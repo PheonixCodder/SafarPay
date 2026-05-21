@@ -33,7 +33,14 @@ class _DriverVerificationStatusScreenState
   @override
   void initState() {
     super.initState();
-    controller = SDriverVerificationController()..loadStatus();
+    controller = SDriverVerificationController(
+      serviceType: SVerificationServiceType.fromWorkCategory(
+        widget.category.type,
+      ),
+      vehicleType: SVerificationVehicleType.fromDisplayVehicle(
+        widget.vehicle.type,
+      ),
+    )..loadStatus();
   }
 
   @override

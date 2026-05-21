@@ -5,7 +5,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from ..domain.models import VehicleType, VerificationStatus, DocumentType
+from ..domain.models import ServiceType, VehicleType, VerificationStatus, DocumentType
 
 
 # ── Common Responses ─────────────────────────────────────────────────────────
@@ -43,9 +43,39 @@ class VehicleSubmissionRequest(BaseModel):
     model: str = Field(..., min_length=1, max_length=50)
     color: str = Field(..., min_length=1, max_length=30)
     vehicle_type: VehicleType
+    service_type: ServiceType | None = Field(
+        None,
+        description="Driver service this vehicle registration enables.",
+    )
     max_passengers: int = Field(4, ge=1, le=10)
     plate_number: str = Field(..., min_length=1, max_length=20)
     production_year: int = Field(..., ge=1980, le=2100)
+
+
+class AttachVehicleServiceRequest(BaseModel):
+    service_type: ServiceType
+
+
+class DriverVehicleServiceResponse(BaseModel):
+    service_type: ServiceType
+    is_active: bool
+
+
+class DriverVehicleSummaryItem(BaseModel):
+    vehicle_type: VehicleType
+    vehicle_id: uuid.UUID | None = None
+    is_registered_for_service: bool = False
+    services: list[DriverVehicleServiceResponse] = Field(default_factory=list)
+    vehicle_status: VerificationStatus | None = None
+    vehicle_documents_status: Literal["pending", "verified", "rejected", "not_submitted"] = "not_submitted"
+    brand: str | None = None
+    model: str | None = None
+    plate_number: str | None = None
+
+
+class DriverVehicleSummaryResponse(BaseModel):
+    service_type: ServiceType
+    vehicles: list[DriverVehicleSummaryItem]
 
 
 # ── Aggregated Status Responses ──────────────────────────────────────────────
