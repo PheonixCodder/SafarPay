@@ -420,6 +420,25 @@ class ServiceRequestRepository:
         result = await self._session.execute(stmt)
         return [_ride_orm_to_domain(o) for o in result.scalars().all()]
 
+    async def find_active_by_driver(self, driver_id: UUID) -> ServiceRequest | None:
+        active_statuses = [
+            RequestStatus.ACCEPTED,
+            RequestStatus.ARRIVING,
+            RequestStatus.IN_PROGRESS,
+        ]
+        result = await self._session.execute(
+            select(ServiceRequestORM)
+            .where(
+                ServiceRequestORM.assigned_driver_id == driver_id,
+                ServiceRequestORM.status.in_(active_statuses),
+            )
+            .options(selectinload(ServiceRequestORM.stops))
+            .order_by(ServiceRequestORM.accepted_at.desc().nullslast())
+            .limit(1)
+        )
+        orm = result.scalar_one_or_none()
+        return _ride_orm_to_domain(orm) if orm else None
+
     async def update_status(
         self,
         ride_id: UUID,

@@ -58,6 +58,10 @@ class ServiceRequestRepositoryProtocol(Protocol):
         """Return paginated rides for a passenger, optionally filtered by status."""
         ...
 
+    async def find_active_by_driver(self, driver_id: UUID) -> ServiceRequest | None:
+        """Return the driver's active assigned ride, if any."""
+        ...
+
     async def update_status(
         self,
         ride_id: UUID,

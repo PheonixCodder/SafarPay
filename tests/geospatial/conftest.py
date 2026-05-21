@@ -45,7 +45,7 @@ def make_candidate(
     *,
     distance: float = 1.0,
     eta: int | None = None,
-    vehicle_type: str = "SEDAN",
+    vehicle_type: str = "CAR",
     rating: float | None = 4.8,
     priority: float = 0.5,
 ) -> DriverCandidate:

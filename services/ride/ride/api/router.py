@@ -250,10 +250,11 @@ async def complete_ride(
 async def add_stop(
     ride_id: UUID,
     body: AddStopRequest,
+    current_user: CurrentUser,
     uc: Annotated[AddStopUseCase, Depends(get_add_stop_uc)],
 ) -> dict:
     try:
-        stop = await uc.execute(ride_id, body)
+        stop = await uc.execute(ride_id, body, current_user.user_id)
         return stop.model_dump()
     except Exception as exc:
         raise _handle_domain(exc) from None

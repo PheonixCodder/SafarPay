@@ -84,7 +84,7 @@ def test_all_ride_routes_success(ride_app: FastAPI, ride_client: Any) -> None:
             {
                 "driver_id": str(DRIVER_ID),
                 "distance_km": 1.2,
-                "vehicle_type": "SEDAN",
+                "vehicle_type": "CAR",
                 "rating": 4.8,
                 "priority_score": 0.9,
                 "estimated_arrival_minutes": 5,
@@ -271,7 +271,7 @@ def test_response_serializers_include_expected_datetime_and_identity_fields() ->
         latitude=31.5,
         longitude=74.3,
         distance_km=1.2,
-        vehicle_type="SEDAN",
+        vehicle_type="CAR",
         rating=4.9,
         priority_score=1,
         estimated_arrival_minutes=4,

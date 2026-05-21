@@ -338,7 +338,7 @@ class SLocationDemoData {
         {
           'driver_id': 'demo-driver-001',
           'distance_km': 1.2,
-          'vehicle_type': 'HATCHBACK',
+          'vehicle_type': 'CAR',
           'rating': 4.8,
           'priority_score': 0.96,
           'estimated_arrival_minutes': 4,
@@ -346,7 +346,7 @@ class SLocationDemoData {
         {
           'driver_id': 'demo-driver-002',
           'distance_km': 2.4,
-          'vehicle_type': 'BIKE',
+          'vehicle_type': 'MOTORCYCLE',
           'rating': 4.6,
           'priority_score': 0.88,
           'estimated_arrival_minutes': 6,
