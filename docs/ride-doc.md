@@ -40,6 +40,21 @@ Direct ride acceptance is invalid for `BID_BASED` and `HYBRID`.
 
 ---
 
+## Service, Category, And Vehicle Taxonomy
+
+Ride separates workflow, product tier, vehicle, and pricing:
+
+- `ServiceType`: `CITY_RIDE`, `INTERCITY`, `FREIGHT`, `COURIER`, `GROCERY`.
+- `ServiceCategory`: passenger-facing tier/category such as `MINI`, `RICKSHAW`, `BIKE`, `COMFORT`, `PRIVATE`.
+- `VehicleType`: physical vehicle only: `CAR`, `MOTORCYCLE`, `RICKSHAW`, `VAN`, `PICKUP`, `MINI_TRUCK`, `TRUCK`.
+- `PricingMode`: assignment/pricing mechanics only.
+
+Assignment rule:
+
+- A driver cannot accept or be internally assigned to a second active ride while they already have a ride in `ACCEPTED`, `ARRIVING`, or `IN_PROGRESS`.
+
+---
+
 ## Create Ride
 
 Route:
@@ -101,7 +116,7 @@ Kafka payload:
   "pickup_longitude": 74.35,
   "dropoff_latitude": 31.60,
   "dropoff_longitude": 74.40,
-  "vehicle_type": "SEDAN",
+  "vehicle_type": "CAR",
   "matching_radius_km": 5.0
 }
 ```
@@ -603,7 +618,7 @@ Response:
     {
       "driver_id": "UUID",
       "distance_km": 1.2,
-      "vehicle_type": "SEDAN",
+      "vehicle_type": "CAR",
       "rating": 4.8,
       "priority_score": 0.91,
       "estimated_arrival_minutes": 6.0

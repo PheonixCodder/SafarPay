@@ -46,9 +46,9 @@ def test_matching_criteria_and_service_zone_time_windows() -> None:
 @pytest.mark.asyncio
 async def test_find_nearby_drivers_filters_enriches_h3_scores_and_limits_results() -> None:
     candidates = [
-        make_candidate(DRIVER_ID, distance=1, vehicle_type="SEDAN", rating=4.9, priority=1),
-        make_candidate(OTHER_DRIVER_ID, distance=3, vehicle_type="BIKE", rating=4.8),
-        make_candidate(uuid4(), distance=2, vehicle_type="SEDAN", rating=3.0),
+        make_candidate(DRIVER_ID, distance=1, vehicle_type="CAR", rating=4.9, priority=1),
+        make_candidate(OTHER_DRIVER_ID, distance=3, vehicle_type="MOTORCYCLE", rating=4.8),
+        make_candidate(uuid4(), distance=2, vehicle_type="CAR", rating=3.0),
     ]
     location = FakeLocationProvider(candidates)
     routing = FakeRouting()
@@ -60,7 +60,7 @@ async def test_find_nearby_drivers_filters_enriches_h3_scores_and_limits_results
             pickup=Coordinates(31.52, 74.35),
             radius_km=5,
             max_candidates=1,
-            required_vehicle_type="SEDAN",
+            required_vehicle_type="CAR",
             min_rating=4.0,
         )
     )

@@ -79,7 +79,7 @@ def test_all_geospatial_routes_success_and_admin_zone_management(geospatial_app:
     manager = ZoneManager()
     override(geospatial_app, get_manage_zones_uc, manager)
 
-    assert geospatial_client.get("/api/v1/drivers/nearby?lat=31.52&lng=74.35&vehicle_type=SEDAN").status_code == 200
+    assert geospatial_client.get("/api/v1/drivers/nearby?lat=31.52&lng=74.35&vehicle_type=CAR").status_code == 200
     assert geospatial_client.post(
         "/api/v1/routes",
         json={"origin": {"latitude": 31.52, "longitude": 74.35}, "destination": {"latitude": 31.6, "longitude": 74.4}},
@@ -93,7 +93,7 @@ def test_all_geospatial_routes_success_and_admin_zone_management(geospatial_app:
     assert geospatial_client.get("/api/v1/zones").status_code == 200
     assert geospatial_client.delete(f"/api/v1/zones/{zone.id}").status_code == 204
 
-    assert nearby.calls[0][0].required_vehicle_type == "SEDAN"
+    assert nearby.calls[0][0].required_vehicle_type == "CAR"
     assert eta.calls[0][0] == Coordinates(31.52, 74.35)
     assert validate.calls[0][0:2] == (31.52, 74.35)
     assert surge.calls[0][0:2] == (31.52, 74.35)
@@ -154,7 +154,7 @@ async def test_location_client_maps_response_skips_bad_rows_and_handles_failures
             return FakeResponse(
                 {
                     "drivers": [
-                        {"driver_id": str(DRIVER_ID), "lat": 31.52, "lng": 74.35, "distance_km": 1.2, "vehicle_type": "SEDAN", "rating": 4.8},
+                        {"driver_id": str(DRIVER_ID), "lat": 31.52, "lng": 74.35, "distance_km": 1.2, "vehicle_type": "CAR", "rating": 4.8},
                         {"driver_id": "bad"},
                     ]
                 }
@@ -168,7 +168,7 @@ async def test_location_client_maps_response_skips_bad_rows_and_handles_failures
     await client.start()
     result = await client.get_nearby_drivers(31.52, 74.35, 5, 20)
 
-    assert result == [DriverCandidate(driver_id=DRIVER_ID, latitude=31.52, longitude=74.35, distance_km=1.2, vehicle_type="SEDAN", rating=4.8)]
+    assert result == [DriverCandidate(driver_id=DRIVER_ID, latitude=31.52, longitude=74.35, distance_km=1.2, vehicle_type="CAR", rating=4.8)]
     assert client._client is not None
     fake_client = cast(Any, client._client)
     assert fake_client.calls[0][0] == "/api/v1/location/drivers/nearby"

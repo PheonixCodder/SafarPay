@@ -33,6 +33,7 @@ if TYPE_CHECKING:
 
 from ..domain.exceptions import (
     InvalidStateTransitionError,
+    RideDomainError,
     RideNotFoundError,
     StopNotFoundError,
     UnauthorisedRideAccessError,
@@ -189,6 +190,17 @@ async def _load_ride_or_404(
     if not ride:
         raise RideNotFoundError(f"Ride {ride_id} not found.")
     return ride
+
+
+async def _ensure_driver_has_no_active_ride(
+    repo: ServiceRequestRepositoryProtocol,
+    driver_id: UUID,
+) -> None:
+    active_ride = await repo.find_active_by_driver(driver_id)
+    if active_ride:
+        raise RideDomainError(
+            f"Driver {driver_id} already has active ride {active_ride.id}."
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -410,6 +422,7 @@ class AcceptRideUseCase:
                 f"Direct accept not allowed for {ride.pricing_mode.value} pricing. "
                 f"Use the Bidding Service (POST /bidding/sessions/{{id}}/bids) instead."
             )
+        await _ensure_driver_has_no_active_ride(self._repo, driver_id)
         if self._payment:
             basis_amount = ride.baseline_min_price or ride.baseline_max_price or ride.final_price or 0.0
             await self._payment.reserve_commission(
@@ -461,6 +474,7 @@ class InternalAssignDriverUseCase:
 
     async def execute(self, ride_id: UUID, driver_id: UUID, final_price: float | None = None) -> RideResponse:
         ride = await _load_ride_or_404(self._repo, ride_id)
+        await _ensure_driver_has_no_active_ride(self._repo, driver_id)
         if self._payment and ride.pricing_mode == PricingMode.FIXED:
             basis_amount = final_price or ride.baseline_min_price or ride.baseline_max_price or ride.final_price or 0.0
             await self._payment.reserve_commission(
@@ -631,8 +645,12 @@ class AddStopUseCase:
         self._ws = ws
         self._pub = publisher
 
-    async def execute(self, ride_id: UUID, cmd: AddStopRequest) -> StopResponse:
+    async def execute(self, ride_id: UUID, cmd: AddStopRequest, passenger_id: UUID) -> StopResponse:
         ride = await _load_ride_or_404(self._repo, ride_id)
+        if ride.passenger_id != passenger_id:
+            raise UnauthorisedRideAccessError(
+                "Only the passenger who created this ride may add stops."
+            )
         if not ride.is_active:
             raise RideNotFoundError("Cannot add stops to an inactive ride.")
         stop = Stop.create(

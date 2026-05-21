@@ -24,6 +24,7 @@ from ..domain.interfaces import (
     BiddingSessionRepositoryProtocol,
     BidRepositoryProtocol,
     CounterOfferRepositoryProtocol,
+    DriverEligibilityClientProtocol,
     PaymentClientProtocol,
     RideServiceClientProtocol,
     WebhookClientProtocol,
@@ -204,6 +205,7 @@ class PlaceBidUseCase:
         cache: CacheManager,
         ws: WebSocketManager,
         ride_client: RideServiceClientProtocol | None = None,
+        driver_eligibility_client: DriverEligibilityClientProtocol | None = None,
         publisher: EventPublisher | None = None,
         post_commit: PostCommitScheduler | None = None,
     ) -> None:
@@ -212,6 +214,7 @@ class PlaceBidUseCase:
         self._cache = cache
         self._ws = ws
         self._ride_client = ride_client
+        self._driver_eligibility_client = driver_eligibility_client
         self._publisher = publisher
         self._post_commit = post_commit
 
@@ -248,6 +251,10 @@ class PlaceBidUseCase:
             if session.status != BiddingSessionStatus.OPEN:
                 raise BiddingClosedError("Bidding session is not open.")
             _require_bidding_mode(session)
+            if self._driver_eligibility_client:
+                is_eligible = await self._driver_eligibility_client.validate_driver(driver_id, session.id)
+                if not is_eligible:
+                    raise UnauthorisedBiddingAccessError("Driver is not eligible to bid on this session.")
 
             # 4. Redis Consistency Fallback
             zset_key = self._cache._key("bids", f"session:{session_id}")

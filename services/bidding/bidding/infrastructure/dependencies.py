@@ -21,6 +21,7 @@ from ..domain.interfaces import (
     BiddingSessionRepositoryProtocol,
     BidRepositoryProtocol,
     CounterOfferRepositoryProtocol,
+    DriverEligibilityClientProtocol,
     PaymentClientProtocol,
     WebhookClientProtocol,
 )
@@ -68,6 +69,10 @@ def get_ride_client(request: Request) -> Any:
     return getattr(request.app.state, "ride_client", None)
 
 
+def get_driver_eligibility_client(request: Request) -> DriverEligibilityClientProtocol | None:
+    return getattr(request.app.state, "driver_eligibility_client", None)
+
+
 def get_payment_client(request: Request) -> PaymentClientProtocol | None:
     return getattr(request.app.state, "payment_client", None)
 
@@ -84,6 +89,7 @@ def get_place_bid_uc(
         cache=get_cache(request),
         ws=get_ws_manager(request),
         ride_client=get_ride_client(request),
+        driver_eligibility_client=get_driver_eligibility_client(request),
         publisher=get_publisher(request),
         post_commit=lambda hook: register_post_commit_hook(session, hook),
     )

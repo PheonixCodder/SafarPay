@@ -159,7 +159,7 @@ def ride_payload(pricing_mode: str = "FIXED") -> dict[str, Any]:
         "detail": {
             "service_type": "CITY_RIDE",
             "passenger_count": 1,
-            "preferred_vehicle_type": "SEDAN",
+            "preferred_vehicle_type": "CAR",
         },
     }
 
@@ -203,6 +203,7 @@ class FakeRideWebSockets:
 class FakeRideRepo:
     def __init__(self, ride: ServiceRequest | None = None) -> None:
         self.ride = ride
+        self.active_driver_ride: ServiceRequest | None = None
         self.created_detail: dict[str, Any] | None = None
         self.status_updates: list[tuple[UUID, RideStatus, dict[str, Any]]] = []
         self.find_by_passenger_calls: list[tuple[UUID, list[RideStatus] | None, int, int]] = []
@@ -232,6 +233,17 @@ class FakeRideRepo:
         if self.ride and self.ride.passenger_id == passenger_id:
             return [self.ride]
         return []
+
+    async def find_active_by_driver(self, driver_id: UUID) -> ServiceRequest | None:
+        if self.active_driver_ride and self.active_driver_ride.assigned_driver_id == driver_id:
+            return self.active_driver_ride
+        if (
+            self.ride
+            and self.ride.assigned_driver_id == driver_id
+            and self.ride.status not in {RideStatus.COMPLETED, RideStatus.CANCELLED}
+        ):
+            return self.ride
+        return None
 
     async def update_status(self, ride_id: UUID, status: RideStatus, **kwargs: Any) -> None:
         self.status_updates.append((ride_id, status, kwargs))
@@ -302,7 +314,7 @@ class FakeGeo:
                 latitude=31.5,
                 longitude=74.3,
                 distance_km=1.2,
-                vehicle_type="SEDAN",
+                vehicle_type="CAR",
                 rating=4.8,
                 priority_score=0.9,
                 estimated_arrival_minutes=5,

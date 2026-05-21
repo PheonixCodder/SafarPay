@@ -36,6 +36,7 @@ from ride.application.use_cases import (
 )
 from ride.domain.exceptions import (
     InvalidStateTransitionError,
+    RideDomainError,
     StopNotArrivedError,
     UnauthorisedRideAccessError,
     VerificationCodeInvalidError,
@@ -147,6 +148,32 @@ async def test_internal_assignment_accepts_bidding_ride_with_final_price() -> No
     assert response.assigned_driver_id == DRIVER_ID
     assert response.final_price == 375.0
     assert repo.status_updates[0][2]["final_price"] == 375.0
+
+
+@pytest.mark.asyncio
+async def test_driver_cannot_accept_or_be_assigned_to_second_active_ride() -> None:
+    active_ride = make_ride(driver_id=DRIVER_ID, status=RideStatus.IN_PROGRESS)
+    available_fixed_ride = make_ride(pricing_mode=PricingMode.FIXED)
+    repo = FakeRideRepo(available_fixed_ride)
+    repo.active_driver_ride = active_ride
+
+    with pytest.raises(RideDomainError, match="active ride"):
+        await AcceptRideUseCase(
+            cast(Any, repo),
+            cast(Any, FakeCache()),
+            cast(Any, FakeRideWebSockets()),
+        ).execute(available_fixed_ride.id, AcceptRideRequest(), DRIVER_ID)
+
+    available_bid_ride = make_ride(pricing_mode=PricingMode.BID_BASED)
+    repo = FakeRideRepo(available_bid_ride)
+    repo.active_driver_ride = active_ride
+
+    with pytest.raises(RideDomainError, match="active ride"):
+        await InternalAssignDriverUseCase(
+            cast(Any, repo),
+            cast(Any, FakeCache()),
+            cast(Any, FakeRideWebSockets()),
+        ).execute(available_bid_ride.id, DRIVER_ID, final_price=375.0)
 
 
 @pytest.mark.asyncio
@@ -310,6 +337,7 @@ async def test_add_stop_rejects_inactive_ride_and_broadcasts_active_ride() -> No
             contact_name=None,
             contact_phone=None,
         ),
+        PASSENGER_ID,
     )
 
     assert response.sequence_order == 3
@@ -335,6 +363,29 @@ async def test_add_stop_rejects_inactive_ride_and_broadcasts_active_ride() -> No
                 contact_name=None,
                 contact_phone=None,
             ),
+            PASSENGER_ID,
+        )
+
+    with pytest.raises(UnauthorisedRideAccessError):
+        await AddStopUseCase(
+            cast(Any, FakeRideRepo(ride)),
+            cast(Any, FakeStopRepo()),
+            cast(Any, FakeRideWebSockets()),
+        ).execute(
+            ride.id,
+            AddStopRequest(
+                sequence_order=3,
+                stop_type=StopType.WAYPOINT,
+                latitude=31.7,
+                longitude=74.5,
+                place_name=None,
+                address_line_1=None,
+                city=None,
+                country=None,
+                contact_name=None,
+                contact_phone=None,
+            ),
+            OTHER_USER_ID,
         )
 
 
@@ -452,7 +503,7 @@ async def test_nearby_driver_matching_and_broadcast_records_events() -> None:
         cast(Any, geo),
         cast(Any, cache),
         cast(Any, publisher),
-    ).execute(31.5, 74.3, 5, ride_id=uuid4(), category="MINI", vehicle_type="SEDAN")
+    ).execute(31.5, 74.3, 5, ride_id=uuid4(), category="MINI", vehicle_type="CAR")
 
     assert nearby.count == 1
     assert geo.calls[0]["category"] == "MINI"

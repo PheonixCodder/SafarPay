@@ -59,7 +59,7 @@ void main() {
     expect(body['baseline_min_price'], 213);
     expect(body['baseline_max_price'], 250);
     expect(body['auto_accept_driver'], isTrue);
-    expect(body['detail']['preferred_vehicle_type'], 'HATCHBACK');
+    expect(body['detail']['preferred_vehicle_type'], 'CAR');
     expect(body['detail']['estimated_price'], 250);
   });
 

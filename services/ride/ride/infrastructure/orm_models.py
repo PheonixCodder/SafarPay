@@ -89,18 +89,13 @@ class ProofType(enum.Enum):
 
 
 class VehicleType(enum.Enum):
-    SEDAN = "SEDAN"
-    HATCHBACK = "HATCHBACK"
-    SUV = "SUV"
+    CAR = "CAR"
+    MOTORCYCLE = "MOTORCYCLE"
     VAN = "VAN"
-    BIKE = "BIKE"
     RICKSHAW = "RICKSHAW"
-    TRUCK = "TRUCK"
     PICKUP = "PICKUP"
     MINI_TRUCK = "MINI_TRUCK"
-    COASTER = "COASTER"
-    BUS = "BUS"
-    OTHER = "OTHER"
+    TRUCK = "TRUCK"
 
 
 class DriverGenderPreference(enum.Enum):
