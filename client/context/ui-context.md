@@ -73,10 +73,10 @@ Use `iconsax` icons for Flutter UI. Typical sizes come from `SSizes.iconSm`, `SS
 - Home categories: light-mode service tiles are displayed with `SHomeCategories`; the layout uses one dominant Groceries tile, stacked City rides and City to City tiles, then Couriers and Freight tiles below.
 - Notification, category, and ride search widgets keep upgraded visual dimensions in `SSizes` rather than local literals.
 - Shared visual primitives such as rounded images, circular images, decorative containers, search bars, primary headers, and navigation tabs live in `lib/common/widgets` so reused UI keeps the same sizing and color tokens.
-- Settings: personalization settings uses a branded primary header, profile tile, focused settings menu rows, switch rows, and a full-width logout action composed from one-widget files.
+- Settings: personalization settings uses a branded primary header, cached user profile tile, focused settings menu rows, switch rows, and a full-width logout action composed from one-widget files.
 - Settings user-info navigation: profile edit and the `User Info` row open the personalization `ProfileScreen` with a reusable right-slide transition from `lib/common/navigation`.
 - Common edit drawer: existing-value edits use a right-side shadcn `ShadSheet` with SafarPay colors, compact labels, a single input, and clear cancel/save actions.
-- Profile user info: profile rows use boxed edit icons instead of right-arrow affordances and update visible values locally until backend persistence is planned.
+- Profile user info: profile rows initialize from the cached authenticated user, use boxed edit icons instead of right-arrow affordances, and update visible cached values locally until backend persistence is planned.
 - Privacy Policy: the Settings `Privacy & Security` row opens an informational subpage with `SAppBar`, the shared right-slide transition, a white summary panel, compact trust cues, and expandable policy sections rendered from mapped content.
 - Notifications: the Settings `Notifications` row opens a timeline-style inbox subpage with a compact summary panel, horizontal filter chips, grouped date labels, and soft notification rows for trips, payments, offers, safety, and system updates.
 - Help & Support: the Settings `Help & Support` row opens a reference-matched support hub with a teal `SPrimaryHeaderContainer`, centered scooter support illustration, and a rounded white options sheet with simple icon rows.

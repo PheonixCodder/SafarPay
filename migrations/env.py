@@ -49,6 +49,24 @@ if config.config_file_name is not None:
 target_metadata = Base.metadata
 
 
+def ensure_alembic_version_table(connection) -> None:
+    """Keep Alembic's version table compatible with long revision IDs.
+
+    Alembic's default version_num column is varchar(32), but this migration
+    history already has revision IDs longer than 32 characters.
+    """
+    connection.exec_driver_sql(
+        """
+        CREATE TABLE IF NOT EXISTS public.alembic_version (
+            version_num varchar(128) NOT NULL,
+            CONSTRAINT alembic_version_pkc PRIMARY KEY (version_num)
+        );
+        ALTER TABLE public.alembic_version
+            ALTER COLUMN version_num TYPE varchar(128);
+        """
+    )
+
+
 def get_url() -> str:
     """Prefer POSTGRES_DB_URI from settings over alembic.ini fallback."""
     return settings.POSTGRES_DB_URI
@@ -70,6 +88,12 @@ def run_migrations_offline() -> None:
 
 
 def do_run_migrations(connection) -> None:
+    ensure_alembic_version_table(connection)
+    # The preflight DDL above opens SQLAlchemy's implicit transaction.
+    # Commit it before handing the connection to Alembic, otherwise Alembic's
+    # migration transaction can be nested inside an outer transaction that is
+    # rolled back when the connection closes.
+    connection.commit()
     context.configure(
         connection=connection,
         target_metadata=target_metadata,

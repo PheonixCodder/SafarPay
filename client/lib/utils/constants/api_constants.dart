@@ -13,7 +13,7 @@ class SApiConstants {
 
   static const String authBaseUrl = String.fromEnvironment(
     'SAFARPAY_AUTH_BASE_URL',
-    defaultValue: 'http://10.0.2.2:8001/api/v1/auth',
+    defaultValue: 'http://192.168.100.3:8001/api/v1/auth',
   );
   static const String gatewayBaseUrl = String.fromEnvironment(
     'SAFARPAY_GATEWAY_BASE_URL',
@@ -37,7 +37,7 @@ class SApiConstants {
   );
   static const String verificationBaseUrl = String.fromEnvironment(
     'SAFARPAY_VERIFICATION_BASE_URL',
-    defaultValue: 'http://10.0.2.2:8005/api/v1/verification',
+    defaultValue: 'http://192.168.100.3:8005/api/v1/verification',
   );
   static const String mapboxAccessToken = String.fromEnvironment(
     'MAPBOX_ACCESS_TOKEN',
