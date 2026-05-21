@@ -45,42 +45,52 @@ Read these files in order before implementing code or making architectural decis
 37. `context/feature-specs/030-client-screen-structure-normalization.md` - prompt for client screen structure normalization
 38. `context/feature-specs/031-branch-split-and-pr-merge.md` - prompt for splitting current mixed client work into scoped PR branches
 39. `context/feature-specs/032-map-first-passenger-booking-flow.md` - prompt for map-first passenger booking and hybrid offers
-40. `plans/000-client-product-and-architecture-plan.md` - canonical client product and architecture plan
-41. `plans/001-flutter-scaffold-plan.md` - Flutter scaffold plan
-42. `plans/002-design-system-foundation-plan.md` - shared design system plan
-43. `plans/003-onboarding-flow-plan.md` - onboarding implementation plan
-44. `plans/004-auth-gate-and-login-plan.md` - auth gate and login plan
-45. `plans/005-phone-otp-and-profile-plan.md` - phone OTP and profile plan
-46. `plans/006-permissions-and-home-plan.md` - permissions and home plan
-47. `plans/007-google-phone-link-screen-plan.md` - Google phone-link auth flow plan
-48. `plans/008-client-context-documentation-plan.md` - client documentation setup plan
-49. `plans/009-firebase-config-hardening-plan.md` - Firebase config hardening plan
-50. `plans/010-navigation-menu-plan.md` - post-auth navigation menu plan
-51. `plans/011-update-navigation-menu-design-plan.md` - custom navigation menu design plan
-52. `plans/012-navigation-menu-alignment-and-icon-size-plan.md` - navigation indicator alignment and icon size plan
-53. `plans/013-ride-search-result-widget-plan.md` - reusable ride search result widget plan
-54. `plans/014-demo-ride-data-and-home-recents-plan.md` - typed demo ride data and home recents plan
-55. `plans/015-home-carousel-plan.md` - home banner carousel plan
-56. `plans/016-home-categories-plan.md` - home service categories plan
-57. `plans/017-widget-design-token-cleanup-plan.md` - shared widget design token cleanup plan
-58. `plans/018-client-structure-cleanup-plan.md` - client structure cleanup plan
-59. `plans/019-settings-user-info-navigation-plan.md` - Settings user-info navigation plan
-60. `plans/020-common-edit-drawer-plan.md` - reusable shadcn edit drawer plan
-61. `plans/021-privacy-policy-page-plan.md` - Settings Privacy Policy page plan
-62. `plans/022-notifications-page-plan.md` - Settings Notifications page plan
-63. `plans/023-help-support-page-plan.md` - Settings Help & Support page plan
-64. `plans/024-rides-trips-page-plan.md` - Trips ride history page plan
-65. `plans/025-common-searchbar-widget-plan.md` - common search bar widget plan
-66. `plans/026-passenger-map-location-tracking-plan.md` - passenger map and live ride tracking foundation plan
-67. `plans/027-driver-registration-flow-plan.md` - Settings-launched driver registration entry flow plan
-68. `plans/028-driver-verification-demo-status-plan.md` - backend-offline driver verification status demo plan
-69. `plans/029-driver-submit-review-and-header-polish-plan.md` - driver submit-review CTA and header polish plan
-70. `plans/030-driver-registration-step-submission-pages-plan.md` - driver registration step forms and presigned upload plan
-71. `plans/031-client-screen-structure-normalization-plan.md` - client screen structure normalization plan
-72. `plans/032-map-first-passenger-booking-flow-plan.md` - map-first passenger booking and hybrid offers plan
-73. `plans/900-branch-split-and-merge-plan.md` - Git branch split and merge plan
-74. `plans/901-empty-folder-restoration-plan.md` - empty-folder preservation plan
-75. `plans/decisions-log.md` - permanent decision record
+40. `context/feature-specs/045-real-auth-api-and-console-otp.md` - prompt for real Auth APIs and console OTP local testing
+41. `context/feature-specs/046-existing-phone-login.md` - prompt for existing phone users to log in after OTP
+42. `context/feature-specs/047-auth-profile-demographics.md` - prompt for auth profile demographics and editable profile sync
+43. `context/feature-specs/052-driver-vehicle-service-consent.md` - prompt for confirming existing vehicle reuse before service attachment
+44. `context/feature-specs/053-safe-branch-split-and-pr-merge.md` - prompt for safe branch splitting and sequential PR merges
+45. `plans/000-client-product-and-architecture-plan.md` - canonical client product and architecture plan
+45. `plans/001-flutter-scaffold-plan.md` - Flutter scaffold plan
+46. `plans/002-design-system-foundation-plan.md` - shared design system plan
+47. `plans/003-onboarding-flow-plan.md` - onboarding implementation plan
+48. `plans/004-auth-gate-and-login-plan.md` - auth gate and login plan
+49. `plans/005-phone-otp-and-profile-plan.md` - phone OTP and profile plan
+50. `plans/006-permissions-and-home-plan.md` - permissions and home plan
+51. `plans/007-google-phone-link-screen-plan.md` - Google phone-link auth flow plan
+52. `plans/008-client-context-documentation-plan.md` - client documentation setup plan
+53. `plans/009-firebase-config-hardening-plan.md` - Firebase config hardening plan
+54. `plans/010-navigation-menu-plan.md` - post-auth navigation menu plan
+55. `plans/011-update-navigation-menu-design-plan.md` - custom navigation menu design plan
+56. `plans/012-navigation-menu-alignment-and-icon-size-plan.md` - navigation indicator alignment and icon size plan
+57. `plans/013-ride-search-result-widget-plan.md` - reusable ride search result widget plan
+58. `plans/014-demo-ride-data-and-home-recents-plan.md` - typed demo ride data and home recents plan
+59. `plans/015-home-carousel-plan.md` - home banner carousel plan
+60. `plans/016-home-categories-plan.md` - home service categories plan
+61. `plans/017-widget-design-token-cleanup-plan.md` - shared widget design token cleanup plan
+62. `plans/018-client-structure-cleanup-plan.md` - client structure cleanup plan
+63. `plans/019-settings-user-info-navigation-plan.md` - Settings user-info navigation plan
+64. `plans/020-common-edit-drawer-plan.md` - reusable shadcn edit drawer plan
+65. `plans/021-privacy-policy-page-plan.md` - Settings Privacy Policy page plan
+66. `plans/022-notifications-page-plan.md` - Settings Notifications page plan
+67. `plans/023-help-support-page-plan.md` - Settings Help & Support page plan
+68. `plans/024-rides-trips-page-plan.md` - Trips ride history page plan
+69. `plans/025-common-searchbar-widget-plan.md` - common search bar widget plan
+70. `plans/026-passenger-map-location-tracking-plan.md` - passenger map and live ride tracking foundation plan
+71. `plans/027-driver-registration-flow-plan.md` - Settings-launched driver registration entry flow plan
+72. `plans/028-driver-verification-demo-status-plan.md` - backend-offline driver verification status demo plan
+73. `plans/029-driver-submit-review-and-header-polish-plan.md` - driver submit-review CTA and header polish plan
+74. `plans/030-driver-registration-step-submission-pages-plan.md` - driver registration step forms and presigned upload plan
+75. `plans/031-client-screen-structure-normalization-plan.md` - client screen structure normalization plan
+76. `plans/032-map-first-passenger-booking-flow-plan.md` - map-first passenger booking and hybrid offers plan
+77. `plans/045-real-auth-api-and-console-otp-plan.md` - real Auth API and console OTP plan
+78. `plans/046-existing-phone-login-plan.md` - existing phone login branch plan
+79. `plans/047-auth-profile-demographics-plan.md` - auth profile demographics implementation plan
+81. `plans/052-driver-vehicle-service-consent-plan.md` - driver vehicle reuse consent plan
+82. `plans/053-safe-branch-split-and-pr-merge-plan.md` - safe branch split and sequential PR merge plan
+83. `plans/900-branch-split-and-merge-plan.md` - Git branch split and merge plan
+84. `plans/901-empty-folder-restoration-plan.md` - empty-folder preservation plan
+85. `plans/decisions-log.md` - permanent decision record
 
 Update `context/progress-tracker.md` after each meaningful implementation change.
 
@@ -201,7 +211,8 @@ AuthGateScreen
   AuthFlowScreen
     OnBoardingScreen
     LoginScreen
-      phone OTP -> OtpScreen -> CompleteProfileScreen
+      phone OTP -> OtpScreen -> NavigationMenu/PermissionsScreen when phone exists
+      phone OTP -> OtpScreen -> CompleteProfileScreen when phone is new
       Google -> GoogleOtpProfileScreen when phone linking is required
       Google -> PermissionsScreen/NavigationMenu when fully authenticated
 ```
@@ -210,6 +221,7 @@ Notes:
 
 - `AuthFlowScreen` switches onboarding to login using `AnimatedSwitcher`.
 - Phone login validates phone number and navigates to OTP.
+- OTP verification branches by backend `next_step`: existing phone users receive tokens and enter post-auth routing, while new phone users receive `registration_token` and complete profile.
 - OTP uses a custom 6-digit underline input.
 - Google phone linking uses `screens/profile/otp_google.dart`, then reuses `OtpScreen` with `SAuthOtpFlow.googlePhoneLink`.
 - Post-auth routing goes to permissions first unless required permissions are already complete, then enters `NavigationMenu`.
