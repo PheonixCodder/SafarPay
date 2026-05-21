@@ -2,8 +2,8 @@
 
 Routes:
   POST /otp/send          — Send WhatsApp OTP
-  POST /otp/verify        — Verify OTP → verification_token
-  POST /register          — Create user from verification_token + profile (Path A)
+  POST /otp/verify        — Verify OTP → next auth/profile step
+  POST /register          — Create user from registration_token + profile (Path A)
   POST /google/verify-token — Verify Google id_token → tokens (Path B start)
   POST /google/link-phone — Link verified phone to Google user (Path B complete)
   POST /refresh           — Rotate tokens
@@ -25,6 +25,8 @@ from sp.core.observability.logging import get_logger
 from sp.infrastructure.security.dependencies import CurrentUser
 
 from ..application.schemas import (
+    GoogleAuthResponse,
+    GoogleExistingPhoneVerifyRequest,
     GoogleTokenRequest,
     LinkPhoneRequest,
     OTPRequest,
@@ -33,6 +35,7 @@ from ..application.schemas import (
     RegisterRequest,
     SessionResponse,
     TokenResponse,
+    UpdateUserProfileRequest,
     UserResponse,
 )
 from ..application.use_cases import (
@@ -41,7 +44,9 @@ from ..application.use_cases import (
     RefreshTokenUseCase,
     RegisterUseCase,
     SendOTPUseCase,
+    UpdateUserProfileUseCase,
     VerifyOTPUseCase,
+    VerifyGoogleExistingPhoneUseCase,
 )
 from ..domain.exceptions import (
     AuthDomainError,
@@ -56,12 +61,14 @@ from ..domain.exceptions import (
 )
 from ..infrastructure.dependencies import (
     get_google_verify_use_case,
+    get_google_existing_phone_use_case,
     get_link_phone_use_case,
     get_otp_rate_limiter,
     get_refresh_use_case,
     get_register_use_case,
     get_send_otp_use_case,
     get_session_repo,
+    get_update_profile_use_case,
     get_user_repo,
     get_verify_otp_use_case,
 )
@@ -135,11 +142,12 @@ async def send_otp(
 @router.post(
     "/otp/verify",
     response_model=OTPVerifyResponse,
-    summary="Verify WhatsApp OTP → returns verification_token (proof of phone)",
+    summary="Verify WhatsApp OTP and return next auth/profile step",
 )
 async def verify_otp(
     payload: OTPVerifyRequest,
     request: Request,
+    response: Response,
     use_case: Annotated[VerifyOTPUseCase, Depends(get_verify_otp_use_case)],
     rate_limiter: Annotated[OTPRateLimiter, Depends(get_otp_rate_limiter)],
 ):
@@ -147,12 +155,17 @@ async def verify_otp(
         ip = request.client.host if request.client else "unknown"
         await rate_limiter.check_verify_limit(ip)
 
-        verification_token = await use_case.execute(
+        verify_result = await use_case.execute(
             phone=payload.phone,
             otp_code=payload.code,
+            metadata=_get_metadata(request),
+            purpose=payload.purpose,
         )
 
-        return OTPVerifyResponse(verification_token=verification_token)
+        if verify_result.get("refresh_token"):
+            _set_refresh_cookie(response, verify_result["refresh_token"])
+
+        return OTPVerifyResponse(**verify_result)
 
     except OTPRateLimitError as e:
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=str(e))
@@ -190,8 +203,11 @@ async def register(
 ):
     try:
         tokens = await use_case.execute(
-            verification_token=payload.verification_token,
+            verification_token=payload.registration_token,
             full_name=payload.full_name,
+            email=str(payload.email),
+            gender=payload.gender,
+            date_of_birth=payload.date_of_birth,
             metadata=_get_metadata(request),
         )
 
@@ -199,6 +215,7 @@ async def register(
 
         return TokenResponse(
             access_token=tokens["access_token"],
+            refresh_token=tokens["refresh_token"],
             expires_in=tokens["expires_in"],
         )
     except InvalidVerificationTokenError:
@@ -209,7 +226,7 @@ async def register(
     except UserAlreadyExistsError:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Phone number already registered. Please login instead.",
+            detail="Phone number or email already registered. Please login instead.",
         )
 
 
@@ -218,7 +235,7 @@ async def register(
 
 @router.post(
     "/google/verify-token",
-    response_model=TokenResponse,
+    response_model=GoogleAuthResponse,
     summary="Verify Google id_token from mobile SDK → create/find user",
 )
 async def google_verify_token(
@@ -233,10 +250,15 @@ async def google_verify_token(
             metadata=_get_metadata(request),
         )
 
+        if tokens.get("next_step") == "verify_existing_phone":
+            return GoogleAuthResponse(**tokens)
+
         _set_refresh_cookie(response, tokens["refresh_token"])
 
-        return TokenResponse(
+        return GoogleAuthResponse(
+            next_step="login",
             access_token=tokens["access_token"],
+            refresh_token=tokens["refresh_token"],
             expires_in=tokens["expires_in"],
             phone_required=tokens.get("phone_required", False),
         )
@@ -245,6 +267,64 @@ async def google_verify_token(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=str(e),
         )
+
+
+@router.post(
+    "/google/verify-existing-phone",
+    response_model=TokenResponse,
+    summary="Verify OTP for Google email matched to an existing phone user",
+)
+async def google_verify_existing_phone(
+    payload: GoogleExistingPhoneVerifyRequest,
+    request: Request,
+    response: Response,
+    use_case: Annotated[
+        VerifyGoogleExistingPhoneUseCase,
+        Depends(get_google_existing_phone_use_case),
+    ],
+):
+    try:
+        tokens = await use_case.execute(
+            google_login_token=payload.google_login_token,
+            otp_code=payload.code,
+            metadata=_get_metadata(request),
+        )
+
+        _set_refresh_cookie(response, tokens["refresh_token"])
+
+        return TokenResponse(
+            access_token=tokens["access_token"],
+            refresh_token=tokens["refresh_token"],
+            expires_in=tokens["expires_in"],
+            phone_required=False,
+        )
+    except InvalidVerificationTokenError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired Google login token.",
+        )
+    except OTPExpiredError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="OTP expired. Please request a new one.",
+        )
+    except OTPInvalidError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid OTP code.",
+        )
+    except OTPMaxAttemptsError:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many failed attempts. Please request a new OTP.",
+        )
+    except GoogleTokenError as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(e),
+        )
+    except AuthDomainError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 @router.post(
@@ -270,6 +350,7 @@ async def google_link_phone(
 
         return TokenResponse(
             access_token=tokens["access_token"],
+            refresh_token=tokens["refresh_token"],
             expires_in=tokens["expires_in"],
             phone_required=False,
         )
@@ -318,6 +399,7 @@ async def refresh_token(
 
         return TokenResponse(
             access_token=tokens["access_token"],
+            refresh_token=tokens["refresh_token"],
             expires_in=tokens["expires_in"],
         )
     except InvalidSessionError:
@@ -427,6 +509,55 @@ async def get_me(
         full_name=user.full_name,
         email=user.email,
         phone=user.phone,
+        gender=user.gender,
+        date_of_birth=user.date_of_birth,
+        role=user.role.value,
+        profile_img=user.profile_img,
+        is_active=user.is_active,
+        is_verified=user.is_verified,
+        is_onboarded=bool(user.phone and user.full_name),
+    )
+
+
+@router.patch(
+    "/me",
+    response_model=UserResponse,
+    summary="Update current user profile fields",
+)
+async def update_me(
+    payload: UpdateUserProfileRequest,
+    current_user: CurrentUser,
+    use_case: Annotated[
+        UpdateUserProfileUseCase,
+        Depends(get_update_profile_use_case),
+    ],
+):
+    try:
+        user = await use_case.execute(
+            current_user.user_id,
+            full_name=payload.full_name,
+            email=str(payload.email) if payload.email is not None else None,
+            gender=payload.gender,
+            date_of_birth=payload.date_of_birth,
+        )
+    except UserAlreadyExistsError:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Email already registered.",
+        )
+    except InvalidSessionError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    return UserResponse(
+        id=user.id,
+        full_name=user.full_name,
+        email=user.email,
+        phone=user.phone,
+        gender=user.gender,
+        date_of_birth=user.date_of_birth,
         role=user.role.value,
         profile_img=user.profile_img,
         is_active=user.is_active,

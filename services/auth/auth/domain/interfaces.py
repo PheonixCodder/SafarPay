@@ -6,7 +6,7 @@ The application layer depends only on these protocols (Dependency Inversion).
 from typing import Protocol, runtime_checkable
 from uuid import UUID
 
-from .models import User, Session, Account, Verification
+from .models import Account, Session, User, Verification
 
 
 @runtime_checkable

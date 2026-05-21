@@ -4,6 +4,7 @@ import '../../../../utils/constants/colors.dart';
 import '../../../../utils/constants/sizes.dart';
 import '../../../../utils/constants/texts.dart';
 import '../../../../utils/device/utility.dart';
+import '../../../../utils/formatters/phone_number_normalizer.dart';
 import '../../../../utils/helpers/helpers.dart';
 import '../../../../utils/http/client.dart';
 import '../../models/auth_models.dart';
@@ -57,7 +58,13 @@ class _GoogleOtpProfileScreenState extends State<GoogleOtpProfileScreen> {
 
     setState(() => _isSendingOtp = true);
     try {
-      final phoneNumber = _phoneController.text.trim();
+      final phoneNumber =
+          SPhoneNumberNormalizer.normalizeForPakistan(_phoneController.text);
+      if (phoneNumber == null) {
+        SHelperFunctions.showSnackBar('Enter a valid Pakistani phone number.');
+        return;
+      }
+
       await SAuthRepository.instance.sendOtp(phoneNumber);
       SHelperFunctions.showSnackBar(STexts.otpSent);
       SAuthNavigation.to(

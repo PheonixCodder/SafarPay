@@ -4,7 +4,8 @@ version = "0.1.0"
 description = "SafarPay microservices platform"
 requires-python = ">=3.10"
 dependencies = [
-    "sp"
+    "sp",
+    "alembic>=1.13.0",
 ]
 
 [tool.uv.sources]

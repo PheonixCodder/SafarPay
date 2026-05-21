@@ -57,6 +57,21 @@ class SHttpClient {
     );
   }
 
+  static Future<Map<String, dynamic>> patch(
+    String endpoint, {
+    SApiService service = SApiService.auth,
+    Map<String, dynamic>? body,
+    bool requiresAuth = false,
+  }) {
+    return _send(
+      'PATCH',
+      endpoint,
+      service: service,
+      body: body,
+      requiresAuth: requiresAuth,
+    );
+  }
+
   static Future<void> delete(
     String endpoint, {
     SApiService service = SApiService.auth,
@@ -174,6 +189,9 @@ class SHttpClient {
             .timeout(SApiConstants.connectTimeout),
         'POST' => _client
             .post(uri, headers: headers, body: jsonEncode(body ?? {}))
+            .timeout(SApiConstants.connectTimeout),
+        'PATCH' => _client
+            .patch(uri, headers: headers, body: jsonEncode(body ?? {}))
             .timeout(SApiConstants.connectTimeout),
         'DELETE' => _client
             .delete(uri, headers: headers)

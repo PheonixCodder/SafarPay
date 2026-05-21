@@ -20,8 +20,12 @@ from ..application.use_cases import (
     RefreshTokenUseCase,
     RegisterUseCase,
     SendOTPUseCase,
+    UpdateUserProfileUseCase,
     VerifyOTPUseCase,
+    VerifyGoogleExistingPhoneUseCase,
 )
+from ..domain.interfaces import OTPProviderProtocol
+from ..infrastructure.messaging.console import ConsoleOTPProvider
 from ..infrastructure.messaging.whatsapp import PywaOTPProvider
 from ..infrastructure.repositories import (
     AccountRepository,
@@ -65,7 +69,10 @@ def get_verification_repo(
 
 def get_otp_provider(
     settings: Annotated[Settings, Depends(get_settings)],
-) -> PywaOTPProvider:
+) -> OTPProviderProtocol:
+    if settings.AUTH_OTP_DELIVERY_MODE.lower() == "console":
+        return ConsoleOTPProvider()
+
     return PywaOTPProvider(
         token=settings.WHATSAPP_TOKEN,
         phone_id=settings.WHATSAPP_PHONE_ID,
@@ -94,7 +101,7 @@ def get_otp_rate_limiter(
 
 
 def get_send_otp_use_case(
-    otp_provider: Annotated[PywaOTPProvider, Depends(get_otp_provider)],
+    otp_provider: Annotated[OTPProviderProtocol, Depends(get_otp_provider)],
     verification_repo: Annotated[VerificationRepository, Depends(get_verification_repo)],
 ) -> SendOTPUseCase:
     return SendOTPUseCase(otp_provider, verification_repo)
@@ -102,9 +109,11 @@ def get_send_otp_use_case(
 
 def get_verify_otp_use_case(
     verification_repo: Annotated[VerificationRepository, Depends(get_verification_repo)],
+    user_repo: Annotated[UserRepository, Depends(get_user_repo)],
+    session_repo: Annotated[SessionRepository, Depends(get_session_repo)],
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> VerifyOTPUseCase:
-    return VerifyOTPUseCase(verification_repo, settings)
+    return VerifyOTPUseCase(verification_repo, user_repo, session_repo, settings)
 
 
 def get_register_use_case(
@@ -115,15 +124,45 @@ def get_register_use_case(
     return RegisterUseCase(user_repo, session_repo, settings)
 
 
+def get_update_profile_use_case(
+    user_repo: Annotated[UserRepository, Depends(get_user_repo)],
+) -> UpdateUserProfileUseCase:
+    return UpdateUserProfileUseCase(user_repo)
+
+
 def get_google_verify_use_case(
     google_verifier: Annotated[GoogleTokenVerifier, Depends(get_google_verifier)],
     user_repo: Annotated[UserRepository, Depends(get_user_repo)],
     account_repo: Annotated[AccountRepository, Depends(get_account_repo)],
     session_repo: Annotated[SessionRepository, Depends(get_session_repo)],
+    otp_provider: Annotated[OTPProviderProtocol, Depends(get_otp_provider)],
+    verification_repo: Annotated[VerificationRepository, Depends(get_verification_repo)],
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> GoogleVerifyTokenUseCase:
     return GoogleVerifyTokenUseCase(
-        google_verifier, user_repo, account_repo, session_repo, settings
+        google_verifier,
+        user_repo,
+        account_repo,
+        session_repo,
+        otp_provider,
+        verification_repo,
+        settings,
+    )
+
+
+def get_google_existing_phone_use_case(
+    verification_repo: Annotated[VerificationRepository, Depends(get_verification_repo)],
+    user_repo: Annotated[UserRepository, Depends(get_user_repo)],
+    account_repo: Annotated[AccountRepository, Depends(get_account_repo)],
+    session_repo: Annotated[SessionRepository, Depends(get_session_repo)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> VerifyGoogleExistingPhoneUseCase:
+    return VerifyGoogleExistingPhoneUseCase(
+        verification_repo,
+        user_repo,
+        account_repo,
+        session_repo,
+        settings,
     )
 
 

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
 
 import '../../../../../common/widgets/images/circular_image.dart';
+import '../../../../authentication/controllers/current_user_controller.dart';
 import '../../../../../utils/constants/colors.dart';
 import '../../../../../utils/constants/images.dart';
 import '../../../../../utils/constants/sizes.dart';
@@ -19,6 +21,7 @@ class SSettingsProfileTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final controller = SCurrentUserController.instance;
 
     return Container(
       padding: const EdgeInsets.all(SSizes.lg),
@@ -31,37 +34,43 @@ class SSettingsProfileTile extends StatelessWidget {
       ),
       child: Stack(
         children: [
-          /// Main Content
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              /// Profile Image
-              const SCircularImage(
-                width: 90,
-                height: 90,
-                imageUrl: SImages.user,
-              ),
+          Obx(
+            () {
+              final user = controller.currentUser.value;
+              final profileImage = user?.profileImage;
+              final hasNetworkImage =
+                  profileImage != null && profileImage.startsWith('http');
 
-              const SizedBox(height: SSizes.spaceBtwItems),
-
-              /// Name
-              Text(
-                STexts.settingsProfileName,
-                textAlign: TextAlign.center,
-                style: textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-
-              const SizedBox(height: 6),
-
-              /// Email
-              Text(
-                STexts.settingsProfileEmail,
-                textAlign: TextAlign.center,
-                style: textTheme.bodyMedium?.copyWith(),
-              ),
-            ],
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SCircularImage(
+                    width: 90,
+                    height: 90,
+                    imageUrl: profileImage ?? SImages.user,
+                    isNetworkImage: hasNetworkImage,
+                  ),
+                  const SizedBox(height: SSizes.spaceBtwItems),
+                  Text(
+                    user?.fullName?.isNotEmpty == true
+                        ? user!.fullName!
+                        : STexts.currentUserFallbackName,
+                    textAlign: TextAlign.center,
+                    style: textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    user?.email?.isNotEmpty == true
+                        ? user!.email!
+                        : STexts.currentUserNoEmail,
+                    textAlign: TextAlign.center,
+                    style: textTheme.bodyMedium?.copyWith(),
+                  ),
+                ],
+              );
+            },
           ),
 
           /// Edit Button

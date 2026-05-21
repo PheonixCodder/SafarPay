@@ -5,8 +5,8 @@ import '../../../../utils/constants/sizes.dart';
 import '../../../../utils/http/client.dart';
 import '../../../../utils/local_storage/token_storage.dart';
 import '../../../../navigation_menu.dart';
+import '../../controllers/current_user_controller.dart';
 import '../../controllers/permissions.dart';
-import '../../repositories/auth_repository.dart';
 import '../auth_flow/auth_flow.dart';
 import '../permissions/permissions.dart';
 
@@ -42,12 +42,14 @@ class AuthGateScreen extends StatelessWidget {
     if (!hasAccessToken) return const AuthFlowScreen();
 
     try {
-      await SAuthRepository.instance.getCurrentUser();
+      await SCurrentUserController.instance.refreshFromBackend();
     } on SHttpException {
       await STokenStorage.clear();
+      await SCurrentUserController.instance.clear();
       return const AuthFlowScreen();
     } catch (_) {
       await STokenStorage.clear();
+      await SCurrentUserController.instance.clear();
       return const AuthFlowScreen();
     }
 

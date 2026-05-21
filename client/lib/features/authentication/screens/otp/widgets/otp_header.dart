@@ -51,7 +51,7 @@ class SOtpHeader extends StatelessWidget {
         FractionallySizedBox(
           widthFactor: SSizes.authHeaderSubtitleWidthFactor,
           child: Text(
-            '${STexts.otpSubTitle} ${controller.phoneNumber}.',
+            '${STexts.otpSubTitle} ${controller.phoneDisplay}.',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: SColors.textSecondary,
@@ -59,10 +59,11 @@ class SOtpHeader extends StatelessWidget {
           ),
         ),
         const SizedBox(height: SSizes.md),
-        TextButton(
-          onPressed: controller.changeNumber,
-          child: const Text(STexts.changeNumber),
-        ),
+        if (!controller.isGoogleExistingEmailPhone)
+          TextButton(
+            onPressed: controller.changeNumber,
+            child: const Text(STexts.changeNumber),
+          ),
       ],
     );
   }

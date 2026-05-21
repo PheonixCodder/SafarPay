@@ -6,11 +6,12 @@ The single Base from platform ensures Alembic discovers these models.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 from sp.infrastructure.db.base import Base, TimestampMixin
 from sqlalchemy import (
     Boolean,
+    Date,
     DateTime,
     ForeignKey,
     Index,
@@ -37,6 +38,8 @@ class UserORM(Base, TimestampMixin):
     full_name: Mapped[str | None] = mapped_column(String(255))
     email: Mapped[str | None] = mapped_column(String(255), unique=True, index=True)
     phone: Mapped[str | None] = mapped_column(String(20), unique=True, index=True)
+    gender: Mapped[str | None] = mapped_column(String(20))
+    date_of_birth: Mapped[date | None] = mapped_column(Date)
     profile_img: Mapped[str | None] = mapped_column(String(500))
     role: Mapped[str] = mapped_column(String(20), default="passenger")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)

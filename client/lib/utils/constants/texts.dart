@@ -56,6 +56,18 @@ class STexts {
   static const String navTrips = "Trips";
   static const String navRent = "Rent";
   static const String navProfile = "Profile";
+  static const String driverNavHome = "Drive";
+  static const String driverNavRequests = "Requests";
+  static const String driverNavEarnings = "Earnings";
+  static const String driverNavHomeTitle = "Driver Home";
+  static const String driverNavHomeSubTitle =
+      "Driver availability, nearby demand, and active trip controls will appear here.";
+  static const String driverNavRequestsTitle = "Ride Requests";
+  static const String driverNavRequestsSubTitle =
+      "Incoming ride offers and accepted trip requests will appear here.";
+  static const String driverNavEarningsTitle = "Earnings";
+  static const String driverNavEarningsSubTitle =
+      "Daily totals, payouts, and earning history will appear here.";
   static const String tripsTabTitle = "Trips";
   static const String tripsTabSubTitle =
       "Your upcoming and completed rides will appear here once ride booking is connected.";
@@ -134,6 +146,9 @@ class STexts {
       "Your Google account is verified. Add a phone number so SafarPay can secure your rides and send trip updates.";
   static const String googleAccountVerified = "Google account verified";
   static const String googlePhoneLinkCta = "Send verification code";
+  static const String googleExistingPhoneMasked = "your saved phone";
+  static const String googleExistingPhoneResendHint =
+      "Please sign in with Google again to resend this code.";
   static const String unexpectedError =
       "Something went wrong. Please try again.";
 
@@ -158,6 +173,13 @@ class STexts {
   static const String lastName = "Last Name";
   static const String emailAddress = "Email Address";
   static const String continueText = "Continue";
+  static const String profileGenderMale = "Male";
+  static const String profileGenderFemale = "Female";
+  static const String profileGenderOther = "Other";
+  static const String profileGenderRequired = "Gender is required.";
+  static const String profileDateOfBirthRequired = "Date of birth is required.";
+  static const String profileDateOfBirthMinimumAge =
+      "You must be at least 13 years old.";
   static const String acceptTermsRequired =
       "Please accept the privacy policy and terms of use.";
   static const String profileCompleted = "Profile completed.";
@@ -170,11 +192,15 @@ class STexts {
 
   // -- Settings
   static const String settingsAccount = "Account";
-  static const String settingsProfileName = "John Doe";
-  static const String settingsProfileEmail = "john.doe@example.com";
+  static const String currentUserFallbackName = "User";
+  static const String currentUserNoEmail = "No email added";
+  static const String currentUserNoPhone = "No phone added";
+  static const String profileNotSet = "Not set";
   static const String accountSettings = "Account Settings";
   static const String appSettings = "App Settings";
   static const String logout = "Logout";
+  static const String switchToDriverMode = "Switch to Driver Mode";
+  static const String switchToPassengerMode = "Switch to Passenger Mode";
   static const String userInfo = "User Info";
   static const String userInfoSubTitle = "Update your basic info and image";
   static const String settingsPayments = "Payments";
@@ -189,6 +215,11 @@ class STexts {
   static const String driverRegistrationTitle =
       "How do you want to work with us";
   static const String driverVehicleSelectionTitle = "Choose your vehicle";
+  static const String driverVehicleReuseDialogTitle = "Use existing vehicle?";
+  static const String driverVehicleReuseDialogMessage =
+      "Your {vehicle} is already registered. Do you want to use it for {service} too?";
+  static const String driverVehicleReuseCancel = "Cancel";
+  static const String driverVehicleReuseConfirm = "Use this vehicle";
   static const String driverVerificationTitle = "Driver Registration";
   static const String driverVerificationHeaderSubtitle =
       "Complete your checklist and submit it for SafarPay review.";
@@ -323,6 +354,7 @@ class STexts {
 
   // -- Edit Drawer
   static const String editDrawerSave = "Save changes";
+  static const String editDrawerConfirm = "Confirm";
   static const String editDrawerCancel = "Cancel";
   static const String editDrawerRequired = "This field is required.";
   static const String editDrawerTitlePrefix = "Edit";
@@ -339,11 +371,7 @@ class STexts {
   static const String profilePhoneNumber = "Phone Number";
   static const String profileGender = "Gender";
   static const String profileDateOfBirth = "Date of Birth";
+  static const String profileUpdated = "Profile updated.";
   static const String profileEditDescription =
-      "Update this profile value. Your changes are saved locally for now.";
-  static const String profileDemoName = "Coding with T";
-  static const String profileDemoEmail = "coding_with_t@example.com";
-  static const String profileDemoPhone = "+92-317-8059528";
-  static const String profileDemoGender = "Male";
-  static const String profileDemoDateOfBirth = "10 Oct, 1994";
+      "Update this profile value and save it to your account.";
 }
