@@ -12,6 +12,7 @@ from sp.infrastructure.messaging.publisher import EventPublisher
 from sp.infrastructure.cache.manager import CacheManager
 from ..domain.interfaces import (
     DriverRepositoryProtocol,
+    DriverServiceCapabilityRepositoryProtocol,
     VehicleRepositoryProtocol,
     DocumentRepositoryProtocol,
     DriverVehicleRepositoryProtocol,
@@ -24,6 +25,8 @@ from verification.domain.models import (
     Document,
     DocumentType,
     EntityType,
+    ServiceType,
+    VehicleType,
     VerificationStatus,
     VerificationRejection,
 )
@@ -44,6 +47,9 @@ from .schemas import (
     RequirementGroupStatusResponse,
     DocumentStatusResponse,
     ReviewSubmissionResponse,
+    DriverVehicleServiceResponse,
+    DriverVehicleSummaryItem,
+    DriverVehicleSummaryResponse,
 )
 from .services.rejection_resolver import RejectionResolver
 from .services.identity_verification_engine import IdentityVerificationEngine, VerificationBundle
@@ -65,12 +71,14 @@ class VerificationUseCases:
         event_publisher: EventPublisher,
         rejection_repo: VerificationRejectionRepositoryProtocol,
         cache_manager: CacheManager,
+        driver_service_capability_repo: DriverServiceCapabilityRepositoryProtocol | None = None,
         settings: Any = None,
     ) -> None:
         self.driver_repo = driver_repo
         self.vehicle_repo = vehicle_repo
         self.document_repo = document_repo
         self.driver_vehicle_repo = driver_vehicle_repo
+        self.driver_service_capability_repo = driver_service_capability_repo
         self.storage_provider = storage_provider
         self.rejection_resolver = rejection_resolver
         self.identity_engine = identity_engine
@@ -107,6 +115,7 @@ class VerificationUseCases:
         key_prefix: str,
         document_number: str | None = None,
         expiry_date: Any = None,
+        set_expiry_date: bool = True,
     ) -> PresignedUrlResponse:
         """Idempotently create or update a document and return an upload URL."""
         doc = await self.document_repo.find_by_entity_and_type(entity_id, doc_type.value)
@@ -117,7 +126,7 @@ class VerificationUseCases:
             doc.file_key = key
             if document_number:
                 doc.document_number = document_number
-            if expiry_date:
+            if set_expiry_date:
                 doc.expiry_date = expiry_date
             doc.verification_status = VerificationStatus.PENDING
             await self.rejection_resolver.resolve_previous_rejections(doc.id)
@@ -262,7 +271,7 @@ class VerificationUseCases:
             
             result = await asyncio.wait_for(
                 self.identity_engine.run(bundle),
-                timeout=60.0
+                timeout=float(getattr(self.settings, "VERIFICATION_REVIEW_TIMEOUT_SECONDS", 60.0)),
             )
 
             # Update OCR meta from result if available (ensuring persistence)
@@ -295,6 +304,11 @@ class VerificationUseCases:
                     
                 driver.verification_status = VerificationStatus.VERIFIED
                 await self.driver_repo.update(driver)
+                if active_vehicle:
+                    vehicle = await self.vehicle_repo.find_by_id(active_vehicle.vehicle_id)
+                    if vehicle:
+                        vehicle.verification_status = VerificationStatus.VERIFIED
+                        await self.vehicle_repo.update(vehicle)
                 await self.event_publisher.publish(
                     BaseEvent(
                         event_type="driver.verification.approved",
@@ -319,6 +333,11 @@ class VerificationUseCases:
                     
                 driver.verification_status = VerificationStatus.REJECTED
                 await self.driver_repo.update(driver)
+                if active_vehicle:
+                    vehicle = await self.vehicle_repo.find_by_id(active_vehicle.vehicle_id)
+                    if vehicle:
+                        vehicle.verification_status = VerificationStatus.REJECTED
+                        await self.vehicle_repo.update(vehicle)
                 await self.event_publisher.publish(
                     BaseEvent(
                         event_type="driver.verification.rejected",
@@ -386,6 +405,7 @@ class VerificationUseCases:
 
         urls = {}
         for doc_type in [DocumentType.ID_FRONT, DocumentType.ID_BACK]:
+            expiry_date = request.expiry_date if doc_type == DocumentType.ID_FRONT else None
             urls[doc_type.value] = await self._upsert_document(
                 entity_id=driver.id,
                 entity_type=EntityType.DRIVER,
@@ -394,7 +414,7 @@ class VerificationUseCases:
                 bucket_name=bucket,
                 key_prefix="identity",
                 document_number=request.id_number,
-                expiry_date=request.expiry_date,
+                expiry_date=expiry_date,
             )
 
         return DocumentUploadUrlsResponse(urls=urls)
@@ -489,6 +509,12 @@ class VerificationUseCases:
             )
 
         await self.driver_vehicle_repo.set_active_vehicle(driver.id, vehicle.id)
+        if request.service_type and self.driver_service_capability_repo:
+            await self.driver_service_capability_repo.upsert_capability(
+                driver_id=driver.id,
+                vehicle_id=vehicle.id,
+                service_type=request.service_type,
+            )
 
         bucket = self.settings.S3_VEHICLE_BUCKET
         doc_types = [
@@ -510,6 +536,100 @@ class VerificationUseCases:
             )
 
         return DocumentUploadUrlsResponse(urls=urls)
+
+    async def get_driver_vehicle_summary(
+        self,
+        user_id: uuid.UUID,
+        service_type: ServiceType,
+    ) -> DriverVehicleSummaryResponse:
+        driver = await self.driver_repo.find_by_user_id(user_id)
+        if not driver:
+            return DriverVehicleSummaryResponse(
+                service_type=service_type,
+                vehicles=[],
+            )
+
+        driver_vehicles = await self.driver_vehicle_repo.find_by_driver_id(driver.id)
+        capabilities = (
+            await self.driver_service_capability_repo.find_by_driver_id(driver.id)
+            if self.driver_service_capability_repo
+            else []
+        )
+        capabilities_by_vehicle: dict[uuid.UUID, list[Any]] = {}
+        for capability in capabilities:
+            capabilities_by_vehicle.setdefault(capability.vehicle_id, []).append(capability)
+
+        items: list[DriverVehicleSummaryItem] = []
+        for driver_vehicle in driver_vehicles:
+            vehicle = await self.vehicle_repo.find_by_id(driver_vehicle.vehicle_id)
+            vehicle_docs = await self.document_repo.find_by_entity_id(driver_vehicle.vehicle_id)
+            vehicle_group = await self._compute_group_status(
+                vehicle_docs,
+                [
+                    DocumentType.REGISTRATION_DOC_FRONT,
+                    DocumentType.REGISTRATION_DOC_BACK,
+                    DocumentType.VEHICLE_PHOTO_FRONT,
+                    DocumentType.VEHICLE_PHOTO_BACK,
+                ],
+            )
+            vehicle_capabilities = capabilities_by_vehicle.get(driver_vehicle.vehicle_id, [])
+            items.append(
+                DriverVehicleSummaryItem(
+                    vehicle_type=driver_vehicle.vehicle_type,
+                    vehicle_id=driver_vehicle.vehicle_id,
+                    is_registered_for_service=any(
+                        capability.service_type == service_type and capability.is_active
+                        for capability in vehicle_capabilities
+                    ),
+                    services=[
+                        DriverVehicleServiceResponse(
+                            service_type=capability.service_type,
+                            is_active=capability.is_active,
+                        )
+                        for capability in vehicle_capabilities
+                    ],
+                    vehicle_status=vehicle.verification_status if vehicle else None,
+                    vehicle_documents_status=vehicle_group.status,
+                    brand=vehicle.brand if vehicle else None,
+                    model=vehicle.model if vehicle else None,
+                    plate_number=vehicle.plate_number if vehicle else None,
+                )
+            )
+
+        return DriverVehicleSummaryResponse(
+            service_type=service_type,
+            vehicles=items,
+        )
+
+    async def attach_vehicle_to_service(
+        self,
+        user_id: uuid.UUID,
+        vehicle_id: uuid.UUID,
+        service_type: ServiceType,
+    ) -> DriverVehicleSummaryItem:
+        if not self.driver_service_capability_repo:
+            raise InvalidDocumentStateError("Driver service capability repository is not configured.")
+
+        driver = await self._ensure_driver(user_id)
+        driver_vehicles = await self.driver_vehicle_repo.find_by_driver_id(driver.id)
+        driver_vehicle = next(
+            (link for link in driver_vehicles if link.vehicle_id == vehicle_id),
+            None,
+        )
+        if not driver_vehicle:
+            raise ValueError("Vehicle does not belong to this driver.")
+
+        await self.driver_service_capability_repo.upsert_capability(
+            driver_id=driver.id,
+            vehicle_id=vehicle_id,
+            service_type=service_type,
+        )
+
+        summary = await self.get_driver_vehicle_summary(user_id, service_type)
+        for item in summary.vehicles:
+            if item.vehicle_id == vehicle_id:
+                return item
+        raise ValueError("Vehicle summary was not available after attaching service.")
 
     async def _compute_group_status(
         self, docs: list[Document], required_types: list[DocumentType]
@@ -557,7 +677,12 @@ class VerificationUseCases:
             status="pending", documents=doc_responses
         )
 
-    async def get_verification_status(self, user_id: uuid.UUID) -> VerificationStatusResponse:
+    async def get_verification_status(
+        self,
+        user_id: uuid.UUID,
+        service_type: ServiceType | None = None,
+        vehicle_type: VehicleType | None = None,
+    ) -> VerificationStatusResponse:
         driver = await self.driver_repo.find_by_user_id(user_id)
         if not driver:
             return VerificationStatusResponse(
@@ -580,10 +705,33 @@ class VerificationUseCases:
             driver_docs, [DocumentType.SELFIE_ID]
         )
 
-        active_driver_vehicle = await self.driver_vehicle_repo.find_active_by_driver_id(driver.id)
+        selected_driver_vehicle = None
+        driver_vehicles = await self.driver_vehicle_repo.find_by_driver_id(driver.id)
+        if vehicle_type:
+            selected_driver_vehicle = next(
+                (link for link in driver_vehicles if link.vehicle_type == vehicle_type),
+                None,
+            )
+        elif service_type and self.driver_service_capability_repo:
+            capabilities = await self.driver_service_capability_repo.find_by_driver_and_service(
+                driver.id,
+                service_type,
+            )
+            active_vehicle_ids = {
+                capability.vehicle_id
+                for capability in capabilities
+                if capability.is_active
+            }
+            selected_driver_vehicle = next(
+                (link for link in driver_vehicles if link.vehicle_id in active_vehicle_ids),
+                None,
+            )
+        else:
+            selected_driver_vehicle = await self.driver_vehicle_repo.find_active_by_driver_id(driver.id)
+
         vehicle_docs = []
-        if active_driver_vehicle:
-            vehicle_docs = await self.document_repo.find_by_entity_id(active_driver_vehicle.vehicle_id)
+        if selected_driver_vehicle:
+            vehicle_docs = await self.document_repo.find_by_entity_id(selected_driver_vehicle.vehicle_id)
 
         vehicle_status = await self._compute_group_status(
             vehicle_docs,

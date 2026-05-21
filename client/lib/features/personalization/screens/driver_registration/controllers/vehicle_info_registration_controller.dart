@@ -7,12 +7,15 @@ import '../repositories/driver_verification_repository.dart';
 
 class SVehicleInfoRegistrationController extends GetxController {
   SVehicleInfoRegistrationController({
+    required SDriverWorkCategory category,
     required SDriverVehicleOption vehicle,
     SDriverVerificationRepository repository =
         const SDriverVerificationRepository(),
     ImagePicker? imagePicker,
   })  : selectedVehicleType =
             SVerificationVehicleType.fromDisplayVehicle(vehicle.type).obs,
+        selectedServiceType =
+            SVerificationServiceType.fromWorkCategory(category.type),
         _repository = repository,
         _imagePicker = imagePicker ?? ImagePicker();
 
@@ -26,6 +29,7 @@ class SVehicleInfoRegistrationController extends GetxController {
   final plateNumberController = TextEditingController();
   final productionYearController = TextEditingController();
   final Rx<SVerificationVehicleType> selectedVehicleType;
+  final SVerificationServiceType selectedServiceType;
   final Rxn<XFile> registrationFrontImage = Rxn<XFile>();
   final Rxn<XFile> registrationBackImage = Rxn<XFile>();
   final Rxn<XFile> vehicleFrontImage = Rxn<XFile>();
@@ -71,6 +75,7 @@ class SVehicleInfoRegistrationController extends GetxController {
           model: modelController.text.trim(),
           color: colorController.text.trim(),
           vehicleType: selectedVehicleType.value,
+          serviceType: selectedServiceType,
           maxPassengers: int.parse(passengersController.text.trim()),
           plateNumber: plateNumberController.text.trim(),
           productionYear: int.parse(productionYearController.text.trim()),

@@ -32,7 +32,10 @@ class _VehicleInfoScreenState extends State<VehicleInfoScreen> {
   @override
   void initState() {
     super.initState();
-    controller = SVehicleInfoRegistrationController(vehicle: widget.vehicle);
+    controller = SVehicleInfoRegistrationController(
+      category: widget.category,
+      vehicle: widget.vehicle,
+    );
   }
 
   @override

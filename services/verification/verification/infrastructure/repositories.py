@@ -12,14 +12,24 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..domain.interfaces import (
     DocumentRepositoryProtocol,
     DriverRepositoryProtocol,
+    DriverServiceCapabilityRepositoryProtocol,
     DriverVehicleRepositoryProtocol,
     VehicleRepositoryProtocol,
     VerificationRejectionRepositoryProtocol,
 )
-from ..domain.models import Document, Driver, DriverVehicle, Vehicle, VerificationRejection
+from ..domain.models import (
+    Document,
+    Driver,
+    DriverServiceCapability,
+    DriverVehicle,
+    ServiceType,
+    Vehicle,
+    VerificationRejection,
+)
 from .orm_models import (
     DocumentORM,
     DriverORM,
+    DriverServiceCapabilityORM,
     DriverVehicleORM,
     VehicleORM,
     VehicleType,
@@ -128,6 +138,29 @@ class VehicleRepository(BaseRepository[VehicleORM], VehicleRepositoryProtocol):
             is_active=vehicle.is_active,
         )
         self._session.add(orm)
+        await self._session.flush()
+        return self._to_domain(orm)
+
+    async def set_active_vehicle(self, driver_id: UUID, vehicle_id: UUID) -> None:
+        # First set all vehicles for this driver to inactive
+        await self._session.execute(
+            update(DriverVehicleORM)
+            .where(DriverVehicleORM.driver_id == driver_id)
+            .values(is_currently_selected=False)
+        )
+        # Then set the selected one to active
+        result = await self._session.execute(
+            update(DriverVehicleORM)
+            .where(
+                DriverVehicleORM.driver_id == driver_id,
+                DriverVehicleORM.vehicle_id == vehicle_id,
+            )
+            .values(is_currently_selected=True)
+        )
+        if cast(CursorResult[Any], result).rowcount == 0:
+            from verification.domain.exceptions import DriverNotFoundError
+            raise DriverNotFoundError(f"DriverVehicle link not found for driver {driver_id} and vehicle {vehicle_id}")
+
         await self._session.flush()
         return self._to_domain(orm)
 
@@ -271,27 +304,72 @@ class DriverVehicleRepository(BaseRepository[DriverVehicleORM], DriverVehicleRep
         await self._session.flush()
         return self._to_domain(orm)
 
-    async def set_active_vehicle(self, driver_id: UUID, vehicle_id: UUID) -> None:
-        # First set all vehicles for this driver to inactive
-        await self._session.execute(
-            update(DriverVehicleORM)
-            .where(DriverVehicleORM.driver_id == driver_id)
-            .values(is_currently_selected=False)
-        )
-        # Then set the selected one to active
-        result = await self._session.execute(
-            update(DriverVehicleORM)
-            .where(
-                DriverVehicleORM.driver_id == driver_id,
-                DriverVehicleORM.vehicle_id == vehicle_id,
-            )
-            .values(is_currently_selected=True)
-        )
-        if cast(CursorResult[Any], result).rowcount == 0:
-            from verification.domain.exceptions import DriverNotFoundError
-            raise DriverNotFoundError(f"DriverVehicle link not found for driver {driver_id} and vehicle {vehicle_id}")
 
+class DriverServiceCapabilityRepository(
+    BaseRepository[DriverServiceCapabilityORM],
+    DriverServiceCapabilityRepositoryProtocol,
+):
+    def __init__(self, session: AsyncSession) -> None:
+        super().__init__(session, DriverServiceCapabilityORM)
+
+    def _to_domain(self, orm: DriverServiceCapabilityORM) -> DriverServiceCapability:
+        return DriverServiceCapability(
+            id=orm.id,
+            driver_id=orm.driver_id,
+            vehicle_id=orm.vehicle_id,
+            service_type=orm.service_type,
+            is_active=orm.is_active,
+            created_at=orm.created_at,
+            updated_at=orm.updated_at,
+        )
+
+    async def find_by_driver_id(self, driver_id: UUID) -> list[DriverServiceCapability]:
+        result = await self._session.execute(
+            select(DriverServiceCapabilityORM).where(
+                DriverServiceCapabilityORM.driver_id == driver_id,
+            )
+        )
+        return [self._to_domain(orm) for orm in result.scalars().all()]
+
+    async def find_by_driver_and_service(
+        self,
+        driver_id: UUID,
+        service_type: ServiceType,
+    ) -> list[DriverServiceCapability]:
+        result = await self._session.execute(
+            select(DriverServiceCapabilityORM).where(
+                DriverServiceCapabilityORM.driver_id == driver_id,
+                DriverServiceCapabilityORM.service_type == service_type,
+            )
+        )
+        return [self._to_domain(orm) for orm in result.scalars().all()]
+
+    async def upsert_capability(
+        self,
+        driver_id: UUID,
+        vehicle_id: UUID,
+        service_type: ServiceType,
+    ) -> DriverServiceCapability:
+        result = await self._session.execute(
+            select(DriverServiceCapabilityORM).where(
+                DriverServiceCapabilityORM.driver_id == driver_id,
+                DriverServiceCapabilityORM.vehicle_id == vehicle_id,
+                DriverServiceCapabilityORM.service_type == service_type,
+            )
+        )
+        orm = result.scalar_one_or_none()
+        if orm:
+            orm.is_active = True
+        else:
+            orm = DriverServiceCapabilityORM(
+                driver_id=driver_id,
+                vehicle_id=vehicle_id,
+                service_type=service_type,
+                is_active=True,
+            )
+            self._session.add(orm)
         await self._session.flush()
+        return self._to_domain(orm)
 
 
 class VerificationRejectionRepository(BaseRepository[VerificationRejectionORM], VerificationRejectionRepositoryProtocol):

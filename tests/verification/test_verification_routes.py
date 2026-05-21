@@ -12,11 +12,15 @@ from sp.infrastructure.security.jwt import TokenPayload
 from verification.api.router import get_use_cases, router
 from verification.application.schemas import (
     DocumentUploadUrlsResponse,
+    DriverVehicleSummaryItem,
+    DriverVehicleSummaryResponse,
+    DriverVehicleServiceResponse,
     PresignedUrlResponse,
     RequirementGroupStatusResponse,
     ReviewSubmissionResponse,
     VerificationStatusResponse,
 )
+from verification.domain.models import ServiceType, VehicleType, VerificationStatus
 from verification.domain.exceptions import DriverNotFoundError, InvalidDocumentStateError
 
 USER_ID = uuid4()
@@ -65,9 +69,66 @@ class FakeVerificationUseCases:
         if self.error:
             raise self.error
 
-    async def get_verification_status(self, user_id: UUID) -> VerificationStatusResponse:
+    async def get_verification_status(
+        self,
+        user_id: UUID,
+        service_type: Any = None,
+        vehicle_type: Any = None,
+    ) -> VerificationStatusResponse:
         self._raise_if_needed()
         return self.status
+
+    async def get_driver_vehicle_summary(
+        self,
+        user_id: UUID,
+        service_type: ServiceType,
+    ) -> DriverVehicleSummaryResponse:
+        self._raise_if_needed()
+        return DriverVehicleSummaryResponse(
+            service_type=service_type,
+            vehicles=[
+                DriverVehicleSummaryItem(
+                    vehicle_type=VehicleType.CAR,
+                    vehicle_id=DRIVER_ID,
+                    is_registered_for_service=True,
+                    services=[
+                        DriverVehicleServiceResponse(
+                            service_type=service_type,
+                            is_active=True,
+                        )
+                    ],
+                    vehicle_status=VerificationStatus.PENDING,
+                    vehicle_documents_status="pending",
+                    brand="Toyota",
+                    model="Yaris",
+                    plate_number="ABC-123",
+                )
+            ],
+        )
+
+    async def attach_vehicle_to_service(
+        self,
+        user_id: UUID,
+        vehicle_id: UUID,
+        service_type: ServiceType,
+    ) -> DriverVehicleSummaryItem:
+        self._raise_if_needed()
+        return DriverVehicleSummaryItem(
+            vehicle_type=VehicleType.CAR,
+            vehicle_id=vehicle_id,
+            is_registered_for_service=True,
+            services=[
+                DriverVehicleServiceResponse(
+                    service_type=service_type,
+                    is_active=True,
+                )
+            ],
+            vehicle_status=VerificationStatus.PENDING,
+            vehicle_documents_status="pending",
+            brand="Toyota",
+            model="Yaris",
+            plate_number="ABC-123",
+        )
 
     async def submit_identity_documents(self, user_id: UUID, request: Any) -> DocumentUploadUrlsResponse:
         self._raise_if_needed()
@@ -123,6 +184,19 @@ def test_get_me_route_all_statuses_and_errors(client: TestClient, route_state: d
     assert client.get("/api/v1/verification/me").status_code == 500
 
 
+def test_driver_vehicle_summary_and_attach_routes(client: TestClient) -> None:
+    response = client.get("/api/v1/verification/driver/vehicles/summary?service_type=CITY_RIDE")
+    assert response.status_code == 200
+    assert response.json()["vehicles"][0]["is_registered_for_service"] is True
+
+    response = client.post(
+        f"/api/v1/verification/driver/vehicles/{DRIVER_ID}/services",
+        json={"service_type": "COURIER"},
+    )
+    assert response.status_code == 200
+    assert response.json()["vehicle_id"] == str(DRIVER_ID)
+
+
 def test_document_submission_routes_validation_and_domain_errors(
     client: TestClient, route_state: dict[str, Any]
 ) -> None:
@@ -141,7 +215,8 @@ def test_document_submission_routes_validation_and_domain_errors(
             "brand": "Toyota",
             "model": "Yaris",
             "color": "White",
-            "vehicle_type": "economy",
+            "vehicle_type": "CAR",
+            "service_type": "CITY_RIDE",
             "max_passengers": 4,
             "plate_number": "ABC-123",
             "production_year": 2024,
@@ -154,7 +229,8 @@ def test_document_submission_routes_validation_and_domain_errors(
             "brand": "",
             "model": "Yaris",
             "color": "White",
-            "vehicle_type": "economy",
+            "vehicle_type": "CAR",
+            "service_type": "CITY_RIDE",
             "plate_number": "ABC-123",
             "production_year": 2024,
         },

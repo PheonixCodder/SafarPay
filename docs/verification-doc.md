@@ -14,6 +14,31 @@ HTTP endpoints require an authenticated auth user through `CurrentUser`. The dri
 
 ---
 
+## Driver Service And Vehicle Taxonomy
+
+Verification owns driver vehicles and driver service capabilities.
+
+Canonical physical vehicles:
+
+```text
+CAR, MOTORCYCLE, RICKSHAW, VAN, PICKUP, MINI_TRUCK, TRUCK
+```
+
+Driver service capabilities:
+
+```text
+CITY_RIDE, INTERCITY, FREIGHT, COURIER, GROCERY
+```
+
+Rules:
+
+- `vehicle_type` is the physical vehicle only.
+- `service_type` is the driver work capability enabled by that vehicle.
+- A driver cannot register more than one vehicle of the same canonical vehicle type.
+- Submitting vehicle information with `service_type` creates or reactivates a `driver_service_capabilities` record for that `driver + vehicle + service_type`.
+
+---
+
 ## Verification Lifecycle
 
 ```text
@@ -95,10 +120,11 @@ Flow:
 1. Ensure driver exists for current auth user.
 2. Reject if driver is `UNDER_REVIEW`.
 3. Upsert `ID_FRONT` and `ID_BACK` document records.
-4. Store `id_number` and `expiry_date` metadata on document records.
-5. Resolve old rejections for replaced documents.
-6. Delete old S3 objects when replacing previous file keys.
-7. Return presigned PUT URLs.
+4. Store `id_number` on both document records.
+5. Store CNIC `expiry_date` on `ID_FRONT` only; `ID_BACK` has no expiry date.
+6. Resolve old rejections for replaced documents.
+7. Delete old S3 objects when replacing previous file keys.
+8. Return presigned PUT URLs.
 
 Response:
 
@@ -138,6 +164,12 @@ Flow:
 4. Store license number and expiry metadata.
 5. Resolve previous rejections and rotate S3 keys on update.
 6. Return presigned PUT URLs.
+
+Pakistan e-license handling:
+
+- The API shape stays the same and still returns both `license_front` and `license_back` upload URLs.
+- For e-license documents that only have a front image, upload the same front image to both returned URLs.
+- For physical licenses, upload the separate front and back images.
 
 Response URLs:
 
@@ -200,6 +232,7 @@ class VehicleSubmissionRequest(BaseModel):
     model: str
     color: str
     vehicle_type: VehicleType
+    service_type: ServiceType | None = None
     max_passengers: int = Field(4, ge=1, le=10)
     plate_number: str
     production_year: int = Field(..., ge=1980, le=2100)
@@ -225,8 +258,9 @@ Flow:
    - `REGISTRATION_DOC_BACK`
    - `VEHICLE_PHOTO_FRONT`
    - `VEHICLE_PHOTO_BACK`
-8. Resolve old document rejections and rotate S3 keys.
-9. Return presigned PUT URLs.
+8. Registration documents do not carry expiry dates in this service.
+9. Resolve old document rejections and rotate S3 keys.
+10. Return presigned PUT URLs.
 
 Response URLs:
 
@@ -238,6 +272,67 @@ Response URLs:
   "vehicle_photo_back": { "key": "s3-key", "url": "https://presigned-put" }
 }
 ```
+
+---
+
+## Driver Vehicle Summary
+
+Route:
+
+```text
+GET /api/v1/verification/driver/vehicles/summary?service_type=CITY_RIDE
+```
+
+Flow:
+
+1. Load the current driver's linked vehicles.
+2. Load `driver_service_capabilities` for that driver.
+3. Return each vehicle with its physical type, vehicle id, attached services, and vehicle document group status.
+4. `is_registered_for_service` is true when the vehicle already has an active capability for the requested service.
+
+Response shape:
+
+```json
+{
+  "service_type": "CITY_RIDE",
+  "vehicles": [
+    {
+      "vehicle_type": "CAR",
+      "vehicle_id": "UUID",
+      "is_registered_for_service": true,
+      "services": [{ "service_type": "CITY_RIDE", "is_active": true }],
+      "vehicle_status": "pending",
+      "vehicle_documents_status": "pending",
+      "brand": "Toyota",
+      "model": "Yaris",
+      "plate_number": "ABC-123"
+    }
+  ]
+}
+```
+
+---
+
+## Attach Existing Vehicle To Service
+
+Route:
+
+```text
+POST /api/v1/verification/driver/vehicles/{vehicle_id}/services
+```
+
+Request:
+
+```json
+{ "service_type": "COURIER" }
+```
+
+Flow:
+
+1. Ensure the vehicle belongs to the current driver's linked vehicles.
+2. Upsert an active `driver_service_capabilities` row for that vehicle and service.
+3. Return the updated vehicle summary item.
+4. Do not create another vehicle row and do not require vehicle document upload for service reuse.
 
 ---
 

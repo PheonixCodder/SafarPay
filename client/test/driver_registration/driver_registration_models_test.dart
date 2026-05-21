@@ -3,6 +3,46 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:client/features/personalization/screens/driver_registration/controllers/driver_verification_controller.dart';
 import 'package:client/features/personalization/screens/driver_registration/data/driver_verification_demo_data.dart';
 import 'package:client/features/personalization/screens/driver_registration/models/driver_registration_models.dart';
+import 'package:client/features/personalization/screens/driver_registration/repositories/driver_verification_repository.dart';
+
+class _FakeDriverVerificationRepository extends SDriverVerificationRepository {
+  _FakeDriverVerificationRepository(this.nextStatus);
+
+  SVerificationStatusResponse nextStatus;
+  bool submittedReview = false;
+
+  @override
+  Future<SVerificationStatusResponse> getMyVerificationStatus({
+    SVerificationServiceType? serviceType,
+    SVerificationVehicleType? vehicleType,
+  }) async {
+    return nextStatus;
+  }
+
+  @override
+  Future<SReviewSubmissionResponse> submitForReview() async {
+    submittedReview = true;
+    nextStatus = SVerificationStatusResponse.fromJson(
+      SDriverVerificationDemoData.responseFor(
+        SDriverVerificationDemoScenario.underReview,
+      ),
+    );
+    return const SReviewSubmissionResponse(
+      status: 'UNDER_REVIEW',
+      estimatedTimeSeconds: 30,
+    );
+  }
+}
+
+SDriverVerificationController _controller({
+  SDriverVerificationRepository? repository,
+}) {
+  return SDriverVerificationController(
+    serviceType: SVerificationServiceType.cityRide,
+    vehicleType: SVerificationVehicleType.car,
+    repository: repository ?? const SDriverVerificationRepository(),
+  );
+}
 
 void main() {
   group('SVerificationStatusResponse', () {
@@ -137,7 +177,8 @@ void main() {
         brand: 'Toyota',
         model: 'Corolla',
         color: 'White',
-        vehicleType: SVerificationVehicleType.economy,
+        vehicleType: SVerificationVehicleType.car,
+        serviceType: SVerificationServiceType.cityRide,
         maxPassengers: 4,
         plateNumber: 'ABC-123',
         productionYear: 2022,
@@ -148,7 +189,8 @@ void main() {
         'brand': 'Toyota',
         'model': 'Corolla',
         'color': 'White',
-        'vehicle_type': 'economy',
+        'vehicle_type': 'CAR',
+        'service_type': 'CITY_RIDE',
         'max_passengers': 4,
         'plate_number': 'ABC-123',
         'production_year': 2022,
@@ -158,17 +200,52 @@ void main() {
     test('maps display vehicle options to verification vehicle enum', () {
       expect(
         SVerificationVehicleType.fromDisplayVehicle(SDriverVehicleType.car),
-        SVerificationVehicleType.economy,
+        SVerificationVehicleType.car,
       );
       expect(
         SVerificationVehicleType.fromDisplayVehicle(
           SDriverVehicleType.motorcycle,
         ),
-        SVerificationVehicleType.moto,
+        SVerificationVehicleType.motorcycle,
       );
       expect(
         SVerificationVehicleType.fromDisplayVehicle(SDriverVehicleType.truck),
-        SVerificationVehicleType.freight,
+        SVerificationVehicleType.truck,
+      );
+    });
+
+    test('parses driver vehicle summary response', () {
+      final response = SDriverVehicleSummaryResponse.fromJson({
+        'service_type': 'CITY_RIDE',
+        'vehicles': [
+          {
+            'vehicle_type': 'CAR',
+            'vehicle_id': 'vehicle-1',
+            'is_registered_for_service': true,
+            'vehicle_status': 'pending',
+            'vehicle_documents_status': 'pending',
+            'brand': 'Toyota',
+            'model': 'Yaris',
+            'plate_number': 'ABC-123',
+            'services': [
+              {'service_type': 'CITY_RIDE', 'is_active': true},
+              {'service_type': 'COURIER', 'is_active': true},
+            ],
+          },
+        ],
+      });
+
+      final item = response.itemFor(SVerificationVehicleType.car);
+
+      expect(response.serviceType, SVerificationServiceType.cityRide);
+      expect(item?.vehicleId, 'vehicle-1');
+      expect(item?.isRegisteredForService, isTrue);
+      expect(
+        item?.services.map((service) => service.serviceType),
+        containsAll([
+          SVerificationServiceType.cityRide,
+          SVerificationServiceType.courier,
+        ]),
       );
     });
   });
@@ -188,7 +265,7 @@ void main() {
     });
 
     test('under review demo maps all cards to blocked state', () {
-      final controller = SDriverVerificationController();
+      final controller = _controller();
       controller.status.value = SVerificationStatusResponse.fromJson(
         SDriverVerificationDemoData.responseFor(
           SDriverVerificationDemoScenario.underReview,
@@ -204,7 +281,7 @@ void main() {
     });
 
     test('verified demo maps all cards to approved blocked state', () {
-      final controller = SDriverVerificationController();
+      final controller = _controller();
       controller.status.value = SVerificationStatusResponse.fromJson(
         SDriverVerificationDemoData.responseFor(
           SDriverVerificationDemoScenario.verified,
@@ -245,7 +322,7 @@ void main() {
     });
 
     test('ready to submit demo enables submit for review', () {
-      final controller = SDriverVerificationController();
+      final controller = _controller();
       controller.status.value = SVerificationStatusResponse.fromJson(
         SDriverVerificationDemoData.responseFor(
           SDriverVerificationDemoScenario.readyToSubmit,
@@ -269,7 +346,7 @@ void main() {
       ];
 
       for (final scenario in blockedScenarios) {
-        final controller = SDriverVerificationController();
+        final controller = _controller();
         controller.status.value = SVerificationStatusResponse.fromJson(
           SDriverVerificationDemoData.responseFor(scenario),
         );
@@ -283,12 +360,14 @@ void main() {
     });
 
     test('demo submit for review moves status to under review', () async {
-      final controller = SDriverVerificationController();
-      controller.status.value = SVerificationStatusResponse.fromJson(
+      final initialStatus = SVerificationStatusResponse.fromJson(
         SDriverVerificationDemoData.responseFor(
           SDriverVerificationDemoScenario.readyToSubmit,
         ),
       );
+      final repository = _FakeDriverVerificationRepository(initialStatus);
+      final controller = _controller(repository: repository);
+      controller.status.value = initialStatus;
 
       await controller.submitForReview();
 
@@ -296,6 +375,7 @@ void main() {
         controller.status.value?.overallStatus,
         SVerificationOverallStatus.underReview,
       );
+      expect(repository.submittedReview, isTrue);
       expect(controller.canSubmitForReview, isFalse);
       expect(controller.isSubmittingReview.value, isFalse);
     });

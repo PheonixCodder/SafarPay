@@ -3,7 +3,6 @@ import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
 
 import '../../../../../utils/constants/colors.dart';
-import '../data/driver_verification_demo_data.dart';
 import '../models/driver_registration_models.dart';
 import '../repositories/driver_verification_repository.dart';
 
@@ -29,10 +28,14 @@ class SVerificationStepViewData {
 
 class SDriverVerificationController extends GetxController {
   SDriverVerificationController({
+    required this.serviceType,
+    required this.vehicleType,
     SDriverVerificationRepository repository =
         const SDriverVerificationRepository(),
   }) : _repository = repository;
 
+  final SVerificationServiceType serviceType;
+  final SVerificationVehicleType vehicleType;
   final SDriverVerificationRepository _repository;
   final RxBool isLoading = true.obs;
   final RxBool isSubmittingReview = false.obs;
@@ -50,7 +53,10 @@ class SDriverVerificationController extends GetxController {
     errorMessage.value = null;
 
     try {
-      status.value = await _repository.getMyVerificationStatus();
+      status.value = await _repository.getMyVerificationStatus(
+        serviceType: serviceType,
+        vehicleType: vehicleType,
+      );
     } catch (error) {
       errorMessage.value = error.toString();
     } finally {
@@ -77,11 +83,7 @@ class SDriverVerificationController extends GetxController {
 
     try {
       await _repository.submitForReview();
-      status.value = SVerificationStatusResponse.fromJson(
-        SDriverVerificationDemoData.responseFor(
-          SDriverVerificationDemoScenario.underReview,
-        ),
-      );
+      await loadStatus();
     } catch (error) {
       errorMessage.value = error.toString();
     } finally {
