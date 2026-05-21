@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from enum import Enum
 from uuid import UUID, uuid4
 
@@ -20,6 +20,8 @@ class User:
     full_name: str | None = None
     email: str | None = None
     phone: str | None = None
+    gender: str | None = None
+    date_of_birth: date | None = None
     profile_img: str | None = None
     is_active: bool = True
     is_verified: bool = False  # True once phone is verified via OTP
@@ -32,6 +34,8 @@ class User:
         full_name: str | None = None,
         email: str | None = None,
         phone: str | None = None,
+        gender: str | None = None,
+        date_of_birth: date | None = None,
         profile_img: str | None = None,
         is_verified: bool = False,
     ) -> User:
@@ -41,6 +45,8 @@ class User:
             full_name=full_name,
             email=email,
             phone=phone,
+            gender=gender,
+            date_of_birth=date_of_birth,
             profile_img=profile_img,
             is_verified=is_verified,
         )

@@ -15,11 +15,15 @@ class OtpScreen extends StatelessWidget {
     required this.phoneNumber,
     required this.flow,
     this.displayName,
+    this.googleLoginToken,
+    this.maskedPhone,
   });
 
   final String phoneNumber;
   final SAuthOtpFlow flow;
   final String? displayName;
+  final String? googleLoginToken;
+  final String? maskedPhone;
 
   @override
   Widget build(BuildContext context) {
@@ -28,6 +32,8 @@ class OtpScreen extends StatelessWidget {
         phoneNumber: phoneNumber,
         flow: flow,
         displayName: displayName,
+        googleLoginToken: googleLoginToken,
+        maskedPhone: maskedPhone,
       ),
       tag: '${phoneNumber}_${flow.name}',
     );

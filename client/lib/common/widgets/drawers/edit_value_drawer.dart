@@ -1,6 +1,5 @@
 import 'package:client/utils/constants/colors.dart';
 import 'package:flutter/material.dart';
-import 'package:shadcn_ui/shadcn_ui.dart';
 
 import '../../../utils/constants/sizes.dart';
 import '../../../utils/constants/texts.dart';
@@ -12,14 +11,14 @@ Future<void> showSEditValueDrawer({
   required String currentValue,
   required ValueChanged<String> onSave,
   String description = STexts.editDrawerDefaultDescription,
-  String saveLabel = STexts.editDrawerSave,
+  String saveLabel = STexts.editDrawerConfirm,
   String cancelLabel = STexts.editDrawerCancel,
   TextInputType keyboardType = TextInputType.text,
   String? Function(String value)? validator,
 }) async {
-  await showShadSheet<void>(
+  await showDialog<void>(
     context: context,
-    side: ShadSheetSide.right,
+    barrierDismissible: false,
     builder: (context) => SEditValueDrawer(
       title: title,
       description: description,
@@ -63,11 +62,23 @@ class SEditValueDrawer extends StatefulWidget {
 }
 
 class _SEditValueDrawerState extends State<SEditValueDrawer> {
-  late String _value = widget.currentValue;
+  late final TextEditingController _controller;
   String? _errorText;
 
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.currentValue);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
   void _save() {
-    final trimmedValue = _value.trim();
+    final trimmedValue = _controller.text.trim();
     final validationError = widget.validator?.call(trimmedValue);
 
     if (validationError != null) {
@@ -86,50 +97,50 @@ class _SEditValueDrawerState extends State<SEditValueDrawer> {
 
   @override
   Widget build(BuildContext context) {
-    return ShadSheet(
-      constraints: const BoxConstraints(maxWidth: SSizes.editDrawerMaxWidth),
+    return AlertDialog(
+      backgroundColor: SColors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(SSizes.borderRadiusLg),
+      ),
       title: Text(widget.title),
-      description: Text(widget.description),
-      actions: [
-        ShadButton.outline(
-          onPressed: () => Navigator.of(context).pop(),
-          child: Text(widget.cancelLabel),
-        ),
-        ShadButton(
-          onPressed: _save,
-          backgroundColor: SColors.primary,
-          child: Text(widget.saveLabel),
-        ),
-      ],
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          vertical: SSizes.editDrawerVerticalPadding,
-        ),
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: SSizes.editDrawerMaxWidth),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            ShadInput(
-              initialValue: widget.currentValue,
+            Text(
+              widget.description,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: SSizes.editDrawerFieldGap),
+            TextFormField(
+              controller: _controller,
               keyboardType: widget.keyboardType,
-              placeholder: Text(widget.fieldLabel),
-              onChanged: (value) {
-                _value = value;
+              autofocus: true,
+              decoration: InputDecoration(
+                labelText: widget.fieldLabel,
+                errorText: _errorText,
+              ),
+              onChanged: (_) {
                 if (_errorText != null) setState(() => _errorText = null);
               },
+              onFieldSubmitted: (_) => _save(),
             ),
-            if (_errorText != null)
-              const SizedBox(height: SSizes.editDrawerFieldGap),
-            if (_errorText != null)
-              Text(
-                _errorText!,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.error,
-                    ),
-              ),
           ],
         ),
       ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(widget.cancelLabel),
+        ),
+        ElevatedButton(
+          onPressed: _save,
+          style: ElevatedButton.styleFrom(backgroundColor: SColors.primary),
+          child: Text(widget.saveLabel),
+        ),
+      ],
     );
   }
 }

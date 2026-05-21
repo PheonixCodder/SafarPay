@@ -1,3 +1,5 @@
+import '../formatters/phone_number_normalizer.dart';
+
 class SValidator {
   SValidator._();
 
@@ -21,11 +23,8 @@ class SValidator {
       return 'Phone number is required.';
     }
 
-    // Regular expression for phone number validation (10-15 digits, optional + prefix)
-    final phoneRegExp = RegExp(r'^\+?[\d\s-]{10,15}$');
-
-    if (!phoneRegExp.hasMatch(value)) {
-      return 'Invalid phone number.';
+    if (SPhoneNumberNormalizer.normalizeForPakistan(value) == null) {
+      return 'Enter a valid Pakistani phone number.';
     }
 
     return null;
@@ -114,6 +113,26 @@ class SValidator {
 
     if (!selectedOnly.isAfter(todayOnly)) {
       return '$fieldName must be in the future.';
+    }
+
+    return null;
+  }
+
+  static String? validateMinimumAge(
+    DateTime? value, {
+    int minimumAge = 13,
+    String fieldName = 'Date of birth',
+  }) {
+    if (value == null) {
+      return '$fieldName is required.';
+    }
+
+    final today = DateTime.now();
+    final latestAllowed = DateTime(today.year - minimumAge, today.month, today.day);
+    final selectedOnly = DateTime(value.year, value.month, value.day);
+
+    if (selectedOnly.isAfter(latestAllowed)) {
+      return 'You must be at least $minimumAge years old.';
     }
 
     return null;

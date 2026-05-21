@@ -1,5 +1,8 @@
+import '../../../utils/formatters/phone_number_normalizer.dart';
 import '../../../utils/http/client.dart';
+import '../../../utils/local_storage/app_mode_storage.dart';
 import '../../../utils/local_storage/token_storage.dart';
+import '../../../utils/local_storage/user_storage.dart';
 import '../models/auth_models.dart';
 
 class SAuthRepository {
@@ -8,170 +11,134 @@ class SAuthRepository {
   static final SAuthRepository instance = SAuthRepository._();
 
   Future<void> sendOtp(String phone) async {
-    // --- Original API call (commented out) ---
-    // await SHttpClient.post(
-    //   '/otp/send',
-    //   body: {'phone': phone},
-    // );
-
-    // --- Mock implementation ---
-    // Simulate a short network delay for realistic behavior (optional)
-    await Future.delayed(const Duration(milliseconds: 500));
-    // No return value needed
+    await SHttpClient.post(
+      '/otp/send',
+      body: {'phone': _normalizePhone(phone)},
+    );
   }
 
   Future<SOtpVerifyResponse> verifyOtp({
     required String phone,
     required String code,
+    String purpose = 'phone_login',
   }) async {
-    // --- Original API call (commented out) ---
-    // final response = await SHttpClient.post(
-    //   '/otp/verify',
-    //   body: {
-    //     'phone': phone,
-    //     'code': code,
-    //   },
-    // );
-    // return SOtpVerifyResponse.fromJson(response);
-
-    // --- Mock implementation ---
-    await Future.delayed(const Duration(milliseconds: 500));
-    // Return a dummy verification token. Accept any 6‑digit code.
-    if (code.length != 6) {
-      throw const SHttpException(
-        message: 'Invalid OTP code',
-        statusCode: 400,
-      );
-    }
-    return const SOtpVerifyResponse(
-      verificationToken: 'mock_verification_token_123',
+    final response = await SHttpClient.post(
+      '/otp/verify',
+      body: {
+        'phone': _normalizePhone(phone),
+        'code': code,
+        'purpose': purpose,
+      },
     );
+    return SOtpVerifyResponse.fromJson(response);
   }
 
   Future<STokenResponse> register({
-    required String verificationToken,
+    required String registrationToken,
     required String fullName,
     required String email,
+    required String gender,
+    required String dateOfBirth,
   }) async {
-    // --- Original API call (commented out) ---
-    // final response = await SHttpClient.post(
-    //   '/register',
-    //   body: {
-    //     'verification_token': verificationToken,
-    //     'full_name': fullName,
-    //     'email': email,
-    //   },
-    // );
-    // return STokenResponse.fromJson(response);
-
-    // --- Mock implementation ---
-    await Future.delayed(const Duration(milliseconds: 500));
-    return const STokenResponse(
-      accessToken: 'mock_access_token_123',
-      refreshToken: 'mock_refresh_token_123',
-      tokenType: 'bearer',
-      expiresIn: 900,
-      phoneRequired: false,
+    final response = await SHttpClient.post(
+      '/register',
+      body: {
+        'registration_token': registrationToken,
+        'full_name': fullName,
+        'email': email,
+        'gender': gender,
+        'date_of_birth': dateOfBirth,
+      },
     );
+    return STokenResponse.fromJson(response);
   }
 
-  Future<STokenResponse> verifyGoogleToken(String idToken) async {
-    // --- Original API call (commented out) ---
-    // final response = await SHttpClient.post(
-    //   '/google/verify-token',
-    //   body: {'id_token': idToken},
-    // );
-    // return STokenResponse.fromJson(response);
+  Future<SUserResponse> updateProfile({
+    String? fullName,
+    String? email,
+    String? gender,
+    String? dateOfBirth,
+  }) async {
+    final body = <String, dynamic>{
+      if (fullName != null) 'full_name': fullName,
+      if (email != null) 'email': email,
+      if (gender != null) 'gender': gender,
+      if (dateOfBirth != null) 'date_of_birth': dateOfBirth,
+    };
+    final response = await SHttpClient.patch(
+      '/me',
+      body: body,
+      requiresAuth: true,
+    );
+    return SUserResponse.fromJson(response);
+  }
 
-    // --- Mock implementation ---
-    await Future.delayed(const Duration(milliseconds: 500));
-    // For testing: set phoneRequired to true to exercise the Google phone-link flow.
-    // Change to false if you want to skip that flow.
-    final phoneRequired = bool.fromEnvironment(
-      'MOCK_GOOGLE_PHONE_REQUIRED',
-      defaultValue: true,
+  Future<SGoogleAuthResponse> verifyGoogleToken(String idToken) async {
+    final response = await SHttpClient.post(
+      '/google/verify-token',
+      body: {'id_token': idToken},
     );
-    return STokenResponse(
-      accessToken: phoneRequired ? '' : 'mock_google_access_token',
-      refreshToken: phoneRequired ? '' : 'mock_google_refresh_token',
-      tokenType: 'bearer',
-      expiresIn: 900,
-      phoneRequired: phoneRequired,
+    return SGoogleAuthResponse.fromJson(response);
+  }
+
+  Future<STokenResponse> verifyGoogleExistingPhone({
+    required String googleLoginToken,
+    required String code,
+  }) async {
+    final response = await SHttpClient.post(
+      '/google/verify-existing-phone',
+      body: {
+        'google_login_token': googleLoginToken,
+        'code': code,
+      },
     );
+    return STokenResponse.fromJson(response);
   }
 
   Future<STokenResponse> linkGooglePhone({
     required String verificationToken,
   }) async {
-    // --- Original API call (commented out) ---
-    // final response = await SHttpClient.post(
-    //   '/google/link-phone',
-    //   body: {'verification_token': verificationToken},
-    //   requiresAuth: true,
-    // );
-    // return STokenResponse.fromJson(response);
-
-    // --- Mock implementation ---
-    await Future.delayed(const Duration(milliseconds: 500));
-    return const STokenResponse(
-      accessToken: 'mock_linked_google_access_token',
-      refreshToken: 'mock_linked_google_refresh_token',
-      tokenType: 'bearer',
-      expiresIn: 900,
-      phoneRequired: false,
+    final response = await SHttpClient.post(
+      '/google/link-phone',
+      body: {'verification_token': verificationToken},
+      requiresAuth: true,
     );
+    return STokenResponse.fromJson(response);
   }
 
   Future<STokenResponse> refresh({String? refreshToken}) async {
-    // --- Original API call (commented out) ---
-    // final token = refreshToken ?? await STokenStorage.refreshToken();
-    // final response = await SHttpClient.post(
-    //   '/refresh',
-    //   body: token == null ? null : {'refresh_token': token},
-    // );
-    // return STokenResponse.fromJson(response);
-
-    // --- Mock implementation ---
-    await Future.delayed(const Duration(milliseconds: 500));
-    return const STokenResponse(
-      accessToken: 'mock_refreshed_access_token',
-      refreshToken: 'mock_refreshed_refresh_token',
-      tokenType: 'bearer',
-      expiresIn: 900,
-      phoneRequired: false,
+    final token = refreshToken ?? await STokenStorage.refreshToken();
+    final response = await SHttpClient.post(
+      '/refresh',
+      body: token == null ? null : {'refresh_token': token},
     );
+    return STokenResponse.fromJson(response);
   }
 
   Future<SUserResponse> getCurrentUser() async {
-    // --- Original API call (commented out) ---
-    // final response = await SHttpClient.get('/me', requiresAuth: true);
-    // return SUserResponse.fromJson(response);
-
-    // --- Mock implementation ---
-    await Future.delayed(const Duration(milliseconds: 500));
-    return const SUserResponse(
-      id: 'mock_user_id',
-      role: 'user',
-      isActive: true,
-      isVerified: true,
-      isOnboarded: true,
-      fullName: 'Mock User',
-      email: 'mock@example.com',
-      phone: '+1234567890',
-      profileImage: null,
-    );
+    final response = await SHttpClient.get('/me', requiresAuth: true);
+    return SUserResponse.fromJson(response);
   }
 
   Future<void> logout() async {
-    // --- Original API call (commented out) ---
-    // try {
-    //   await SHttpClient.post('/logout', requiresAuth: true);
-    // } finally {
-    //   await STokenStorage.clear();
-    // }
+    try {
+      await SHttpClient.post('/logout', requiresAuth: true);
+    } finally {
+      await STokenStorage.clear();
+      await SUserStorage.clear();
+      await SAppModeStorage.clear();
+    }
+  }
 
-    // --- Mock implementation ---
-    await Future.delayed(const Duration(milliseconds: 300));
-    await STokenStorage.clear();
+  String _normalizePhone(String phone) {
+    final normalized = SPhoneNumberNormalizer.normalizeForPakistan(phone);
+    if (normalized == null) {
+      throw const SHttpException(
+        message: 'Enter a valid Pakistani phone number.',
+        statusCode: 0,
+      );
+    }
+
+    return normalized;
   }
 }

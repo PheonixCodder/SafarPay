@@ -9,17 +9,23 @@ import '../screens/profile/profile.dart';
 import '../screens/permissions/permissions.dart';
 import '../utils/auth_navigation.dart';
 import '../../../utils/constants/texts.dart';
+import '../../../utils/formatters/phone_number_normalizer.dart';
 import '../../../utils/helpers/helpers.dart';
 import '../../../utils/http/client.dart';
 import '../../../utils/local_storage/token_storage.dart';
+import 'current_user_controller.dart';
 import 'permissions.dart';
 
 class SOtpController extends GetxController {
   SOtpController({
-    required this.phoneNumber,
+    required String phoneNumber,
     required this.flow,
     this.displayName,
-  });
+    this.googleLoginToken,
+    this.maskedPhone,
+  }) : phoneNumber =
+           SPhoneNumberNormalizer.normalizeForPakistan(phoneNumber) ??
+           phoneNumber;
 
   static const int otpLength = 6;
   static const int resendDuration = 30;
@@ -27,6 +33,8 @@ class SOtpController extends GetxController {
   final String phoneNumber;
   final SAuthOtpFlow flow;
   final String? displayName;
+  final String? googleLoginToken;
+  final String? maskedPhone;
   final RxString verificationCode = ''.obs;
   final RxInt resendSecondsRemaining = resendDuration.obs;
   final RxBool isVerifying = false.obs;
@@ -38,7 +46,10 @@ class SOtpController extends GetxController {
   bool get canVerify =>
       verificationCode.value.length == otpLength && !isVerifying.value;
   bool get isGooglePhoneLink => flow == SAuthOtpFlow.googlePhoneLink;
+  bool get isGoogleExistingEmailPhone =>
+      flow == SAuthOtpFlow.googleExistingEmailPhone;
   bool get hasDisplayName => displayName != null && displayName!.isNotEmpty;
+  String get phoneDisplay => maskedPhone ?? phoneNumber;
 
   @override
   void onInit() {
@@ -63,27 +74,79 @@ class SOtpController extends GetxController {
 
     isVerifying.value = true;
     try {
-      final response = await SAuthRepository.instance.verifyOtp(
-        phone: phoneNumber,
-        code: otp,
-      );
+      if (flow == SAuthOtpFlow.googleExistingEmailPhone) {
+        final token = googleLoginToken;
+        if (token == null || token.isEmpty) {
+          SHelperFunctions.showSnackBar(STexts.unexpectedError);
+          return;
+        }
 
-      if (flow == SAuthOtpFlow.googlePhoneLink) {
-        final tokens = await SAuthRepository.instance.linkGooglePhone(
-          verificationToken: response.verificationToken,
+        final tokens = await SAuthRepository.instance.verifyGoogleExistingPhone(
+          googleLoginToken: token,
+          code: otp,
         );
         await STokenStorage.saveTokens(
           accessToken: tokens.accessToken,
           refreshToken: tokens.refreshToken,
         );
+        await SCurrentUserController.instance.refreshFromBackend();
         SHelperFunctions.showSnackBar(STexts.otpVerified);
         await _goToPostAuthDestination();
         return;
       }
 
+      final response = await SAuthRepository.instance.verifyOtp(
+        phone: phoneNumber,
+        code: otp,
+        purpose: isGooglePhoneLink ? 'phone_link' : 'phone_login',
+      );
+
+      if (flow == SAuthOtpFlow.googlePhoneLink) {
+        final registrationToken = response.registrationToken;
+        if (registrationToken == null || registrationToken.isEmpty) {
+          SHelperFunctions.showSnackBar(STexts.unexpectedError);
+          return;
+        }
+
+        final tokens = await SAuthRepository.instance.linkGooglePhone(
+          verificationToken: registrationToken,
+        );
+        await STokenStorage.saveTokens(
+          accessToken: tokens.accessToken,
+          refreshToken: tokens.refreshToken,
+        );
+        await SCurrentUserController.instance.refreshFromBackend();
+        SHelperFunctions.showSnackBar(STexts.otpVerified);
+        await _goToPostAuthDestination();
+        return;
+      }
+
+      if (response.nextStep == SAuthOtpNextStep.login) {
+        final accessToken = response.accessToken;
+        if (accessToken == null || accessToken.isEmpty) {
+          SHelperFunctions.showSnackBar(STexts.unexpectedError);
+          return;
+        }
+
+        await STokenStorage.saveTokens(
+          accessToken: accessToken,
+          refreshToken: response.refreshToken,
+        );
+        await SCurrentUserController.instance.refreshFromBackend();
+        SHelperFunctions.showSnackBar(STexts.otpVerified);
+        await _goToPostAuthDestination();
+        return;
+      }
+
+      final registrationToken = response.registrationToken;
+      if (registrationToken == null || registrationToken.isEmpty) {
+        SHelperFunctions.showSnackBar(STexts.unexpectedError);
+        return;
+      }
+
       SAuthNavigation.to(
         CompleteProfileScreen(
-          verificationToken: response.verificationToken,
+          registrationToken: registrationToken,
         ),
       );
     } on SHttpException catch (error) {
@@ -100,6 +163,11 @@ class SOtpController extends GetxController {
 
     isResending.value = true;
     try {
+      if (isGoogleExistingEmailPhone) {
+        SHelperFunctions.showSnackBar(STexts.googleExistingPhoneResendHint);
+        return;
+      }
+
       await SAuthRepository.instance.sendOtp(phoneNumber);
       SHelperFunctions.showSnackBar(STexts.otpSentWhatsapp);
       startResendCountdown();

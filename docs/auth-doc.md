@@ -46,7 +46,7 @@ The verification token proves phone ownership only. It is not an auth token.
 
 ---
 
-## Phone-First Registration
+## Phone OTP Login And Registration
 
 Routes:
 
@@ -92,6 +92,7 @@ Failure mapping:
 class OTPVerifyRequest(BaseModel):
     phone: str = Field(..., pattern=r"^\+?[1-9]\d{7,14}$")
     code: str = Field(..., min_length=6, max_length=6)
+    purpose: Literal["phone_login", "phone_link"] = "phone_login"
 ```
 
 Flow:
@@ -101,14 +102,40 @@ Flow:
 3. Expiry and max-attempt checks are enforced.
 4. Submitted code is hashed and compared with the stored hash.
 5. On success, verification record is marked verified.
-6. A short-lived verification token is returned.
-7. On mismatch, attempt count is incremented.
+6. A short-lived phone proof token is created.
+7. If `purpose=phone_link`, response returns `next_step=link_phone` plus `registration_token`.
+8. If `purpose=phone_login` and the phone exists, a session is created and access/refresh tokens are returned.
+9. If `purpose=phone_login` and the phone is new, response returns `next_step=complete_profile` plus `registration_token`.
+10. On mismatch, attempt count is incremented.
 
-Response:
+Existing phone response:
 
 ```json
 {
-  "verification_token": "jwt"
+  "next_step": "login",
+  "access_token": "jwt",
+  "refresh_token": "raw-refresh-token",
+  "token_type": "bearer",
+  "expires_in": 900,
+  "phone_required": false
+}
+```
+
+New phone response:
+
+```json
+{
+  "next_step": "complete_profile",
+  "registration_token": "jwt"
+}
+```
+
+Google phone-link response:
+
+```json
+{
+  "next_step": "link_phone",
+  "registration_token": "jwt"
 }
 ```
 
@@ -126,14 +153,17 @@ Failure mapping:
 ```python
 class RegisterRequest(BaseModel):
     full_name: str = Field(..., min_length=2, max_length=255)
-    verification_token: str
+    registration_token: str
+    email: EmailStr
+    gender: Literal["male", "female", "other"]
+    date_of_birth: date
 ```
 
 Flow:
 
-1. `RegisterUseCase` verifies the phone verification token.
-2. Existing phone check prevents duplicate accounts.
-3. A verified `User` is created with role `PASSENGER`.
+1. `RegisterUseCase` verifies the phone registration token.
+2. Existing phone and email checks prevent duplicate accounts.
+3. A verified `User` is created with role `PASSENGER` and saved profile demographics.
 4. A new `Session` is created for the device.
 5. Access and refresh tokens are generated.
 6. Refresh token hash is stored in the session record.
@@ -156,7 +186,7 @@ Failure mapping:
 | Error | HTTP |
 |---|---:|
 | Invalid/expired verification token | 400 |
-| Phone already registered | 409 |
+| Phone or email already registered | 409 |
 
 ---
 
@@ -168,6 +198,7 @@ Routes:
 POST /api/v1/auth/google/verify-token
 POST /api/v1/auth/otp/send
 POST /api/v1/auth/otp/verify
+POST /api/v1/auth/google/verify-existing-phone
 POST /api/v1/auth/google/link-phone
 ```
 
@@ -182,19 +213,34 @@ Flow:
 
 1. `GoogleTokenVerifier` verifies Google ID token signature, audience, expiry, and verified email.
 2. `AccountRepository` checks for an existing `(provider="google", provider_account_id=sub)` link.
-3. If account exists, the linked user is loaded.
-4. If account is new, an unverified user is created with Google profile data and linked account.
-5. A new session and token pair are issued.
-6. `phone_required = not user.is_verified`.
+3. If account exists, the linked user is loaded and its email is synced from the verified Google email.
+4. If the linked user has a saved phone, Auth sends OTP to that saved phone and returns a masked phone plus `google_login_token`; no access or refresh token is issued yet.
+5. If the linked user has no saved phone, temporary tokens are issued with `phone_required=true` so the current Google phone-link flow can collect and verify a phone number.
+6. If account is new but the verified email belongs to an existing user with a phone, Auth sends OTP to that saved phone and returns a masked phone plus `google_login_token`.
+7. If account is new but the verified email belongs to an existing user without a phone, the Google account is linked to that user and temporary tokens are issued with `phone_required=true`.
+8. If account and email are new, an unverified user is created with Google profile data and linked account.
+9. Full saved phone numbers are not returned from this route.
 
 Response:
 
 ```json
 {
+  "next_step": "login",
   "access_token": "jwt",
   "token_type": "bearer",
   "expires_in": 900,
   "phone_required": true
+}
+```
+
+Saved-phone verification response:
+
+```json
+{
+  "next_step": "verify_existing_phone",
+  "masked_phone": "******8782",
+  "google_login_token": "jwt",
+  "phone_required": false
 }
 ```
 
@@ -205,7 +251,25 @@ Failure mapping:
 | Invalid Google token | 401 |
 | Linked user missing | 401 |
 
-### 2. Link Phone to Google User
+### 2. Verify Existing Google Phone
+
+```python
+class GoogleExistingPhoneVerifyRequest(BaseModel):
+    google_login_token: str
+    code: str = Field(..., min_length=6, max_length=6)
+```
+
+Flow:
+
+1. `VerifyGoogleExistingPhoneUseCase` verifies the short-lived Google login token.
+2. OTP is checked against the saved phone inside the token.
+3. The Google account link is created for the existing user if missing.
+4. For already-linked Google accounts, the existing account link is reused.
+5. A new session and token pair are issued.
+
+Response is the standard token response with `phone_required=false`.
+
+### 3. Link Phone to Google User
 
 ```python
 class LinkPhoneRequest(BaseModel):
@@ -220,7 +284,9 @@ Flow:
 4. Service checks whether the verified phone already belongs to another user.
 5. If phone is owned by a phone-first account:
    - Google account links are transferred from temporary Google user to phone owner.
-   - Missing profile fields are copied to the phone owner.
+   - The phone owner remains the surviving user record.
+   - The verified Google email replaces the phone owner's email.
+   - Missing profile fields, such as full name, are copied only when the phone owner does not already have them.
    - All temporary Google-user sessions are revoked.
    - Temporary Google user is deleted.
    - New session is created for the final merged phone-owner user.
@@ -392,6 +458,8 @@ Response:
   "full_name": "string | null",
   "email": "string | null",
   "phone": "string | null",
+  "gender": "male|female|other|null",
+  "date_of_birth": "YYYY-MM-DD|null",
   "profile_img": "string | null",
   "role": "passenger|driver|admin",
   "is_active": true,
@@ -399,6 +467,41 @@ Response:
   "is_onboarded": true
 }
 ```
+
+## Update Current Profile
+
+Route:
+
+```text
+PATCH /api/v1/auth/me
+```
+
+Request:
+
+```python
+class UpdateUserProfileRequest(BaseModel):
+    full_name: str | None = Field(default=None, min_length=2, max_length=255)
+    email: EmailStr | None = None
+    gender: Literal["male", "female", "other"] | None = None
+    date_of_birth: date | None = None
+```
+
+Flow:
+
+1. Access token is verified.
+2. `UpdateUserProfileUseCase` loads the current user.
+3. Email uniqueness is checked when a new email is supplied.
+4. Editable fields are persisted through `UserRepository.update`.
+5. Public user fields are returned in the same shape as `GET /me`.
+
+Phone number is intentionally not accepted on this route. Phone ownership remains controlled by OTP verification and Google phone-link flows.
+
+Failure mapping:
+
+| Error | HTTP |
+|---|---:|
+| Duplicate email | 409 |
+| Current user missing | 404 |
 
 ---
 
@@ -413,6 +516,8 @@ class User:
     full_name: str | None
     email: str | None
     phone: str | None
+    gender: str | None
+    date_of_birth: date | None
     profile_img: str | None
     is_active: bool
     is_verified: bool
@@ -462,15 +567,17 @@ class Verification:
 | Method | URL | Description |
 |---|---|---|
 | POST | `/api/v1/auth/otp/send` | Send WhatsApp OTP |
-| POST | `/api/v1/auth/otp/verify` | Verify OTP and return verification token |
+| POST | `/api/v1/auth/otp/verify` | Verify OTP and return the next login/profile/link step |
 | POST | `/api/v1/auth/register` | Create phone-verified passenger account |
-| POST | `/api/v1/auth/google/verify-token` | Verify Google ID token and issue tokens |
+| POST | `/api/v1/auth/google/verify-token` | Verify Google ID token and return the next auth step |
+| POST | `/api/v1/auth/google/verify-existing-phone` | Verify saved-phone OTP for Google login |
 | POST | `/api/v1/auth/google/link-phone` | Link verified phone to Google user, with account merge |
 | POST | `/api/v1/auth/refresh` | Rotate refresh token |
 | GET | `/api/v1/auth/sessions` | List active sessions |
 | DELETE | `/api/v1/auth/sessions/{session_id}` | Revoke another active session |
 | POST | `/api/v1/auth/logout` | Revoke current session and clear cookie |
 | GET | `/api/v1/auth/me` | Return current user profile |
+| PATCH | `/api/v1/auth/me` | Update current user name, email, gender, and date of birth |
 
 ---
 
@@ -514,21 +621,29 @@ FastAPI dependency providers assemble repositories, rate limiter, OTP provider, 
 
 ## End-to-End Flows
 
-### Phone-First
+### Existing Phone Login
+
+```text
+POST /otp/send -> POST /otp/verify
+```
+
+The result is one active session, access token in response body, and refresh token in httpOnly cookie/body when the phone already belongs to a user.
+
+### New Phone Registration
 
 ```text
 POST /otp/send -> POST /otp/verify -> POST /register
 ```
 
-The result is a verified passenger user, one active session, access token in response body, and refresh token in httpOnly cookie.
+The result is a verified passenger user with name, email, gender, and date of birth, one active session, access token in response body, and refresh token in httpOnly cookie/body.
 
 ### Google-First
 
 ```text
-POST /google/verify-token -> POST /otp/send -> POST /otp/verify -> POST /google/link-phone
+POST /google/verify-token -> POST /otp/send -> POST /otp/verify purpose=phone_link -> POST /google/link-phone
 ```
 
-The result is a verified user with a Google account link. If the phone already belongs to a phone-first user, the Google account is transferred to that phone-owner account.
+The result is a verified user with a Google account link. If Google login resolves to any user with a saved phone, either by existing Google link or by verified-email match, the user verifies OTP against that saved phone before tokens are issued. If the phone already belongs to a phone-first user during phone linking, the Google account is transferred to that phone-owner account and the verified Google email becomes the canonical saved email for future Google logins.
 
 ### Refresh
 

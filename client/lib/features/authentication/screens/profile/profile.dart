@@ -9,16 +9,16 @@ import 'widgets/profile_header.dart';
 class CompleteProfileScreen extends StatelessWidget {
   const CompleteProfileScreen({
     super.key,
-    required this.verificationToken,
+    required this.registrationToken,
   });
 
-  final String verificationToken;
+  final String registrationToken;
 
   @override
   Widget build(BuildContext context) {
     final controller = Get.put(
-      SProfileController(verificationToken: verificationToken),
-      tag: verificationToken,
+      SProfileController(registrationToken: registrationToken),
+      tag: registrationToken,
     );
 
     return Scaffold(
