@@ -7,7 +7,10 @@
 # ─────────────────────────────────────────────────────────────────────────────
 
 # ── Stage 1: Install dependencies ────────────────────────────────────────────
-FROM python:3.12-slim AS builder
+ARG PYTHON_VERSION=3.11
+ARG PYTHON_IMAGE=python:${PYTHON_VERSION}-slim
+
+FROM ${PYTHON_IMAGE} AS builder
 
 # Install uv
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
@@ -30,11 +33,27 @@ COPY services/${SERVICE_NAME}/ ./services/${SERVICE_NAME}/
 # --package: install only this service's dependency tree
 RUN uv sync --frozen --no-dev --package ${SERVICE_NAME}
 
+# PaddleOCR does not declare the Paddle runtime itself. Install the Linux CPU
+# runtime only for the verification image; keeping it out of the workspace lock
+# avoids Windows resolver conflicts from Paddle's protobuf pins.
+RUN if [ "$SERVICE_NAME" = "verification" ]; then \
+        uv pip install --python .venv/bin/python paddlepaddle==3.2.2; \
+    fi
+
 # ── Stage 2: Production runtime ──────────────────────────────────────────────
-FROM python:3.12-slim
+FROM ${PYTHON_IMAGE}
 
 # Install uv into runtime stage (needed for PATH resolution)
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+ARG SERVICE_NAME
+
+# Verification uses OpenCV/ML packages that need these native runtime libs.
+RUN if [ "$SERVICE_NAME" = "verification" ]; then \
+        apt-get update && \
+        apt-get install -y --no-install-recommends libgl1 libglib2.0-0 libgomp1 && \
+        rm -rf /var/lib/apt/lists/*; \
+    fi
 
 # Non-root user for security
 RUN useradd --create-home --shell /bin/bash --uid 1001 appuser
@@ -44,7 +63,6 @@ WORKDIR /app
 # Copy installed venv + source from builder
 COPY --from=builder --chown=appuser:appuser /app /app
 
-ARG SERVICE_NAME
 ENV SERVICE_NAME=${SERVICE_NAME} \
     PATH="/app/.venv/bin:$PATH" \
     PYTHONDONTWRITEBYTECODE=1 \
