@@ -79,25 +79,25 @@ class SLocationDemoData {
   static const routePreview = SRoutePreview(
     distanceKm: 4.2,
     durationMinutes: 11,
-    polyline: '',
+    polyline: 'czc_E_cdeM{EbLgJjMgJrIgJrI',
     steps: [
       SRouteStep(
         instruction: 'Head east on Street 8',
         distanceMeters: 900,
         durationSeconds: 150,
-        polyline: '',
+        polyline: 'czc_E_cdeM{EbL',
       ),
       SRouteStep(
         instruction: 'Continue toward Sector E',
         distanceMeters: 2100,
         durationSeconds: 380,
-        polyline: '',
+        polyline: '_ad_E{uceMgJjMgJrI',
       ),
       SRouteStep(
         instruction: 'Arrive at the selected dropoff',
         distanceMeters: 1200,
         durationSeconds: 130,
-        polyline: '',
+        polyline: 'owd_E{|beMgJrI',
       ),
     ],
   );

@@ -28,6 +28,7 @@ class SHttpClient {
   SHttpClient._();
 
   static final http.Client _client = http.Client();
+  static Future<bool>? _refreshInFlight;
 
   static Future<Map<String, dynamic>> get(
     String endpoint, {
@@ -124,6 +125,16 @@ class SHttpClient {
         statusCode: 0,
       );
     }
+  }
+
+  static Future<String?> accessTokenForSocket() async {
+    final token = await STokenStorage.accessToken();
+    if (token == null || token.isEmpty) return null;
+
+    if (_tokenExpiresSoon(token)) {
+      await _refreshToken();
+    }
+    return STokenStorage.accessToken();
   }
 
   static Future<Map<String, dynamic>> _send(
@@ -271,7 +282,16 @@ class SHttpClient {
     };
   }
 
-  static Future<bool> _refreshToken() async {
+  static Future<bool> _refreshToken() {
+    final inFlight = _refreshInFlight;
+    if (inFlight != null) return inFlight;
+
+    final refresh = _refreshTokenInternal();
+    _refreshInFlight = refresh;
+    return refresh.whenComplete(() => _refreshInFlight = null);
+  }
+
+  static Future<bool> _refreshTokenInternal() async {
     final refreshToken = await STokenStorage.refreshToken();
     if (refreshToken == null || refreshToken.isEmpty) return false;
 
@@ -295,6 +315,27 @@ class SHttpClient {
     } catch (error) {
       SLoggerHelper.error('Token refresh failed', error);
       await STokenStorage.clear();
+      return false;
+    }
+  }
+
+  static bool _tokenExpiresSoon(String token) {
+    try {
+      final parts = token.split('.');
+      if (parts.length < 2) return false;
+      final payload = utf8.decode(base64Url.decode(base64Url.normalize(parts[1])));
+      final data = jsonDecode(payload);
+      if (data is! Map<String, dynamic>) return false;
+      final exp = data['exp'];
+      if (exp is! num) return false;
+      final expiry = DateTime.fromMillisecondsSinceEpoch(
+        exp.toInt() * 1000,
+        isUtc: true,
+      );
+      return expiry
+          .subtract(const Duration(minutes: 1))
+          .isBefore(DateTime.now().toUtc());
+    } catch (_) {
       return false;
     }
   }

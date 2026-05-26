@@ -46,11 +46,14 @@ class RidePreviewScreen extends StatelessWidget {
                 height: SSizes.rideMapPreviewHeight,
                 child: SMapView(
                   initialCenter: pickup.coordinate,
+                  cameraMode: SMapCameraMode.fitRoute,
+                  fitPadding: const EdgeInsets.fromLTRB(48, 64, 48, 64),
                   isLoading: controller.isLoading.value,
                   errorMessage: controller.errorMessage.value.isEmpty
                       ? null
                       : controller.errorMessage.value,
                   route: controller.route.value,
+                  showUserLocation: false,
                   markers: [
                     SMapMarker(
                       id: 'pickup',

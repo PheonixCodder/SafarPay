@@ -8,9 +8,11 @@ class SRideDetailsButton extends StatelessWidget {
   const SRideDetailsButton({
     super.key,
     required this.onPressed,
+    this.label = STexts.tripsViewDetails,
   });
 
   final VoidCallback onPressed;
+  final String label;
 
   @override
   Widget build(BuildContext context) {
@@ -37,8 +39,8 @@ class SRideDetailsButton extends StatelessWidget {
                 BorderRadius.circular(SSizes.tripsDetailsButtonRadius),
           ),
         ),
-        child: const Text(
-          STexts.tripsViewDetails,
+        child: Text(
+          label,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(color: SColors.white),

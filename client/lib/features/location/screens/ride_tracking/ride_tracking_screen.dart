@@ -1,5 +1,7 @@
 import 'package:client/common/widgets/appbar/appbar.dart';
+import 'package:client/common/widgets/maps/map_models.dart';
 import 'package:client/common/widgets/maps/map_view.dart';
+import 'package:client/features/communication/widgets/ride_communication_button.dart';
 import 'package:client/features/location/controllers/ride_tracking_controller.dart';
 import 'package:client/features/location/domain/location_models.dart';
 import 'package:client/utils/constants/colors.dart';
@@ -7,6 +9,8 @@ import 'package:client/utils/constants/sizes.dart';
 import 'package:client/utils/constants/texts.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+
+import 'widgets/ride_verification_code_card.dart';
 
 class RideTrackingScreen extends StatelessWidget {
   const RideTrackingScreen({
@@ -44,13 +48,46 @@ class RideTrackingScreen extends StatelessWidget {
               children: [
                 SizedBox(
                   height: SSizes.rideMapTrackingHeight,
-                  child: SMapView(
-                    initialCenter: center,
-                    isLoading: controller.isConnecting.value,
-                    markers: controller.markers,
+                  child: Stack(
+                    children: [
+                      Positioned.fill(
+                        child: SMapView(
+                          initialCenter: center,
+                          cameraMode: SMapCameraMode.fitRoute,
+                          fitPadding: const EdgeInsets.fromLTRB(56, 72, 56, 96),
+                          maxFitZoom: 16,
+                          isLoading: controller.isConnecting.value,
+                          markers: controller.markers,
+                          route: controller.route.value,
+                          showUserLocation: false,
+                        ),
+                      ),
+                      if (controller.rideStatus.value != 'IN_PROGRESS')
+                        Positioned(
+                          right: SSizes.md,
+                          bottom: SSizes.md,
+                          child: SRideCommunicationButton(rideId: rideId),
+                        ),
+                    ],
                   ),
                 ),
                 const SizedBox(height: SSizes.lg),
+                if (controller.startVerificationCode.value.isNotEmpty &&
+                    controller.rideStatus.value != 'IN_PROGRESS') ...[
+                  SRideVerificationCodeCard(
+                    title: 'Pickup code',
+                    code: controller.startVerificationCode.value,
+                  ),
+                  const SizedBox(height: SSizes.lg),
+                ],
+                if (controller.endVerificationCode.value.isNotEmpty &&
+                    controller.rideStatus.value == 'IN_PROGRESS') ...[
+                  SRideVerificationCodeCard(
+                    title: 'Completion code',
+                    code: controller.endVerificationCode.value,
+                  ),
+                  const SizedBox(height: SSizes.lg),
+                ],
                 DecoratedBox(
                   decoration: BoxDecoration(
                     color: SColors.white,

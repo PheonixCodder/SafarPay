@@ -21,6 +21,15 @@ enum SMapMarkerType {
   passenger,
 }
 
+enum SMapCameraMode {
+  manual,
+  staticPreview,
+  fitRoute,
+  followDriver,
+  followUser,
+  navigationFollow,
+}
+
 class SMapMarker {
   const SMapMarker({
     required this.id,
@@ -28,6 +37,7 @@ class SMapMarker {
     required this.type,
     required this.label,
     this.isStale = false,
+    this.heading,
   });
 
   final String id;
@@ -35,4 +45,5 @@ class SMapMarker {
   final SMapMarkerType type;
   final String label;
   final bool isStale;
+  final double? heading;
 }

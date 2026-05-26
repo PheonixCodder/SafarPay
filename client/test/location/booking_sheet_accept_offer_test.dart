@@ -1,4 +1,5 @@
 import 'package:client/features/location/controllers/ride_search_controller.dart';
+import 'package:client/features/location/data/bidding_repository.dart';
 import 'package:client/features/location/domain/bidding_models.dart';
 import 'package:client/features/location/domain/ride_booking_models.dart';
 import 'package:client/features/location/screens/ride_search/widgets/booking_sheet.dart';
@@ -9,7 +10,9 @@ import 'package:get/get.dart';
 void main() {
   testWidgets('accepted demo offer requests ride tracking navigation',
       (tester) async {
-    final controller = SRideSearchController();
+    final controller = SRideSearchController(
+      biddingRepository: const SBiddingRepository(useDemoData: true),
+    );
     controller.sheetMode.value = SBookingSheetMode.matching;
     controller.createdRideId.value = 'demo-ride-001';
     controller.biddingSessionId.value = 'demo-hybrid-session-001';

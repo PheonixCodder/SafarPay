@@ -46,7 +46,15 @@ class SRideSocketEvent {
 
 SRideSocketEventType _typeFor(String? event) {
   return switch (event) {
+    'RIDE_CREATED' ||
+    'DRIVER_MATCHED' ||
+    'DRIVER_ASSIGNED' ||
+    'STOP_UPDATED' ||
+    'RIDE_STARTED' ||
+    'RIDE_COMPLETED' ||
+    'RIDE_CANCELLED' ||
     'RIDE_UPDATED' => SRideSocketEventType.rideUpdated,
+    'DRIVER_LOCATION_UPDATED' ||
     'DRIVER_LOCATION' => SRideSocketEventType.driverLocation,
     'JOB_ASSIGNED' => SRideSocketEventType.jobAssigned,
     'JOB_CANCELLED' => SRideSocketEventType.jobCancelled,

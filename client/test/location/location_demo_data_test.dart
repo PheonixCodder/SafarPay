@@ -9,7 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test('demo geocode and reverse geocode return Lahore UI data', () async {
-    final repository = SLocationRepository();
+    const repository = SLocationRepository(useDemoData: true);
 
     final geocode = await repository.geocode('hospital');
     final reverse = await repository.reverseGeocode(
@@ -22,7 +22,7 @@ void main() {
   });
 
   test('demo route preview is available without backend', () async {
-    const repository = SGeospatialRepository();
+    const repository = SGeospatialRepository(useDemoData: true);
     final route = await repository.calculateRoute(
       origin: SLocationDemoData.pickup.coordinate,
       destination: SLocationDemoData.dropoff.coordinate,
@@ -30,7 +30,8 @@ void main() {
     final validation = await repository.validatePickup(
       SLocationDemoData.pickup.coordinate,
     );
-    final surge = await repository.getSurge(SLocationDemoData.pickup.coordinate);
+    final surge =
+        await repository.getSurge(SLocationDemoData.pickup.coordinate);
 
     expect(route.distanceKm, greaterThan(0));
     expect(route.durationMinutes, greaterThan(0));
@@ -51,22 +52,26 @@ void main() {
       autoAcceptDriver: true,
     );
 
-    final ride = await const SRideRepository().createRide(body);
-    final rideDetails = await const SRideRepository().fetchRide(
+    const rideRepository = SRideRepository(useDemoData: true);
+    const biddingRepository = SBiddingRepository(useDemoData: true);
+    const locationRepository = SLocationRepository(useDemoData: true);
+
+    final ride = await rideRepository.createRide(body);
+    final rideDetails = await rideRepository.fetchRide(
       ride['id'].toString(),
     );
-    final session = await const SBiddingRepository().getSessionForRide(
+    final session = await biddingRepository.getSessionForRide(
       ride['id'].toString(),
     );
-    final bids = await const SBiddingRepository().getBidsForSession(
+    final bids = await biddingRepository.getBidsForSession(
       session['session_id'].toString(),
     );
-    final counter = await const SBiddingRepository().sendPassengerCounter(
+    final counter = await biddingRepository.sendPassengerCounter(
       sessionId: session['session_id'].toString(),
       counterPrice: 250,
       counterEtaMinutes: 4,
     );
-    final locations = await SLocationRepository().getRideLocations(
+    final locations = await locationRepository.getRideLocations(
       ride['id'].toString(),
     );
 

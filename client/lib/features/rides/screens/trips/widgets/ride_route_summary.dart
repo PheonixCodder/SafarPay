@@ -11,12 +11,24 @@ class SRideRouteSummary extends StatelessWidget {
   const SRideRouteSummary({
     super.key,
     required this.ride,
-  });
+  })  : pickupStop = null,
+        dropoffStop = null;
 
-  final RideResponse ride;
+  const SRideRouteSummary.fromStops({
+    super.key,
+    required this.pickupStop,
+    required this.dropoffStop,
+  }) : ride = null;
+
+  final RideResponse? ride;
+  final StopResponse? pickupStop;
+  final StopResponse? dropoffStop;
 
   @override
   Widget build(BuildContext context) {
+    final pickup = pickupStop ?? ride?.pickupStop;
+    final dropoff = dropoffStop ?? ride?.dropoffStop;
+
     return IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -39,14 +51,14 @@ class SRideRouteSummary extends StatelessWidget {
               children: [
                 SRideRouteStop(
                   label: STexts.tripsPickup,
-                  title: ride.pickupStop?.placeName ?? STexts.tripsPickup,
-                  address: ride.pickupStop?.addressLine1,
+                  title: pickup?.placeName ?? STexts.tripsPickup,
+                  address: pickup?.addressLine1,
                 ),
                 const SizedBox(height: SSizes.md),
                 SRideRouteStop(
                   label: STexts.tripsDropoff,
-                  title: ride.dropoffStop?.placeName ?? STexts.tripsDropoff,
-                  address: ride.dropoffStop?.addressLine1,
+                  title: dropoff?.placeName ?? STexts.tripsDropoff,
+                  address: dropoff?.addressLine1,
                 ),
               ],
             ),
