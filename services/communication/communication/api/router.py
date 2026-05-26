@@ -34,6 +34,7 @@ from ..application.use_cases import (
     ConversationAccessUseCase,
     EndCallUseCase,
     GenerateMediaUploadUrlUseCase,
+    GetConversationByRideUseCase,
     GetConversationUseCase,
     GetIceServersUseCase,
     GetMediaUrlUseCase,
@@ -57,6 +58,7 @@ from ..domain.models import ConversationStatus
 from ..infrastructure.dependencies import (
     get_access_uc,
     get_end_call_uc,
+    get_get_conversation_by_ride_uc,
     get_get_conversation_uc,
     get_ice_servers_uc,
     get_list_conversations_uc,
@@ -105,6 +107,19 @@ async def list_conversations(
     offset: OffsetQuery = 0,
 ) -> list[ConversationResponse]:
     return await uc.execute(current_user.user_id, driver_id, status_filter, limit, offset)
+
+
+@router.get("/conversations/by-ride/{ride_id}", response_model=ConversationResponse)
+async def get_conversation_by_ride(
+    ride_id: UUID,
+    current_user: CurrentUser,
+    driver_id: OptionalDriverId,
+    uc: Annotated[GetConversationByRideUseCase, Depends(get_get_conversation_by_ride_uc)],
+) -> ConversationResponse:
+    try:
+        return await uc.execute(ride_id, current_user.user_id, driver_id)
+    except Exception as exc:
+        raise _handle_domain(exc) from None
 
 
 @router.get("/conversations/{conversation_id}", response_model=ConversationResponse)

@@ -206,6 +206,9 @@ class FakeConversationRepo:
     async def get_driver_user_id(self, driver_id: UUID) -> UUID | None:
         return self.driver_user_id if driver_id == DRIVER_ID else None
 
+    async def service_request_exists(self, service_request_id: UUID) -> bool:
+        return service_request_id == RIDE_ID
+
 
 class FakeParticipantRepo:
     def __init__(self, conversation: Conversation) -> None:

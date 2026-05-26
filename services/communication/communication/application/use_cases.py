@@ -207,6 +207,19 @@ class GetConversationUseCase:
         return _conversation_to_resp(conversation)
 
 
+class GetConversationByRideUseCase:
+    def __init__(self, conversation_repo: ConversationRepositoryProtocol) -> None:
+        self._conversation_repo = conversation_repo
+
+    async def execute(self, ride_id: UUID, user_id: UUID, driver_id: UUID | None) -> ConversationResponse:
+        conversation = await self._conversation_repo.find_by_ride(ride_id)
+        if not conversation:
+            raise ConversationNotFoundError(f"Conversation for ride {ride_id} not found.")
+        if user_id not in {conversation.passenger_user_id, conversation.driver_user_id} and driver_id != conversation.driver_id:
+            raise UnauthorisedConversationAccessError("Caller is not a participant in this conversation.")
+        return _conversation_to_resp(conversation)
+
+
 class SendTextMessageUseCase:
     def __init__(
         self,

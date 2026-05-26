@@ -3,16 +3,18 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import Depends, Request
+from fastapi import Depends
 from sp.core.config import Settings, get_settings
 from sp.infrastructure.cache.manager import CacheManager
 from sp.infrastructure.db.session import get_async_session
+from starlette.requests import HTTPConnection
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..application.use_cases import (
     ConversationAccessUseCase,
     EndCallUseCase,
     GenerateMediaUploadUrlUseCase,
+    GetConversationByRideUseCase,
     GetConversationUseCase,
     GetIceServersUseCase,
     GetMediaUrlUseCase,
@@ -44,16 +46,16 @@ DBSession = Annotated[AsyncSession, Depends(get_async_session)]
 AppSettings = Annotated[Settings, Depends(get_settings)]
 
 
-def get_cache(request: Request) -> CacheManager:
-    return request.app.state.cache
+def get_cache(conn: HTTPConnection) -> CacheManager:
+    return conn.app.state.cache
 
 
-def get_ws_manager(request: Request) -> WebSocketManager:
-    return request.app.state.ws_manager
+def get_ws_manager(conn: HTTPConnection) -> WebSocketManager:
+    return conn.app.state.ws_manager
 
 
-def get_storage(request: Request) -> StorageProviderProtocol:
-    return request.app.state.storage
+def get_storage(conn: HTTPConnection) -> StorageProviderProtocol:
+    return conn.app.state.storage
 
 
 def get_conversation_repo(session: DBSession, settings: AppSettings) -> ConversationRepositoryProtocol:
@@ -95,12 +97,18 @@ def get_get_conversation_uc(
     return GetConversationUseCase(access)
 
 
+def get_get_conversation_by_ride_uc(
+    conversation_repo: Annotated[ConversationRepositoryProtocol, Depends(get_conversation_repo)],
+) -> GetConversationByRideUseCase:
+    return GetConversationByRideUseCase(conversation_repo)
+
+
 def get_send_text_uc(
     access: Annotated[ConversationAccessUseCase, Depends(get_access_uc)],
     message_repo: Annotated[MessageRepositoryProtocol, Depends(get_message_repo)],
-    request: Request,
+    conn: HTTPConnection,
 ) -> SendTextMessageUseCase:
-    return SendTextMessageUseCase(access, message_repo, get_ws_manager(request))
+    return SendTextMessageUseCase(access, message_repo, get_ws_manager(conn))
 
 
 def get_list_messages_uc(
@@ -122,47 +130,47 @@ def get_register_media_uc(
     access: Annotated[ConversationAccessUseCase, Depends(get_access_uc)],
     message_repo: Annotated[MessageRepositoryProtocol, Depends(get_message_repo)],
     media_repo: Annotated[MediaRepositoryProtocol, Depends(get_media_repo)],
-    request: Request,
+    conn: HTTPConnection,
 ) -> RegisterMediaMessageUseCase:
-    return RegisterMediaMessageUseCase(access, message_repo, media_repo, get_ws_manager(request))
+    return RegisterMediaMessageUseCase(access, message_repo, media_repo, get_ws_manager(conn))
 
 
 def get_media_url_uc(
     access: Annotated[ConversationAccessUseCase, Depends(get_access_uc)],
     message_repo: Annotated[MessageRepositoryProtocol, Depends(get_message_repo)],
     media_repo: Annotated[MediaRepositoryProtocol, Depends(get_media_repo)],
-    request: Request,
+    conn: HTTPConnection,
 ) -> GetMediaUrlUseCase:
-    return GetMediaUrlUseCase(access, message_repo, media_repo, get_storage(request))
+    return GetMediaUrlUseCase(access, message_repo, media_repo, get_storage(conn))
 
 
 def get_start_call_uc(
     access: Annotated[ConversationAccessUseCase, Depends(get_access_uc)],
     participant_repo: Annotated[ParticipantRepositoryProtocol, Depends(get_participant_repo)],
     call_repo: Annotated[CallRepositoryProtocol, Depends(get_call_repo)],
-    request: Request,
+    conn: HTTPConnection,
 ) -> StartCallUseCase:
-    return StartCallUseCase(access, participant_repo, call_repo, get_ws_manager(request))
+    return StartCallUseCase(access, participant_repo, call_repo, get_ws_manager(conn))
 
 
 def get_end_call_uc(
     access: Annotated[ConversationAccessUseCase, Depends(get_access_uc)],
     call_repo: Annotated[CallRepositoryProtocol, Depends(get_call_repo)],
-    request: Request,
+    conn: HTTPConnection,
 ) -> EndCallUseCase:
-    return EndCallUseCase(call_repo, access, get_ws_manager(request))
+    return EndCallUseCase(call_repo, access, get_ws_manager(conn))
 
 
 def get_signaling_uc(
     access: Annotated[ConversationAccessUseCase, Depends(get_access_uc)],
     call_repo: Annotated[CallRepositoryProtocol, Depends(get_call_repo)],
-    request: Request,
+    conn: HTTPConnection,
 ) -> SignalingUseCase:
-    return SignalingUseCase(access, call_repo, get_ws_manager(request))
+    return SignalingUseCase(access, call_repo, get_ws_manager(conn))
 
 
-def get_ice_servers_uc(request: Request) -> GetIceServersUseCase:
-    return GetIceServersUseCase(getattr(request.app.state.settings, "WEBRTC_ICE_SERVERS_JSON", None))
+def get_ice_servers_uc(conn: HTTPConnection) -> GetIceServersUseCase:
+    return GetIceServersUseCase(getattr(conn.app.state.settings, "WEBRTC_ICE_SERVERS_JSON", None))
 
 
 StorageProvider = Annotated[StorageProviderProtocol, Depends(get_storage)]

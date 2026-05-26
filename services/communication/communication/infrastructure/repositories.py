@@ -150,6 +150,13 @@ class ConversationRepository:
         orm = result.scalar_one_or_none()
         return _conversation_to_domain(orm) if orm else None
 
+    async def service_request_exists(self, service_request_id: UUID) -> bool:
+        result = await self._session.execute(
+            text("SELECT 1 FROM service_request.service_requests WHERE id = :service_request_id LIMIT 1"),
+            {"service_request_id": service_request_id},
+        )
+        return result.fetchone() is not None
+
     async def find_for_actor(
         self,
         user_id: UUID,

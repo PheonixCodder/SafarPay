@@ -12,6 +12,7 @@ from communication.application.use_cases import (
     ConversationAccessUseCase,
     EndCallUseCase,
     GenerateMediaUploadUrlUseCase,
+    GetConversationByRideUseCase,
     GetIceServersUseCase,
     GetMediaUrlUseCase,
     ListConversationsUseCase,
@@ -34,6 +35,7 @@ from tests.communication.conftest import (
     CONVERSATION_ID,
     DRIVER_ID,
     DRIVER_USER_ID,
+    OTHER_USER_ID,
     PASSENGER_ID,
     RIDE_ID,
     FakeCache,
@@ -95,6 +97,27 @@ async def test_open_conversation_from_ride_is_idempotent_and_resolves_driver_use
     again = await uc.execute(RIDE_ID, PASSENGER_ID, DRIVER_ID)
     assert again.id == response.id
     assert len(repo.created) == 1
+
+
+@pytest.mark.asyncio
+async def test_get_conversation_by_ride_authorizes_participants() -> None:
+    conversation = make_conversation()
+    uc = GetConversationByRideUseCase(FakeConversationRepo(conversation))
+
+    passenger_response = await uc.execute(RIDE_ID, PASSENGER_ID, None)
+    driver_response = await uc.execute(RIDE_ID, DRIVER_USER_ID, DRIVER_ID)
+
+    assert passenger_response.id == conversation.id
+    assert driver_response.id == conversation.id
+
+
+@pytest.mark.asyncio
+async def test_get_conversation_by_ride_rejects_non_participant() -> None:
+    conversation = make_conversation()
+    uc = GetConversationByRideUseCase(FakeConversationRepo(conversation))
+
+    with pytest.raises(UnauthorisedConversationAccessError):
+        await uc.execute(RIDE_ID, OTHER_USER_ID, None)
 
 
 @pytest.mark.asyncio
