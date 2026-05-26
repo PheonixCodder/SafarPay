@@ -5,6 +5,8 @@ import 'package:iconsax/iconsax.dart';
 
 import 'common/widgets/navigation/navigation_destination_data.dart';
 import 'common/widgets/navigation/navigation_placeholder_screen.dart';
+import 'features/drivers/screens/earnings/earnings.dart';
+import 'features/drivers/screens/requests/requests.dart';
 import 'features/home/screens/home/home.dart';
 import 'features/rides/screens/trips/trips.dart';
 import 'utils/constants/app_mode.dart';
@@ -30,16 +32,8 @@ class SNavigationController extends GetxController {
       title: STexts.driverNavHomeTitle,
       subtitle: STexts.driverNavHomeSubTitle,
     ),
-    const SNavigationPlaceholderScreen(
-      icon: Iconsax.routing_2,
-      title: STexts.driverNavRequestsTitle,
-      subtitle: STexts.driverNavRequestsSubTitle,
-    ),
-    const SNavigationPlaceholderScreen(
-      icon: Iconsax.wallet_3,
-      title: STexts.driverNavEarningsTitle,
-      subtitle: STexts.driverNavEarningsSubTitle,
-    ),
+    const SDriverRequestsScreen(),
+    const SEarningsScreen(),
     const SettingsScreen(),
   ];
 
