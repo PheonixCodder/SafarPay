@@ -26,6 +26,7 @@ from .models import (
     LocationHistory,
     LocationUpdate,
     PassengerLocation,
+    PlaceSearchResult,
 )
 
 # ---------------------------------------------------------------------------
@@ -145,6 +146,39 @@ class LocationHistoryProtocol(Protocol):
         This method is always called via asyncio.create_task — callers do NOT
         await it inline.  Failures are logged but not re-raised.
         """
+        ...
+
+
+# ---------------------------------------------------------------------------
+# Place search store (PostGIS)
+# ---------------------------------------------------------------------------
+
+
+@runtime_checkable
+class PlaceRepositoryProtocol(Protocol):
+    """Port for local-first place search backed by the location schema."""
+
+    async def search_places(
+        self,
+        query: str,
+        *,
+        latitude: float | None = None,
+        longitude: float | None = None,
+        limit: int = 10,
+    ) -> list[PlaceSearchResult]:
+        """Return locally indexed places ordered by confidence and proximity."""
+        ...
+
+    async def record_search_event(
+        self,
+        query: str,
+        *,
+        result_count: int,
+        served_from: str,
+        latitude: float | None = None,
+        longitude: float | None = None,
+    ) -> None:
+        """Record search observability without storing temporary Mapbox data."""
         ...
 
     async def get_ride_route(self, ride_id: UUID) -> list[LocationHistory]:

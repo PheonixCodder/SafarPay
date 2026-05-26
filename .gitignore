@@ -6,6 +6,7 @@ dist/
 wheels/
 *.egg-info
 verification_test/model_cache/*
+*.osm.pbf
 
 # Virtual environments
 .venv
@@ -19,4 +20,5 @@ verification_test/model_cache/*
 .vscode/
 
 .claude
+.superpowers/
 code.md/

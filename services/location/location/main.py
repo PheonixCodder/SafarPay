@@ -34,6 +34,7 @@ from .api.router import router
 from .infrastructure.event_publisher import LocationEventPublisher
 from .infrastructure.kafka_consumer import LocationKafkaConsumer
 from .infrastructure.mapbox_client import MapboxClient
+from .infrastructure.place_repository import PostGISPlaceRepository
 from .infrastructure.postgis_repository import PostGISLocationRepository
 from .infrastructure.rate_limiter import LocationRateLimiter
 from .infrastructure.redis_store import RedisLocationStore
@@ -58,6 +59,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # 3. Core infrastructure singletons
     redis_store = RedisLocationStore(cache=cache)
     history_repo = PostGISLocationRepository(session_factory=session_factory)
+    place_repo = PostGISPlaceRepository(session_factory=session_factory)
     rate_limiter = LocationRateLimiter(cache=cache)
     ws_manager = WebSocketManager()
 
@@ -99,10 +101,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     # 7. Expose all singletons on app.state for DI providers
     app.state.cache = cache
+    app.state.settings = settings
     app.state.engine = engine
     app.state.session_factory = session_factory
     app.state.redis_store = redis_store
     app.state.history_repo = history_repo
+    app.state.place_repo = place_repo
     app.state.rate_limiter = rate_limiter
     app.state.ws_manager = ws_manager
     app.state.event_publisher = event_publisher

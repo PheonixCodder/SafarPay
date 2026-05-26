@@ -52,6 +52,8 @@ from ..application.schemas import (
     LocationHistoryResponse,
     LocationUpdateRequest,
     NearbyDriversResponse,
+    PlaceSearchRequest,
+    PlaceSearchResponse,
     ReverseGeocodeRequest,
     RideLocationsResponse,
     StatusResponse,
@@ -63,6 +65,7 @@ from ..application.use_cases import (
     GetNearbyDriversUseCase,
     GetRideLocationsUseCase,
     ReverseGeocodeUseCase,
+    SearchPlacesUseCase,
     SetDriverStatusUseCase,
     UpdateDriverLocationUseCase,
 )
@@ -84,6 +87,7 @@ from ..infrastructure.dependencies import (
     get_nearby_drivers_uc,
     get_reverse_geocode_uc,
     get_ride_locations_uc,
+    get_search_places_uc,
     get_set_driver_status_uc,
     get_update_driver_location_uc,
     get_ws_manager,
@@ -133,7 +137,8 @@ async def update_driver_location_http(
     if str(current_driver) != str(driver_id) and current_user.role != "admin":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
     try:
-        await uc.execute(driver_id=driver_id, req=req)
+        ride_id = UUID(str(req.ride_id)) if req.ride_id else None
+        await uc.execute(driver_id=driver_id, req=req, ride_id=ride_id)
     except LocationDomainError as exc:
         raise _handle_domain(exc) from exc
 
@@ -265,6 +270,24 @@ async def geocode(
     uc: Annotated[GeocodeUseCase, Depends(get_geocode_uc)],
 ) -> AddressResponse:
     return await uc.execute(req.address)
+
+
+@router.post(
+    "/places/search",
+    response_model=PlaceSearchResponse,
+    summary="Local-first place search with temporary Mapbox fallback",
+)
+async def search_places(
+    req: PlaceSearchRequest,
+    current_user: CurrentUser,
+    uc: Annotated[SearchPlacesUseCase, Depends(get_search_places_uc)],
+) -> PlaceSearchResponse:
+    return await uc.execute(
+        req.query,
+        latitude=req.latitude,
+        longitude=req.longitude,
+        limit=req.limit,
+    )
 
 
 @router.post("/reverse", response_model=AddressResponse, summary="Mapbox reverse geocode")

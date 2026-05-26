@@ -93,6 +93,10 @@ class Settings(BaseSettings):
     LOCATION_MAX_SPEED_KMH: float = 200.0           # fraud: discard above this speed
     LOCATION_MIN_ACCURACY_METERS: float = 50.0      # fraud: discard below this accuracy
     LOCATION_HISTORY_RETENTION_DAYS: int = 90       # PostGIS history rows older than this are purged
+    LOCATION_LOCAL_SEARCH_ENABLED: bool = True
+    LOCATION_MAPBOX_FALLBACK_ENABLED: bool = True
+    LOCATION_MAPBOX_PERMANENT_GEOCODING: bool = False
+    LOCATION_SEARCH_MIN_CONFIDENCE: float = 0.65
     MAPBOX_ACCESS_TOKEN: str = ""
     AUTH_SERVICE_URL: str = "http://auth:8001"
     BIDDING_SERVICE_URL: str = "http://bidding:8002"

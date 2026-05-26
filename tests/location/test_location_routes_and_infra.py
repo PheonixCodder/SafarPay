@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-from typing import Any, cast
+from typing import Any, cast, get_type_hints
 
 import pytest
 from fastapi import FastAPI
@@ -25,10 +25,12 @@ from location.infrastructure.dependencies import (
     get_ride_locations_uc,
     get_set_driver_status_uc,
     get_update_driver_location_uc,
+    get_ws_manager,
 )
 from location.infrastructure.kafka_consumer import LocationKafkaConsumer
 from location.infrastructure.rate_limiter import LocationRateLimiter
 from sp.infrastructure.security.dependencies import get_current_driver, get_current_user
+from starlette.requests import HTTPConnection
 
 from tests.location.conftest import (
     DRIVER_ID,
@@ -61,6 +63,12 @@ class StubUseCase:
 def override(app: FastAPI, dep: Any, value: Any) -> Any:
     app.dependency_overrides[dep] = lambda: value
     return value
+
+
+def test_location_app_state_dependencies_accept_http_connection_for_websockets() -> None:
+    hints = get_type_hints(get_ws_manager)
+
+    assert hints["connection"] is HTTPConnection
 
 
 def test_all_location_http_routes_success_and_identity_parameters(location_app: FastAPI, location_client: Any) -> None:
