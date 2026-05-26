@@ -120,6 +120,6 @@ class MapboxClient(RoutingClientProtocol):
         return Route(
             distance_km=5.0,
             duration_minutes=15.0,
-            polyline="mock_polyline",
+            polyline="czc_E_cdeM{EbLgJjMgJrIgJrI",
             steps=[],
         )

@@ -80,6 +80,42 @@ class GeospatialClient:
             logger.error("GeospatialClient error: %s", exc)
             return []
 
+    async def calculate_route(
+        self,
+        origin_latitude: float,
+        origin_longitude: float,
+        destination_latitude: float,
+        destination_longitude: float,
+    ) -> dict[str, Any] | None:
+        if not self._client:
+            logger.error("GeospatialClient not started")
+            return None
+
+        try:
+            resp = await self._client.post(
+                "/api/v1/routes",
+                json={
+                    "origin": {
+                        "latitude": origin_latitude,
+                        "longitude": origin_longitude,
+                    },
+                    "destination": {
+                        "latitude": destination_latitude,
+                        "longitude": destination_longitude,
+                    },
+                },
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            return {
+                "distance_km": float(data.get("distance_km", 0)),
+                "duration_minutes": float(data.get("duration_minutes", 0)),
+                "polyline": data.get("polyline"),
+            }
+        except httpx.HTTPError as exc:
+            logger.error("Geospatial route error: %s", exc)
+            return None
+
     @staticmethod
     def _to_domain(raw: dict[str, Any]) -> DriverCandidate:
         return DriverCandidate(
@@ -118,3 +154,12 @@ class NullGeospatialClient:
     ) -> list[DriverCandidate]:
         logger.warning("NullGeospatialClient: no geo service configured — returning []")
         return []
+
+    async def calculate_route(
+        self,
+        origin_latitude: float,
+        origin_longitude: float,
+        destination_latitude: float,
+        destination_longitude: float,
+    ) -> dict[str, Any] | None:
+        return None

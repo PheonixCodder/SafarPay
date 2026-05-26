@@ -75,6 +75,21 @@ def _bid_to_resp(bid: Bid) -> BidResponse:
     )
 
 
+def _bid_payload(bid: Bid) -> dict[str, Any]:
+    return {
+        "id": str(bid.id),
+        "bidding_session_id": str(bid.bidding_session_id),
+        "driver_id": str(bid.driver_id),
+        "driver_vehicle_id": str(bid.driver_vehicle_id) if bid.driver_vehicle_id else None,
+        "bid_amount": bid.bid_amount,
+        "currency": bid.currency,
+        "eta_minutes": bid.eta_minutes,
+        "message": bid.message,
+        "status": bid.status.value,
+        "placed_at": bid.placed_at.isoformat(),
+    }
+
+
 def _session_to_resp(session: BiddingSession, bids: list[Bid] | None = None) -> BiddingSessionResponse:
     bids = bids or []
     return BiddingSessionResponse(
@@ -334,6 +349,7 @@ class PlaceBidUseCase:
                     "session_id": str(session.id),
                     "driver_id": str(saved.driver_id),
                     "amount": saved.bid_amount,
+                    "bid": _bid_payload(saved),
                 }
                 if self._publisher:
                     await self._bid_repo.save_outbox_event(

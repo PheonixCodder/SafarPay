@@ -85,7 +85,6 @@ class RideBiddingSessionORM(Base, TimestampMixin):
 
     service_request_id: Mapped[uuid.UUID] = mapped_column(
         PgUUID(as_uuid=True),
-        ForeignKey("service_request.service_requests.id", ondelete="CASCADE"),
         nullable=False,
         unique=True,  # one session per ride
         index=True,
@@ -103,7 +102,6 @@ class RideBiddingSessionORM(Base, TimestampMixin):
     )
     passenger_user_id: Mapped[uuid.UUID | None] = mapped_column(
         PgUUID(as_uuid=True),
-        ForeignKey("auth.users.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
     )
@@ -149,7 +147,6 @@ class RideBidORM(Base, TimestampMixin):
 
     service_request_id: Mapped[uuid.UUID] = mapped_column(
         PgUUID(as_uuid=True),
-        ForeignKey("service_request.service_requests.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
@@ -163,14 +160,12 @@ class RideBidORM(Base, TimestampMixin):
 
     driver_id: Mapped[uuid.UUID] = mapped_column(
         PgUUID(as_uuid=True),
-        ForeignKey("verification.drivers.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
 
     driver_vehicle_id: Mapped[uuid.UUID | None] = mapped_column(
         PgUUID(as_uuid=True),
-        ForeignKey("verification.driver_vehicles.id", ondelete="SET NULL"),
         nullable=True,
     )
 
@@ -246,13 +241,11 @@ class RideBidStatusHistoryORM(Base):
 
     changed_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
         PgUUID(as_uuid=True),
-        ForeignKey("auth.users.id", ondelete="SET NULL"),
         nullable=True,
     )
 
     changed_by_driver_id: Mapped[uuid.UUID | None] = mapped_column(
         PgUUID(as_uuid=True),
-        ForeignKey("verification.drivers.id", ondelete="SET NULL"),
         nullable=True,
     )
 
@@ -302,12 +295,10 @@ class RideBidCounterOfferORM(Base, TimestampMixin):
 
     counter_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
         PgUUID(as_uuid=True),
-        ForeignKey("auth.users.id", ondelete="SET NULL"),
     )
 
     counter_by_driver_id: Mapped[uuid.UUID | None] = mapped_column(
         PgUUID(as_uuid=True),
-        ForeignKey("verification.drivers.id", ondelete="SET NULL"),
     )
 
     status: Mapped[CounterOfferStatus] = mapped_column(
@@ -340,7 +331,6 @@ class RideBidAcceptanceORM(Base, TimestampMixin):
 
     service_request_id: Mapped[uuid.UUID] = mapped_column(
         PgUUID(as_uuid=True),
-        ForeignKey("service_request.service_requests.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
@@ -354,7 +344,6 @@ class RideBidAcceptanceORM(Base, TimestampMixin):
 
     accepted_by_user_id: Mapped[uuid.UUID] = mapped_column(
         PgUUID(as_uuid=True),
-        ForeignKey("auth.users.id", ondelete="SET NULL"),
         nullable=True,
     )
 

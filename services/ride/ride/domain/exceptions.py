@@ -63,6 +63,10 @@ class UnauthorisedRideAccessError(RideDomainError):
     """Raised when the requester does not own or is not assigned to the ride."""
 
 
+class RideCompletionLocationError(RideDomainError):
+    """Raised when a driver completes a ride away from the destination."""
+
+
 # ---------------------------------------------------------------------------
 # Stop entity
 # ---------------------------------------------------------------------------

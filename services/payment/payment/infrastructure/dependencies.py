@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..application.use_cases import (
     CommissionUseCases,
+    DriverEarningsUseCases,
     PaymentMethodUseCases,
     RidePaymentUseCases,
     WalletUseCases,
@@ -48,3 +49,7 @@ def get_commission_uc(
     settings: Annotated[Settings, Depends(get_settings_from_app)],
 ) -> CommissionUseCases:
     return CommissionUseCases(repo, settings)
+
+
+def get_driver_earnings_uc(repo: Annotated[PaymentRepository, Depends(get_payment_repo)]) -> DriverEarningsUseCases:
+    return DriverEarningsUseCases(repo)

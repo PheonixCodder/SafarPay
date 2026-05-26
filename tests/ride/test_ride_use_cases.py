@@ -36,6 +36,7 @@ from ride.application.use_cases import (
 )
 from ride.domain.exceptions import (
     InvalidStateTransitionError,
+    RideCompletionLocationError,
     RideDomainError,
     StopNotArrivedError,
     UnauthorisedRideAccessError,
@@ -85,12 +86,36 @@ async def test_create_ride_enters_matching_and_publishes_pricing_contract(pricin
     assert response.pricing_mode.value == pricing_mode
     assert repo.created_detail is not None
     assert repo.created_detail["service_type"] == "CITY_RIDE"
+    assert repo.created_detail["requires_otp_start"] is False
+    assert repo.created_detail["requires_otp_end"] is False
+    assert repo.status_updates[0][0] == response.id
+    assert repo.status_updates[0][1] == RideStatus.MATCHING
     assert cache.sets[0][0] == "ride"
     assert ws.passenger_events[0][0] == PASSENGER_ID
     payload = publisher.events[0].payload
     assert payload["passenger_user_id"] == str(PASSENGER_ID)
     assert payload["pricing_mode"] == pricing_mode
     assert payload["baseline_min_price"] == 400.0
+
+
+@pytest.mark.asyncio
+async def test_create_ride_preserves_enabled_city_otp_flags() -> None:
+    repo = FakeRideRepo()
+    uc = CreateRideUseCase(
+        cast(Any, repo),
+        cast(Any, FakeCache()),
+        cast(Any, FakeRideWebSockets()),
+        cast(Any, FakePublisher()),
+    )
+    body = ride_payload("FIXED")
+    body["detail"]["requires_otp_start"] = True
+    body["detail"]["requires_otp_end"] = True
+
+    await uc.execute(CreateRideRequest.model_validate(body), PASSENGER_ID)
+
+    assert repo.created_detail is not None
+    assert repo.created_detail["requires_otp_start"] is True
+    assert repo.created_detail["requires_otp_end"] is True
 
 
 @pytest.mark.parametrize(
@@ -246,10 +271,65 @@ async def test_start_and_complete_require_assigned_driver_and_otp_when_enabled()
         cast(Any, FakeCache()),
         cast(Any, FakeRideWebSockets()),
         cast(Any, FakePublisher()),
-    ).execute(ride.id, VerifyAndCompleteRequest(verification_code="123456", final_price=410), DRIVER_ID)
+    ).execute(
+        ride.id,
+        VerifyAndCompleteRequest(
+            verification_code="123456",
+            final_price=410,
+            driver_latitude=ride.dropoff_stop.latitude,
+            driver_longitude=ride.dropoff_stop.longitude,
+        ),
+        DRIVER_ID,
+    )
 
     assert completed.status == RideStatus.COMPLETED
     assert end_code_repo.updated[0].verified_by_driver_id == DRIVER_ID
+
+
+@pytest.mark.asyncio
+async def test_complete_ride_requires_driver_near_dropoff() -> None:
+    ride = make_ride(driver_id=DRIVER_ID, status=RideStatus.IN_PROGRESS)
+    dropoff = ride.dropoff_stop
+    assert dropoff is not None
+
+    with pytest.raises(RideCompletionLocationError, match="location is required"):
+        await CompleteRideUseCase(
+            cast(Any, FakeRideRepo(ride)),
+            cast(Any, FakeCodeRepo()),
+            cast(Any, FakeCache()),
+            cast(Any, FakeRideWebSockets()),
+        ).execute(ride.id, VerifyAndCompleteRequest(), DRIVER_ID)
+
+    with pytest.raises(RideCompletionLocationError, match="within 15m"):
+        await CompleteRideUseCase(
+            cast(Any, FakeRideRepo(ride)),
+            cast(Any, FakeCodeRepo()),
+            cast(Any, FakeCache()),
+            cast(Any, FakeRideWebSockets()),
+        ).execute(
+            ride.id,
+            VerifyAndCompleteRequest(
+                driver_latitude=dropoff.latitude + 0.01,
+                driver_longitude=dropoff.longitude,
+            ),
+            DRIVER_ID,
+        )
+
+    completed = await CompleteRideUseCase(
+        cast(Any, FakeRideRepo(ride)),
+        cast(Any, FakeCodeRepo()),
+        cast(Any, FakeCache()),
+        cast(Any, FakeRideWebSockets()),
+    ).execute(
+        ride.id,
+        VerifyAndCompleteRequest(
+            driver_latitude=dropoff.latitude,
+            driver_longitude=dropoff.longitude,
+        ),
+        DRIVER_ID,
+    )
+
+    assert completed.status == RideStatus.COMPLETED
 
 
 @pytest.mark.asyncio

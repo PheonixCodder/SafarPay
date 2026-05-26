@@ -130,6 +130,9 @@ async def test_place_bid_creates_first_bid_and_auto_accept_outbox() -> None:
     assert bid_repo.saved[0].status == BidStatus.ACTIVE
     assert [event[1] for event in bid_repo.outbox] == ["bid.placed", "bid.auto_accept_requested"]
     assert ws.session_events[0][1] == BiddingEvent.NEW_BID
+    assert ws.session_events[0][2]["bid"]["id"] == str(response.id)
+    assert ws.session_events[0][2]["bid"]["bidding_session_id"] == str(session.id)
+    assert ws.session_events[0][2]["bid"]["bid_amount"] == 380
     assert cache.redis.values["idem:place_bid:place-1"] != "IN_PROGRESS"
 
 

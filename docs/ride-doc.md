@@ -16,6 +16,7 @@ Identity rule:
 - Driver identity is verification `driver_id`.
 - `CurrentDriver` resolves `driver_id` from `verification.drivers` using the authenticated auth user.
 - `OptionalDriverId` is used on routes that can be called by either passenger or driver.
+- Ride ORM models keep Auth and Verification references as UUID columns at runtime instead of importing cross-service ORM metadata. Migrations/database constraints may enforce those external relationships, but the service package stays independently loadable.
 
 ---
 
@@ -798,6 +799,16 @@ Generates presigned PUT/GET URLs for proof images. The Ride service never receiv
 ### Kafka Publisher And Consumer
 
 Publishes ride lifecycle events to `ride-events` and consumes downstream events, including bidding assignment events, when Kafka is configured.
+
+---
+
+## Flutter Client Integration Notes
+
+- The Flutter passenger ride repositories use this service when `SAFARPAY_USE_LOCATION_DEMO_DATA=false`.
+- Physical-device testing should set `SAFARPAY_RIDE_BASE_URL` to the laptop LAN URL, for example `http://192.168.100.3:8008/api/v1`.
+- Passenger ride lifecycle updates use `/api/v1/ws/passengers?token=<access_token>&ride_id=<ride_id>`.
+- The client expects the Ride WebSocket envelope shape `{ "event": "...", "timestamp": "...", "data": {...} }`.
+- `HYBRID` and `BID_BASED` rides rely on Kafka to create the Bidding session after `service.request.created`; the client looks up the Bidding session by ride id after creation.
 
 ---
 

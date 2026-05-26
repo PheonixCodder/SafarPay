@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import Depends, Request
+from fastapi import Depends, Request, WebSocket
 from sp.infrastructure.cache.manager import CacheManager
 from sp.infrastructure.db.session import get_async_session
 from sp.infrastructure.messaging.publisher import EventPublisher
@@ -19,8 +19,10 @@ from ..application.use_cases import (
     FindNearbyDriversUseCase,
     GenerateProofUploadUrlUseCase,
     GenerateVerificationCodeUseCase,
+    GetDriverActiveRideUseCase,
     GetProofWithUrlUseCase,
     GetRideUseCase,
+    ListDriverRequestsUseCase,
     ListPassengerRidesUseCase,
     MarkStopArrivedUseCase,
     MarkStopCompletedUseCase,
@@ -68,6 +70,10 @@ def get_outbox_publisher(repo: ServiceRequestRepositoryProtocol) -> RideOutboxPu
 
 def get_ws_manager(request: Request) -> WebSocketManager:
     return request.app.state.ws_manager
+
+
+def get_ws_manager_ws(websocket: WebSocket) -> WebSocketManager:
+    return websocket.app.state.ws_manager
 
 
 def get_webhook(request: Request) -> WebhookClientProtocol:
@@ -129,6 +135,20 @@ def get_get_ride_uc(repo: Annotated[ServiceRequestRepositoryProtocol, Depends(ge
 
 def get_list_rides_uc(repo: Annotated[ServiceRequestRepositoryProtocol, Depends(get_ride_repo)]) -> ListPassengerRidesUseCase:
     return ListPassengerRidesUseCase(repo=repo)
+
+
+def get_list_driver_requests_uc(
+    repo: Annotated[ServiceRequestRepositoryProtocol, Depends(get_ride_repo)],
+    request: Request,
+) -> ListDriverRequestsUseCase:
+    return ListDriverRequestsUseCase(repo=repo, geo=get_geo(request))
+
+
+def get_driver_active_ride_uc(
+    repo: Annotated[ServiceRequestRepositoryProtocol, Depends(get_ride_repo)],
+    request: Request,
+) -> GetDriverActiveRideUseCase:
+    return GetDriverActiveRideUseCase(repo=repo, geo=get_geo(request))
 
 
 def get_cancel_ride_uc(request: Request, repo: Annotated[ServiceRequestRepositoryProtocol, Depends(get_ride_repo)]) -> CancelRideUseCase:

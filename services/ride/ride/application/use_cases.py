@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import math
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING
 from uuid import UUID
@@ -33,6 +34,7 @@ if TYPE_CHECKING:
 
 from ..domain.exceptions import (
     InvalidStateTransitionError,
+    RideCompletionLocationError,
     RideDomainError,
     RideNotFoundError,
     StopNotFoundError,
@@ -64,7 +66,10 @@ from .schemas import (
     AddStopRequest,
     CancelRideRequest,
     CreateRideRequest,
+    DriverActiveRideResponse,
     DriverCandidateResponse,
+    DriverRideRequestResponse,
+    DriverRouteSummaryResponse,
     GenerateVerificationCodeRequest,
     NearbyDriversResponse,
     ProofImageResponse,
@@ -86,6 +91,7 @@ _RIDE_CACHE_NS = "ride"
 _RIDE_CACHE_TTL = 1800          # 30 min
 _CANDIDATES_NS = "ride:candidates"
 _CANDIDATES_TTL = 600           # 10 min
+_COMPLETE_DESTINATION_RADIUS_METERS = 15.0
 
 
 # ---------------------------------------------------------------------------
@@ -166,6 +172,92 @@ def _ride_to_summary(ride: ServiceRequest) -> RideSummaryResponse:
         scheduled_at=ride.scheduled_at,
         pickup_stop=_stop_to_resp(pickup) if pickup else None,
         dropoff_stop=_stop_to_resp(dropoff) if dropoff else None,
+    )
+
+
+def _route_to_resp(route: dict | None) -> DriverRouteSummaryResponse | None:
+    if not route:
+        return None
+    return DriverRouteSummaryResponse(
+        distance_km=float(route.get("distance_km") or 0),
+        duration_minutes=float(route.get("duration_minutes") or 0),
+        polyline=route.get("polyline"),
+    )
+
+
+def _distance_km(
+    origin_latitude: float,
+    origin_longitude: float,
+    destination_latitude: float,
+    destination_longitude: float,
+) -> float:
+    radius_km = 6371.0
+    lat1 = math.radians(origin_latitude)
+    lat2 = math.radians(destination_latitude)
+    d_lat = math.radians(destination_latitude - origin_latitude)
+    d_lng = math.radians(destination_longitude - origin_longitude)
+    a = (
+        math.sin(d_lat / 2) ** 2
+        + math.cos(lat1) * math.cos(lat2) * math.sin(d_lng / 2) ** 2
+    )
+    return radius_km * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+
+def _distance_meters(
+    origin_latitude: float,
+    origin_longitude: float,
+    destination_latitude: float,
+    destination_longitude: float,
+) -> float:
+    return _distance_km(
+        origin_latitude,
+        origin_longitude,
+        destination_latitude,
+        destination_longitude,
+    ) * 1000
+
+
+async def _driver_request_to_resp(
+    ride: ServiceRequest,
+    geo: GeospatialClientProtocol | None,
+    driver_latitude: float | None = None,
+    driver_longitude: float | None = None,
+) -> DriverRideRequestResponse:
+    pickup = ride.pickup_stop
+    dropoff = ride.dropoff_stop
+    driver_route = None
+    trip_route = None
+    if geo and pickup and driver_latitude is not None and driver_longitude is not None:
+        driver_route = await geo.calculate_route(
+            driver_latitude,
+            driver_longitude,
+            pickup.latitude,
+            pickup.longitude,
+        )
+    if geo and pickup and dropoff:
+        trip_route = await geo.calculate_route(
+            pickup.latitude,
+            pickup.longitude,
+            dropoff.latitude,
+            dropoff.longitude,
+        )
+    return DriverRideRequestResponse(
+        id=ride.id,
+        passenger_id=ride.passenger_id,
+        service_type=ride.service_type,
+        category=ride.category,
+        pricing_mode=ride.pricing_mode,
+        status=ride.status,
+        baseline_min_price=ride.baseline_min_price,
+        baseline_max_price=ride.baseline_max_price,
+        final_price=ride.final_price,
+        passenger_payment_method=ride.passenger_payment_method,
+        payment_collection_mode=ride.payment_collection_mode,
+        created_at=ride.created_at,
+        pickup_stop=_stop_to_resp(pickup) if pickup else None,
+        dropoff_stop=_stop_to_resp(dropoff) if dropoff else None,
+        driver_to_pickup=_route_to_resp(driver_route),
+        trip_route=_route_to_resp(trip_route),
     )
 
 
@@ -269,6 +361,7 @@ class CreateRideUseCase:
 
         # Enter MATCHING state so ride can be accepted (FIXED mode) or enter bidding (BID/HYBRID)
         ride.begin_matching()
+        await self._repo.update_status(ride.id, ride.status)
 
         await _cache_ride(self._cache, ride)
         # Extract matching data for geospatial service
@@ -335,6 +428,88 @@ class ListPassengerRidesUseCase:
             passenger_id, status_filter=status_filter, limit=limit, offset=offset
         )
         return [_ride_to_summary(r) for r in rides]
+
+
+class ListDriverRequestsUseCase:
+    def __init__(
+        self,
+        repo: ServiceRequestRepositoryProtocol,
+        geo: GeospatialClientProtocol | None = None,
+    ) -> None:
+        self._repo = repo
+        self._geo = geo
+
+    async def execute(
+        self,
+        driver_id: UUID,
+        *,
+        latitude: float,
+        longitude: float,
+        radius_km: float = 10.0,
+        limit: int = 20,
+    ) -> list[DriverRideRequestResponse]:
+        rides = await self._repo.find_available_for_driver(driver_id, limit=max(limit * 3, 25))
+        nearby: list[ServiceRequest] = []
+        for ride in rides:
+            pickup = ride.pickup_stop
+            if not pickup:
+                continue
+            if _distance_km(latitude, longitude, pickup.latitude, pickup.longitude) <= radius_km:
+                nearby.append(ride)
+            if len(nearby) >= limit:
+                break
+        return [
+            await _driver_request_to_resp(
+                ride,
+                self._geo,
+                driver_latitude=latitude,
+                driver_longitude=longitude,
+            )
+            for ride in nearby
+        ]
+
+
+class GetDriverActiveRideUseCase:
+    def __init__(
+        self,
+        repo: ServiceRequestRepositoryProtocol,
+        geo: GeospatialClientProtocol | None = None,
+    ) -> None:
+        self._repo = repo
+        self._geo = geo
+
+    async def execute(
+        self,
+        driver_id: UUID,
+        *,
+        latitude: float | None = None,
+        longitude: float | None = None,
+    ) -> DriverActiveRideResponse | None:
+        ride = await self._repo.find_active_by_driver(driver_id)
+        if not ride:
+            return None
+        pickup = ride.pickup_stop
+        dropoff = ride.dropoff_stop
+        driver_route = None
+        trip_route = None
+        if self._geo and pickup and latitude is not None and longitude is not None:
+            driver_route = await self._geo.calculate_route(
+                latitude,
+                longitude,
+                pickup.latitude,
+                pickup.longitude,
+            )
+        if self._geo and pickup and dropoff:
+            trip_route = await self._geo.calculate_route(
+                pickup.latitude,
+                pickup.longitude,
+                dropoff.latitude,
+                dropoff.longitude,
+            )
+        data = _ride_to_resp(ride).model_dump()
+        data["driver_to_pickup"] = _route_to_resp(driver_route)
+        data["trip_route"] = _route_to_resp(trip_route)
+        return DriverActiveRideResponse(**data)
 
 
 # ---------------------------------------------------------------------------
@@ -584,6 +759,8 @@ class CompleteRideUseCase:
         if ride.assigned_driver_id != driver_id:
             raise UnauthorisedRideAccessError("Driver is not assigned to this ride.")
 
+        self._ensure_driver_is_at_dropoff(ride, cmd)
+
         if ride.requires_otp_end and not cmd.verification_code:
             raise VerificationCodeNotFoundError("A verification code is required to complete this ride.")
 
@@ -626,6 +803,31 @@ class CompleteRideUseCase:
             {"ride_id": str(ride.id), "final_price": final_amount},
         )
         return _ride_to_resp(ride)
+
+    def _ensure_driver_is_at_dropoff(
+        self,
+        ride: ServiceRequest,
+        cmd: VerifyAndCompleteRequest,
+    ) -> None:
+        dropoff = ride.dropoff_stop
+        if dropoff is None:
+            raise RideCompletionLocationError("Ride has no dropoff destination.")
+        if cmd.driver_latitude is None or cmd.driver_longitude is None:
+            raise RideCompletionLocationError(
+                "Driver location is required to complete this ride."
+            )
+
+        distance_meters = _distance_meters(
+            cmd.driver_latitude,
+            cmd.driver_longitude,
+            dropoff.latitude,
+            dropoff.longitude,
+        )
+        if distance_meters > _COMPLETE_DESTINATION_RADIUS_METERS:
+            raise RideCompletionLocationError(
+                "Driver must be within "
+                f"{_COMPLETE_DESTINATION_RADIUS_METERS:.0f}m of dropoff to complete this ride."
+            )
 
 
 # ---------------------------------------------------------------------------

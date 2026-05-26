@@ -21,6 +21,8 @@ from ..application.schemas import (
     AddStopRequest,
     CancelRideRequest,
     CreateRideRequest,
+    DriverActiveRideResponse,
+    DriverRideRequestResponse,
     GenerateVerificationCodeRequest,
     NearbyDriversResponse,
     ProofImageResponse,
@@ -44,8 +46,10 @@ from ..application.use_cases import (
     FindNearbyDriversUseCase,
     GenerateProofUploadUrlUseCase,
     GenerateVerificationCodeUseCase,
+    GetDriverActiveRideUseCase,
     GetProofWithUrlUseCase,
     GetRideUseCase,
+    ListDriverRequestsUseCase,
     ListPassengerRidesUseCase,
     MarkStopArrivedUseCase,
     MarkStopCompletedUseCase,
@@ -60,6 +64,7 @@ from ..domain.exceptions import (
     ProofUploadError,
     RideAlreadyCancelledError,
     RideAlreadyCompletedError,
+    RideCompletionLocationError,
     RideDomainError,
     RideNotAssignedError,
     RideNotFoundError,
@@ -85,7 +90,9 @@ from ..infrastructure.dependencies import (
     get_create_ride_uc,
     get_gen_code_uc,
     get_gen_proof_url_uc,
+    get_driver_active_ride_uc,
     get_get_ride_uc,
+    get_list_driver_requests_uc,
     get_list_rides_uc,
     get_mark_arrived_uc,
     get_mark_completed_uc,
@@ -95,6 +102,7 @@ from ..infrastructure.dependencies import (
     get_upload_proof_uc,
     get_verify_code_uc,
     get_ws_manager,
+    get_ws_manager_ws,
 )
 from ..infrastructure.websocket_manager import WebSocketManager
 
@@ -120,6 +128,7 @@ def _handle_domain(exc: Exception) -> HTTPException:
         (RideAlreadyCompletedError, 409),
         (StopAlreadyCompletedError, 409),
         (StopNotArrivedError, 409),
+        (RideCompletionLocationError, 409),
         (VerificationCodeInvalidError, 422),
         (VerificationCodeExpiredError, 422),
         (VerificationCodeExhaustedError, 429),
@@ -167,6 +176,40 @@ async def list_rides(
     offset: int = Query(default=0, ge=0),
 ) -> list[RideSummaryResponse]:
     return await uc.execute(current_user.user_id, status_filter=status_filter, limit=limit, offset=offset)
+
+
+@router.get("/driver/requests", response_model=list[DriverRideRequestResponse])
+async def list_driver_requests(
+    driver_id: CurrentDriver,
+    uc: Annotated[ListDriverRequestsUseCase, Depends(get_list_driver_requests_uc)],
+    lat: float = Query(..., ge=-90, le=90),
+    lng: float = Query(..., ge=-180, le=180),
+    radius_km: float = Query(default=10.0, ge=0.1, le=50.0),
+    limit: int = Query(default=20, ge=1, le=50),
+) -> list[DriverRideRequestResponse]:
+    try:
+        return await uc.execute(
+            driver_id,
+            latitude=lat,
+            longitude=lng,
+            radius_km=radius_km,
+            limit=limit,
+        )
+    except Exception as exc:
+        raise _handle_domain(exc) from None
+
+
+@router.get("/driver/rides/active", response_model=DriverActiveRideResponse | None)
+async def get_driver_active_ride(
+    driver_id: CurrentDriver,
+    uc: Annotated[GetDriverActiveRideUseCase, Depends(get_driver_active_ride_uc)],
+    lat: float | None = Query(default=None, ge=-90, le=90),
+    lng: float | None = Query(default=None, ge=-180, le=180),
+) -> DriverActiveRideResponse | None:
+    try:
+        return await uc.execute(driver_id, latitude=lat, longitude=lng)
+    except Exception as exc:
+        raise _handle_domain(exc) from None
 
 
 @router.get("/rides/{ride_id}", response_model=RideResponse)
@@ -435,7 +478,7 @@ async def nearby_drivers(
 async def ws_drivers(
     ws: WebSocket,
     driver_id: Annotated[UUID, Depends(get_current_driver_ws)],
-    manager: WebSocketManager = Depends(get_ws_manager),
+    manager: WebSocketManager = Depends(get_ws_manager_ws),
 ) -> None:
     """
     Driver real-time channel.
@@ -465,7 +508,7 @@ async def ws_passengers(
     ws: WebSocket,
     current_user: Annotated[TokenPayload, Depends(get_current_user_ws)],
     ride_id: UUID | None = None,
-    manager: WebSocketManager = Depends(get_ws_manager),
+    manager: WebSocketManager = Depends(get_ws_manager_ws),
 ) -> None:
     """
     Passenger real-time channel.

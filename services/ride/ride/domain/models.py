@@ -530,8 +530,8 @@ class CityRideDetail:
     is_pet_allowed: bool = False
     requires_wheelchair_access: bool = False
     max_wait_time_minutes: int | None = None
-    requires_otp_start: bool = True
-    requires_otp_end: bool = True
+    requires_otp_start: bool = False
+    requires_otp_end: bool = False
     estimated_price: float | None = None
     surge_multiplier_applied: float | None = None
 

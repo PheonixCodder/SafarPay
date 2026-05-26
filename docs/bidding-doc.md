@@ -594,6 +594,16 @@ Ride created -> no bidding session -> driver accepts directly in Ride service
 
 ---
 
+## Flutter Client Integration Notes
+
+- The Flutter passenger bidding repository uses this service when `SAFARPAY_USE_LOCATION_DEMO_DATA=false`.
+- Physical-device testing should set `SAFARPAY_BIDDING_BASE_URL` to the laptop LAN URL, for example `http://192.168.100.3:8002/api/v1/bidding`.
+- After creating a non-FIXED ride, the client resolves the Bidding session through `GET /sessions/by-ride/{ride_id}` before opening the bidding socket.
+- Passenger bidding socket clients connect to `/api/v1/bidding/ws/passengers?token=<access_token>` and then send `{"action":"subscribe","session_id":"..."}`.
+- The WebSocket manager emits backend envelopes as `{ "event": "...", "payload": {...} }`; clients should support `payload` as the canonical live bidding data object.
+
+---
+
 ## See Also
 
 - `services/bidding/bidding/api/router.py`

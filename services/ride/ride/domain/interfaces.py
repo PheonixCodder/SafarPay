@@ -62,6 +62,15 @@ class ServiceRequestRepositoryProtocol(Protocol):
         """Return the driver's active assigned ride, if any."""
         ...
 
+    async def find_available_for_driver(
+        self,
+        driver_id: UUID,
+        *,
+        limit: int = 50,
+    ) -> list[ServiceRequest]:
+        """Return open unassigned rides compatible with the driver's capabilities."""
+        ...
+
     async def update_status(
         self,
         ride_id: UUID,
@@ -151,6 +160,15 @@ class GeospatialClientProtocol(Protocol):
         fuel_types: list[str] | None = None,
         limit: int = 20,
     ) -> list[DriverCandidate]:
+        ...
+
+    async def calculate_route(
+        self,
+        origin_latitude: float,
+        origin_longitude: float,
+        destination_latitude: float,
+        destination_longitude: float,
+    ) -> dict[str, Any] | None:
         ...
 
 
