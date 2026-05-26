@@ -81,6 +81,9 @@ class CommunicationKafkaConsumer:
                 try:
                     async def handle() -> None:
                         repo = ConversationRepository(session)
+                        if not await repo.service_request_exists(UUID(ride_id)):
+                            logger.warning("Skipping communication open for missing ride=%s", ride_id)
+                            return
                         open_uc = OpenConversationFromRideUseCase(repo, self._cache, self._ws)
                         await open_uc.execute(UUID(ride_id), UUID(passenger_user_id), UUID(driver_id))
 

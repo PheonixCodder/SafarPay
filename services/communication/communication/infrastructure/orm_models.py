@@ -9,12 +9,14 @@ from sp.infrastructure.db.base import Base, TimestampMixin
 from sqlalchemy import (
     BigInteger,
     CheckConstraint,
+    Column,
     DateTime,
     ForeignKey,
     Index,
     Integer,
     Numeric,
     String,
+    Table,
     Text,
     UniqueConstraint,
     func,
@@ -23,6 +25,24 @@ from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+
+def _register_external_table(schema: str, table_name: str) -> None:
+    """Register FK targets owned by other services when communication runs alone."""
+    table_key = f"{schema}.{table_name}"
+    if table_key in Base.metadata.tables:
+        return
+    Table(
+        table_name,
+        Base.metadata,
+        Column("id", PgUUID(as_uuid=True), primary_key=True),
+        schema=schema,
+    )
+
+
+_register_external_table("auth", "users")
+_register_external_table("verification", "drivers")
+_register_external_table("service_request", "service_requests")
 
 
 class ConversationStatus(enum.Enum):

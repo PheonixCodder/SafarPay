@@ -25,6 +25,7 @@ from communication.domain.models import VoiceCall
 from communication.infrastructure import kafka_consumer as consumer_module
 from communication.infrastructure import storage as storage_module
 from communication.infrastructure.dependencies import (
+    get_access_uc,
     get_end_call_uc,
     get_get_conversation_uc,
     get_list_conversations_uc,
@@ -33,12 +34,14 @@ from communication.infrastructure.dependencies import (
     get_media_url_uc,
     get_register_media_uc,
     get_send_text_uc,
+    get_signaling_uc,
     get_start_call_uc,
 )
 from communication.infrastructure.orm_models import CommunicationEventORM, CommunicationEventType
 from communication.infrastructure.repositories import MessageRepository
 from communication.infrastructure.storage import S3StorageProvider, build_media_key
 from communication.infrastructure.websocket_manager import CommunicationEvent, WebSocketManager
+from sp.infrastructure.db.base import Base
 from sp.infrastructure.messaging.outbox import GenericOutboxWorker
 from sp.infrastructure.security.dependencies import get_current_user, get_optional_driver_id
 
@@ -163,6 +166,33 @@ def test_driver_and_passenger_route_dependencies_remain_separate(
     assert response.status_code == 200
     assert get_conversation.calls[0][1:3] == (DRIVER_USER_ID, DRIVER_ID)
     assert get_conversation.calls[0][1] != get_conversation.calls[0][2]
+
+
+def test_communication_websocket_uses_app_state_manager_and_subscribes(
+    communication_app: FastAPI,
+    communication_client: Any,
+) -> None:
+    class AccessStub:
+        async def assert_participant(self, conversation_id: UUID, user_id: UUID, driver_id: UUID | None) -> tuple[None, None]:
+            assert conversation_id == CONVERSATION_ID
+            assert user_id == PASSENGER_ID
+            assert driver_id is None
+            return None, None
+
+    class SignalingStub:
+        async def relay(self, **kwargs: Any) -> None:
+            raise AssertionError("signaling should not be called for subscribe")
+
+    communication_app.state.ws_manager = WebSocketManager()
+    communication_app.dependency_overrides[get_access_uc] = lambda: AccessStub()
+    communication_app.dependency_overrides[get_signaling_uc] = lambda: SignalingStub()
+
+    with communication_client.websocket_connect("/api/v1/communication/ws?token=test") as websocket:
+        websocket.send_json({"action": "subscribe", "conversation_id": str(CONVERSATION_ID)})
+        payload = websocket.receive_json()
+
+    assert payload["event"] == CommunicationEvent.SUBSCRIBED
+    assert payload["data"] == {"conversation_id": str(CONVERSATION_ID)}
 
 
 @pytest.mark.parametrize(
@@ -355,6 +385,10 @@ async def test_kafka_consumer_opens_and_closes_conversations_from_ride_events(mo
         async def execute(self, ride_id: UUID) -> None:
             calls.append(("close", ride_id, None, None))
 
+    class FakeRepo:
+        async def service_request_exists(self, ride_id: UUID) -> bool:
+            return True
+
     class Session:
         async def __aenter__(self) -> Any:
             return self
@@ -369,7 +403,7 @@ async def test_kafka_consumer_opens_and_closes_conversations_from_ride_events(mo
             calls.append(("rollback", UUID(int=0), None, None))
 
     monkeypatch.setattr(consumer_module, "KafkaConsumerWrapper", FakeKafka)
-    monkeypatch.setattr(consumer_module, "ConversationRepository", lambda session: object())
+    monkeypatch.setattr(consumer_module, "ConversationRepository", lambda session: FakeRepo())
     monkeypatch.setattr(consumer_module, "OpenConversationFromRideUseCase", FakeOpen)
     monkeypatch.setattr(consumer_module, "CloseConversationFromRideUseCase", FakeClose)
 
@@ -387,6 +421,76 @@ async def test_kafka_consumer_opens_and_closes_conversations_from_ride_events(mo
 
     assert calls[0] == ("open", RIDE_ID, PASSENGER_ID, DRIVER_ID)
     assert calls[2] == ("close", RIDE_ID, None, None)
+
+
+@pytest.mark.asyncio
+async def test_kafka_consumer_marks_stale_accepted_ride_events_without_opening_conversation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[str] = []
+
+    class FakeKafka:
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            pass
+
+        def close(self) -> None:
+            pass
+
+    class MissingRideRepo:
+        async def service_request_exists(self, ride_id: UUID) -> bool:
+            calls.append("exists")
+            return False
+
+    class FakeOpen:
+        def __init__(self, repo: Any, cache: Any, ws: Any) -> None:
+            pass
+
+        async def execute(self, ride_id: UUID, passenger_user_id: UUID, driver_id: UUID) -> None:
+            calls.append("open")
+
+    class Session:
+        async def __aenter__(self) -> Any:
+            return self
+
+        async def __aexit__(self, exc_type: Any, exc: Any, tb: Any) -> bool:
+            return False
+
+        async def commit(self) -> None:
+            calls.append("commit")
+
+        async def rollback(self) -> None:
+            calls.append("rollback")
+
+    monkeypatch.setattr(consumer_module, "KafkaConsumerWrapper", FakeKafka)
+    monkeypatch.setattr(consumer_module, "ConversationRepository", lambda session: MissingRideRepo())
+    monkeypatch.setattr(consumer_module, "OpenConversationFromRideUseCase", FakeOpen)
+
+    consumer = consumer_module.CommunicationKafkaConsumer(
+        "localhost:9092",
+        cast(Any, lambda: Session()),
+        cast(Any, object()),
+        cast(Any, object()),
+    )
+
+    await consumer._process_message(
+        {
+            "value": {
+                "event_type": "service.request.accepted",
+                "payload": {"ride_id": str(RIDE_ID), "passenger_user_id": str(PASSENGER_ID), "driver_id": str(DRIVER_ID)},
+            }
+        }
+    )
+
+    assert calls == ["exists", "commit"]
+
+
+def test_communication_metadata_resolves_external_foreign_keys_when_service_runs_alone() -> None:
+    table_names = {table.fullname for table in Base.metadata.sorted_tables}
+
+    assert "auth.users" in table_names
+    assert "verification.drivers" in table_names
+    assert "service_request.service_requests" in table_names
+    assert "communication.conversations" in table_names
 
 
 @pytest.mark.asyncio
