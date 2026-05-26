@@ -1,9 +1,15 @@
 import 'demo/location_demo_data.dart';
+import '../../../data/rides/ride_models.dart';
 import '../domain/location_models.dart';
 import '../domain/ride_booking_models.dart';
+import '../../../utils/constants/api_constants.dart';
+import '../../../utils/http/client.dart';
 
 class SRideRepository {
-  const SRideRepository();
+  const SRideRepository({bool? useDemoData})
+      : _useDemoData = useDemoData ?? SApiConstants.useLocationDemoData;
+
+  final bool _useDemoData;
 
   static Map<String, dynamic> buildCityRideRequest({
     required SAddressResult pickup,
@@ -30,8 +36,8 @@ class SRideRepository {
         'passenger_count': 1,
         'is_ac': false,
         'is_shared_ride': false,
-        'requires_otp_start': true,
-        'requires_otp_end': true,
+        'requires_otp_start': false,
+        'requires_otp_end': false,
       },
       'auto_accept_driver': true,
       'passenger_payment_method': 'CASH',
@@ -45,176 +51,234 @@ class SRideRepository {
     required double passengerOffer,
     required bool autoAcceptDriver,
   }) {
-    final minPrice = (passengerOffer * 0.85).roundToDouble();
-    final maxPrice = passengerOffer.roundToDouble();
+    return buildRideRequest(
+      draft: SRideBookingDraft(
+        pickup: pickup,
+        dropoff: dropoff,
+        offer: offer,
+        passengerOffer: passengerOffer,
+        autoAcceptDriver: autoAcceptDriver,
+      ),
+    );
+  }
 
-    return {
+  static Map<String, dynamic> buildRideRequest({
+    required SRideBookingDraft draft,
+  }) {
+    final offer = draft.offer;
+    final passengerOffer =
+        draft.passengerOffer <= 0 ? offer.baseFare : draft.passengerOffer;
+    final body = <String, dynamic>{
       'service_type': offer.serviceType.value,
       'category': offer.category.value,
-      'pricing_mode': 'HYBRID',
+      'pricing_mode': draft.pricingMode.value,
       'stops': [
         _stopPayload(
           sequenceOrder: 1,
           stopType: 'PICKUP',
-          address: pickup,
+          address: draft.pickup,
         ),
         _stopPayload(
           sequenceOrder: 2,
           stopType: 'DROPOFF',
-          address: dropoff,
+          address: draft.dropoff,
         ),
       ],
       'detail': _detailPayload(
-        offer: offer,
-        pickup: pickup,
-        dropoff: dropoff,
+        draft: draft,
         passengerOffer: passengerOffer,
       ),
-      'baseline_min_price': minPrice,
-      'baseline_max_price': maxPrice,
-      'auto_accept_driver': autoAcceptDriver,
-      'passenger_payment_method': 'CASH',
+      'auto_accept_driver': draft.autoAcceptDriver,
+      'passenger_payment_method': draft.paymentMethod.value,
+      if (draft.paymentMethodId != null)
+        'passenger_payment_method_id': draft.paymentMethodId,
+      if (draft.scheduledAt != null)
+        'scheduled_at': draft.scheduledAt!.toIso8601String(),
     };
+
+    if (draft.pricingMode == PricingMode.hybrid) {
+      body['baseline_min_price'] = (passengerOffer * 0.85).roundToDouble();
+      body['baseline_max_price'] = passengerOffer.roundToDouble();
+    }
+
+    return body;
   }
 
   Future<Map<String, dynamic>> createRide(Map<String, dynamic> body) {
-    return Future.value(SLocationDemoData.createdRide(body));
-    // return SHttpClient.post(
-    //   '/rides',
-    //   service: SApiService.ride,
-    //   requiresAuth: true,
-    //   body: body,
-    // );
+    if (_useDemoData) return Future.value(SLocationDemoData.createdRide(body));
+    return SHttpClient.post(
+      '/rides',
+      service: SApiService.ride,
+      requiresAuth: true,
+      body: body,
+    );
   }
 
   Future<Map<String, dynamic>> fetchRide(String rideId) {
-    return Future.value(SLocationDemoData.rideDetails(rideId));
-    // return SHttpClient.get(
-    //   '/rides/$rideId',
-    //   service: SApiService.ride,
-    //   requiresAuth: true,
-    // );
+    if (_useDemoData) {
+      return Future.value(SLocationDemoData.rideDetails(rideId));
+    }
+    return SHttpClient.get(
+      '/rides/$rideId',
+      service: SApiService.ride,
+      requiresAuth: true,
+    );
   }
 
   Future<Map<String, dynamic>> cancelRide({
     required String rideId,
     required String reason,
   }) {
-    return Future.value(SLocationDemoData.canceledRide(rideId, reason));
-    // return SHttpClient.post(
-    //   '/rides/$rideId/cancel',
-    //   service: SApiService.ride,
-    //   requiresAuth: true,
-    //   body: {'reason': reason},
-    // );
+    if (_useDemoData) {
+      return Future.value(SLocationDemoData.canceledRide(rideId, reason));
+    }
+    return SHttpClient.post(
+      '/rides/$rideId/cancel',
+      service: SApiService.ride,
+      requiresAuth: true,
+      body: {'reason': reason},
+    );
   }
 
-  Future<List<dynamic>> listPassengerRides({
+  Future<List<RideSummaryResponse>> listPassengerRides({
     List<String> statuses = const [],
     int limit = 20,
     int offset = 0,
   }) async {
-    return SLocationDemoData.passengerRideSummaries();
-    // final query = Uri(
-    //   queryParameters: {
-    //     'limit': limit.toString(),
-    //     'offset': offset.toString(),
-    //     if (statuses.isNotEmpty) 'status': statuses,
-    //   },
-    // ).query;
-    //
-    // final data = await SHttpClient.get(
-    //   '/rides?$query',
-    //   service: SApiService.ride,
-    //   requiresAuth: true,
-    // );
-    // final values = data['data'];
-    // return values is List ? values : const [];
+    if (_useDemoData) {
+      return SLocationDemoData.passengerRideSummaries()
+          .map((item) => RideSummaryResponse.fromJson(item))
+          .toList(growable: false);
+    }
+    final baseQuery = Uri(
+      queryParameters: {
+        'limit': limit.toString(),
+        'offset': offset.toString(),
+      },
+    ).query;
+    final statusQuery = statuses
+        .map((status) => 'status=${Uri.encodeQueryComponent(status)}')
+        .join('&');
+    final query = [
+      baseQuery,
+      if (statusQuery.isNotEmpty) statusQuery,
+    ].join('&');
+
+    final data = await SHttpClient.get(
+      query.isEmpty ? '/rides' : '/rides?$query',
+      service: SApiService.ride,
+      requiresAuth: true,
+    );
+    final values = data['data'];
+    if (values is! List) return const [];
+    return values
+        .whereType<Map<String, dynamic>>()
+        .map(RideSummaryResponse.fromJson)
+        .toList(growable: false);
   }
 
   Future<Map<String, dynamic>> acceptFixedRide(String rideId) {
-    return Future.value(SLocationDemoData.rideAccepted(rideId));
-    // return SHttpClient.post(
-    //   '/rides/$rideId/accept',
-    //   service: SApiService.ride,
-    //   requiresAuth: true,
-    // );
+    if (_useDemoData) {
+      return Future.value(SLocationDemoData.rideAccepted(rideId));
+    }
+    return SHttpClient.post(
+      '/rides/$rideId/accept',
+      service: SApiService.ride,
+      requiresAuth: true,
+    );
   }
 
   Future<Map<String, dynamic>> startRide({
     required String rideId,
     String? verificationCode,
   }) {
-    return Future.value(
-      SLocationDemoData.rideStarted(
-        rideId: rideId,
-        verificationCode: verificationCode,
-      ),
+    if (_useDemoData) {
+      return Future.value(
+        SLocationDemoData.rideStarted(
+          rideId: rideId,
+          verificationCode: verificationCode,
+        ),
+      );
+    }
+    return SHttpClient.post(
+      '/rides/$rideId/start',
+      service: SApiService.ride,
+      requiresAuth: true,
+      body: {
+        if (verificationCode != null) 'verification_code': verificationCode,
+      },
     );
-    // return SHttpClient.post(
-    //   '/rides/$rideId/start',
-    //   service: SApiService.ride,
-    //   requiresAuth: true,
-    //   body: {
-    //     if (verificationCode != null) 'verification_code': verificationCode,
-    //   },
-    // );
   }
 
   Future<Map<String, dynamic>> completeRide({
     required String rideId,
     String? verificationCode,
     double? finalPrice,
+    SCoordinate? driverLocation,
+    double? accuracyMeters,
   }) {
-    return Future.value(
-      SLocationDemoData.rideCompleted(
-        rideId: rideId,
-        verificationCode: verificationCode,
-        finalPrice: finalPrice,
-      ),
+    if (_useDemoData) {
+      return Future.value(
+        SLocationDemoData.rideCompleted(
+          rideId: rideId,
+          verificationCode: verificationCode,
+          finalPrice: finalPrice,
+        ),
+      );
+    }
+    return SHttpClient.post(
+      '/rides/$rideId/complete',
+      service: SApiService.ride,
+      requiresAuth: true,
+      body: {
+        if (verificationCode != null) 'verification_code': verificationCode,
+        if (finalPrice != null) 'final_price': finalPrice,
+        if (driverLocation != null) ...{
+          'driver_latitude': driverLocation.latitude,
+          'driver_longitude': driverLocation.longitude,
+        },
+        if (accuracyMeters != null) 'accuracy_meters': accuracyMeters,
+      },
     );
-    // return SHttpClient.post(
-    //   '/rides/$rideId/complete',
-    //   service: SApiService.ride,
-    //   requiresAuth: true,
-    //   body: {
-    //     if (verificationCode != null) 'verification_code': verificationCode,
-    //     if (finalPrice != null) 'final_price': finalPrice,
-    //   },
-    // );
   }
 
   Future<Map<String, dynamic>> addStop({
     required String rideId,
     required Map<String, dynamic> stop,
   }) {
-    return Future.value(
-      SLocationDemoData.addedStop(rideId: rideId, stop: stop),
+    if (_useDemoData) {
+      return Future.value(
+        SLocationDemoData.addedStop(rideId: rideId, stop: stop),
+      );
+    }
+    return SHttpClient.post(
+      '/rides/$rideId/stops',
+      service: SApiService.ride,
+      requiresAuth: true,
+      body: stop,
     );
-    // return SHttpClient.post(
-    //   '/rides/$rideId/stops',
-    //   service: SApiService.ride,
-    //   requiresAuth: true,
-    //   body: stop,
-    // );
   }
 
   Future<Map<String, dynamic>> markStopArrived(String stopId) {
-    return Future.value(SLocationDemoData.stopArrived(stopId));
-    // return SHttpClient.post(
-    //   '/stops/$stopId/arrived',
-    //   service: SApiService.ride,
-    //   requiresAuth: true,
-    // );
+    if (_useDemoData) {
+      return Future.value(SLocationDemoData.stopArrived(stopId));
+    }
+    return SHttpClient.post(
+      '/stops/$stopId/arrived',
+      service: SApiService.ride,
+      requiresAuth: true,
+    );
   }
 
   Future<Map<String, dynamic>> markStopCompleted(String stopId) {
-    return Future.value(SLocationDemoData.stopCompleted(stopId));
-    // return SHttpClient.post(
-    //   '/stops/$stopId/completed',
-    //   service: SApiService.ride,
-    //   requiresAuth: true,
-    // );
+    if (_useDemoData) {
+      return Future.value(SLocationDemoData.stopCompleted(stopId));
+    }
+    return SHttpClient.post(
+      '/stops/$stopId/completed',
+      service: SApiService.ride,
+      requiresAuth: true,
+    );
   }
 
   Future<Map<String, dynamic>> generateVerificationCode({
@@ -224,20 +288,22 @@ class SRideRepository {
     int maxAttempts = 5,
     int length = 6,
   }) {
-    return Future.value(
-      SLocationDemoData.verificationCode(rideId: rideId, stopId: stopId),
+    if (_useDemoData) {
+      return Future.value(
+        SLocationDemoData.verificationCode(rideId: rideId, stopId: stopId),
+      );
+    }
+    return SHttpClient.post(
+      '/rides/$rideId/verification-codes',
+      service: SApiService.ride,
+      requiresAuth: true,
+      body: {
+        if (stopId != null) 'stop_id': stopId,
+        'expires_in_minutes': expiresInMinutes,
+        'max_attempts': maxAttempts,
+        'length': length,
+      },
     );
-    // return SHttpClient.post(
-    //   '/rides/$rideId/verification-codes',
-    //   service: SApiService.ride,
-    //   requiresAuth: true,
-    //   body: {
-    //     if (stopId != null) 'stop_id': stopId,
-    //     'expires_in_minutes': expiresInMinutes,
-    //     'max_attempts': maxAttempts,
-    //     'length': length,
-    //   },
-    // );
   }
 
   Future<Map<String, dynamic>> verifyCode({
@@ -246,19 +312,21 @@ class SRideRepository {
     String? userId,
     String? driverId,
   }) {
-    return Future.value(
-      SLocationDemoData.verificationCode(rideId: rideId, isVerified: true),
+    if (_useDemoData) {
+      return Future.value(
+        SLocationDemoData.verificationCode(rideId: rideId, isVerified: true),
+      );
+    }
+    return SHttpClient.post(
+      '/rides/$rideId/verification-codes/verify',
+      service: SApiService.ride,
+      requiresAuth: true,
+      body: {
+        'code': code,
+        if (userId != null) 'user_id': userId,
+        if (driverId != null) 'driver_id': driverId,
+      },
     );
-    // return SHttpClient.post(
-    //   '/rides/$rideId/verification-codes/verify',
-    //   service: SApiService.ride,
-    //   requiresAuth: true,
-    //   body: {
-    //     'code': code,
-    //     if (userId != null) 'user_id': userId,
-    //     if (driverId != null) 'driver_id': driverId,
-    //   },
-    // );
   }
 
   Future<Map<String, dynamic>> requestProofUploadUrl({
@@ -268,23 +336,25 @@ class SRideRepository {
     String mimeType = 'image/jpeg',
     String? stopId,
   }) {
-    return Future.value(
-      SLocationDemoData.proofUploadUrl(
-        proofType: proofType,
-        mimeType: mimeType,
-      ),
+    if (_useDemoData) {
+      return Future.value(
+        SLocationDemoData.proofUploadUrl(
+          proofType: proofType,
+          mimeType: mimeType,
+        ),
+      );
+    }
+    return SHttpClient.post(
+      '/rides/$rideId/proofs/upload-url',
+      service: SApiService.ride,
+      requiresAuth: true,
+      body: {
+        'proof_type': proofType,
+        if (fileName != null) 'file_name': fileName,
+        'mime_type': mimeType,
+        if (stopId != null) 'stop_id': stopId,
+      },
     );
-    // return SHttpClient.post(
-    //   '/rides/$rideId/proofs/upload-url',
-    //   service: SApiService.ride,
-    //   requiresAuth: true,
-    //   body: {
-    //     'proof_type': proofType,
-    //     if (fileName != null) 'file_name': fileName,
-    //     'mime_type': mimeType,
-    //     if (stopId != null) 'stop_id': stopId,
-    //   },
-    // );
   }
 
   Future<void> uploadProofBytes({
@@ -292,12 +362,12 @@ class SRideRepository {
     required List<int> bytes,
     String contentType = 'image/jpeg',
   }) {
-    return Future.value();
-    // return SHttpClient.putBytesToAbsoluteUrl(
-    //   presignedUrl,
-    //   bytes: bytes,
-    //   contentType: contentType,
-    // );
+    if (_useDemoData) return Future.value();
+    return SHttpClient.putBytesToAbsoluteUrl(
+      presignedUrl,
+      bytes: bytes,
+      contentType: contentType,
+    );
   }
 
   Future<Map<String, dynamic>> registerProof({
@@ -311,51 +381,55 @@ class SRideRepository {
     bool isPrimary = false,
     String? stopId,
   }) {
-    return Future.value(
-      SLocationDemoData.proofImage(
-        rideId: rideId,
-        proofType: proofType,
-        fileKey: fileKey,
-        fileName: fileName,
-        mimeType: mimeType,
-        fileSizeBytes: fileSizeBytes,
-        stopId: stopId,
-      ),
+    if (_useDemoData) {
+      return Future.value(
+        SLocationDemoData.proofImage(
+          rideId: rideId,
+          proofType: proofType,
+          fileKey: fileKey,
+          fileName: fileName,
+          mimeType: mimeType,
+          fileSizeBytes: fileSizeBytes,
+          stopId: stopId,
+        ),
+      );
+    }
+    return SHttpClient.post(
+      '/rides/$rideId/proofs',
+      service: SApiService.ride,
+      requiresAuth: true,
+      body: {
+        'proof_type': proofType,
+        'file_key': fileKey,
+        if (fileName != null) 'file_name': fileName,
+        if (mimeType != null) 'mime_type': mimeType,
+        if (fileSizeBytes != null) 'file_size_bytes': fileSizeBytes,
+        if (checksumSha256 != null) 'checksum_sha256': checksumSha256,
+        'is_primary': isPrimary,
+        if (stopId != null) 'stop_id': stopId,
+      },
     );
-    // return SHttpClient.post(
-    //   '/rides/$rideId/proofs',
-    //   service: SApiService.ride,
-    //   requiresAuth: true,
-    //   body: {
-    //     'proof_type': proofType,
-    //     'file_key': fileKey,
-    //     if (fileName != null) 'file_name': fileName,
-    //     if (mimeType != null) 'mime_type': mimeType,
-    //     if (fileSizeBytes != null) 'file_size_bytes': fileSizeBytes,
-    //     if (checksumSha256 != null) 'checksum_sha256': checksumSha256,
-    //     'is_primary': isPrimary,
-    //     if (stopId != null) 'stop_id': stopId,
-    //   },
-    // );
   }
 
   Future<Map<String, dynamic>> getProofUrl({
     required String rideId,
     required String proofId,
   }) {
-    return Future.value(
-      SLocationDemoData.proofImage(
-        rideId: rideId,
-        proofType: 'PICKUP',
-        fileKey: 'demo/ride/proofs/pickup_proof.jpg',
-        withViewUrl: true,
-      ),
+    if (_useDemoData) {
+      return Future.value(
+        SLocationDemoData.proofImage(
+          rideId: rideId,
+          proofType: 'PICKUP',
+          fileKey: 'demo/ride/proofs/pickup_proof.jpg',
+          withViewUrl: true,
+        ),
+      );
+    }
+    return SHttpClient.get(
+      '/rides/$rideId/proofs/$proofId/url',
+      service: SApiService.ride,
+      requiresAuth: true,
     );
-    // return SHttpClient.get(
-    //   '/rides/$rideId/proofs/$proofId/url',
-    //   service: SApiService.ride,
-    //   requiresAuth: true,
-    // );
   }
 
   Future<Map<String, dynamic>> nearbyDrivers({
@@ -364,81 +438,130 @@ class SRideRepository {
     double radiusKm = 5,
     String? rideId,
   }) {
-    return Future.value(
-      SLocationDemoData.nearbyDrivers(
-        latitude: latitude,
-        longitude: longitude,
-        rideId: rideId,
-      ),
+    if (_useDemoData) {
+      return Future.value(
+        SLocationDemoData.nearbyDrivers(
+          latitude: latitude,
+          longitude: longitude,
+          rideId: rideId,
+        ),
+      );
+    }
+    final query = Uri(
+      queryParameters: {
+        'lat': latitude.toString(),
+        'lng': longitude.toString(),
+        'radius': radiusKm.toString(),
+        if (rideId != null) 'ride_id': rideId,
+      },
+    ).query;
+
+    return SHttpClient.get(
+      '/drivers/nearby?$query',
+      service: SApiService.ride,
+      requiresAuth: true,
     );
-    // final query = Uri(
-    //   queryParameters: {
-    //     'lat': latitude.toString(),
-    //     'lng': longitude.toString(),
-    //     'radius': radiusKm.toString(),
-    //     if (rideId != null) 'ride_id': rideId,
-    //   },
-    // ).query;
-    //
-    // return SHttpClient.get(
-    //   '/drivers/nearby?$query',
-    //   service: SApiService.ride,
-    //   requiresAuth: true,
-    // );
   }
 }
 
 Map<String, dynamic> _detailPayload({
-  required SRideVehicleOffer offer,
-  required SAddressResult pickup,
-  required SAddressResult dropoff,
+  required SRideBookingDraft draft,
   required double passengerOffer,
 }) {
+  final offer = draft.offer;
   return switch (offer.serviceType.value) {
     'INTERCITY' => {
         'service_type': 'INTERCITY',
-        'passenger_count': offer.passengerCapacity,
-        'luggage_count': 1,
+        'passenger_count': draft.intercity.passengerCount,
+        'luggage_count': draft.intercity.luggageCount,
+        'child_count': draft.intercity.childCount,
+        'senior_count': draft.intercity.seniorCount,
+        'allowed_fuel_types':
+            draft.intercity.allowedFuelTypes.map((type) => type.value).toList(),
+        if (draft.intercity.preferredDepartureTime != null)
+          'preferred_departure_time':
+              draft.intercity.preferredDepartureTime!.toIso8601String(),
+        if (draft.intercity.departureFlexibilityMinutes != null)
+          'departure_time_flexibility_minutes':
+              draft.intercity.departureFlexibilityMinutes,
+        'is_round_trip': draft.intercity.isRoundTrip,
+        if (draft.intercity.returnTime != null)
+          'return_time': draft.intercity.returnTime!.toIso8601String(),
         'vehicle_type_requested': offer.vehicleType,
-        'pickup_city': pickup.city,
-        'dropoff_city': dropoff.city,
+        if (draft.intercity.minVehicleCapacity != null)
+          'min_vehicle_capacity': draft.intercity.minVehicleCapacity,
+        'requires_luggage_carrier': draft.intercity.requiresLuggageCarrier,
+        'is_shared_ride': draft.intercity.isSharedRide,
+        if (draft.intercity.isSharedRide &&
+            draft.intercity.maxCoPassengers != null)
+          'max_co_passengers': draft.intercity.maxCoPassengers,
+        'requires_identity_verification':
+            draft.intercity.requiresIdentityVerification,
+        if ((draft.intercity.emergencyContactName ?? '').trim().isNotEmpty)
+          'emergency_contact_name': draft.intercity.emergencyContactName,
+        if ((draft.intercity.emergencyContactNumber ?? '').trim().isNotEmpty)
+          'emergency_contact_number': draft.intercity.emergencyContactNumber,
         'estimated_price': passengerOffer,
       },
     'FREIGHT' => {
         'service_type': 'FREIGHT',
-        'cargo_weight': 20,
-        'cargo_type': 'General cargo',
+        'cargo_weight': draft.freight.cargoWeight,
+        'cargo_type': draft.freight.cargoType,
         'vehicle_type': offer.vehicleType,
-        'requires_loader': false,
-        'is_fragile': false,
-        'declared_value': null,
+        'requires_loader': draft.freight.requiresLoader,
+        'is_fragile': draft.freight.isFragile,
+        'requires_temperature_control':
+            draft.freight.requiresTemperatureControl,
+        if (draft.freight.declaredValue != null)
+          'declared_value': draft.freight.declaredValue,
+        if ((draft.freight.commodityNotes ?? '').trim().isNotEmpty)
+          'commodity_notes': draft.freight.commodityNotes,
+        if (draft.freight.estimatedLoadHours != null)
+          'estimated_load_hours': draft.freight.estimatedLoadHours,
       },
     'COURIER' => {
         'service_type': 'COURIER',
-        'item_description': 'Package',
-        'item_weight': 1,
-        'total_parcels': 1,
-        'recipient_name': 'Recipient',
-        'recipient_phone': '03000000000',
-        'requires_signature': false,
-        'is_fragile': false,
-        'declared_value': null,
+        'item_description': draft.courier.itemDescription,
+        if (draft.courier.itemWeight != null)
+          'item_weight': draft.courier.itemWeight,
+        'total_parcels': draft.courier.totalParcels,
+        'recipient_name': draft.courier.recipientName,
+        'recipient_phone': draft.courier.recipientPhone,
+        if ((draft.courier.recipientEmail ?? '').trim().isNotEmpty)
+          'recipient_email': draft.courier.recipientEmail,
+        'requires_signature': draft.courier.requiresSignature,
+        'is_fragile': draft.courier.isFragile,
+        if (draft.courier.declaredValue != null)
+          'declared_value': draft.courier.declaredValue,
+        if ((draft.courier.specialHandlingNotes ?? '').trim().isNotEmpty)
+          'special_handling_notes': draft.courier.specialHandlingNotes,
       },
     'GROCERY' => {
         'service_type': 'GROCERY',
-        'store_id': '',
-        'total_items': 1,
-        'contactless_delivery': false,
-        'estimated_price': passengerOffer,
+        'store_id': draft.grocery.storeId,
+        'total_items': draft.grocery.totalItems,
+        if ((draft.grocery.specialNotes ?? '').trim().isNotEmpty)
+          'special_notes': draft.grocery.specialNotes,
+        'contactless_delivery': draft.grocery.contactlessDelivery,
+        if (draft.grocery.estimatedBagCount != null)
+          'estimated_bag_count': draft.grocery.estimatedBagCount,
       },
     _ => {
         'service_type': 'CITY_RIDE',
-        'passenger_count': offer.passengerCapacity,
+        'passenger_count': draft.city.passengerCount,
         'is_ac': offer.requiresAc,
         'preferred_vehicle_type': offer.vehicleType,
-        'is_shared_ride': offer.isShared,
-        'requires_otp_start': true,
-        'requires_otp_end': true,
+        'driver_gender_preference': draft.city.driverGenderPreference.value,
+        'is_shared_ride': false,
+        'allowed_fuel_types':
+            draft.city.allowedFuelTypes.map((type) => type.value).toList(),
+        'is_smoking_allowed': draft.city.isSmokingAllowed,
+        'is_pet_allowed': draft.city.isPetAllowed,
+        'requires_wheelchair_access': draft.city.requiresWheelchairAccess,
+        if (draft.city.maxWaitTimeMinutes != null)
+          'max_wait_time_minutes': draft.city.maxWaitTimeMinutes,
+        'requires_otp_start': draft.city.requiresOtpStart,
+        'requires_otp_end': draft.city.requiresOtpEnd,
         'estimated_price': passengerOffer,
       },
   };

@@ -256,6 +256,72 @@ class RideResponse {
   }
 }
 
+class RideSummaryResponse {
+  const RideSummaryResponse({
+    required this.id,
+    required this.passengerId,
+    required this.assignedDriverId,
+    required this.serviceType,
+    required this.category,
+    required this.status,
+    required this.passengerPaymentMethod,
+    required this.paymentCollectionMode,
+    required this.createdAt,
+    required this.scheduledAt,
+    required this.pickupStop,
+    required this.dropoffStop,
+  });
+
+  final String id;
+  final String passengerId;
+  final String? assignedDriverId;
+  final ServiceType serviceType;
+  final ServiceCategory category;
+  final RideStatus status;
+  final PassengerPaymentMethod passengerPaymentMethod;
+  final PaymentCollectionMode paymentCollectionMode;
+  final DateTime createdAt;
+  final DateTime? scheduledAt;
+  final StopResponse? pickupStop;
+  final StopResponse? dropoffStop;
+
+  bool get isScheduled => scheduledAt != null;
+
+  bool get isOngoing {
+    return switch (status) {
+      RideStatus.created ||
+      RideStatus.matching ||
+      RideStatus.accepted ||
+      RideStatus.arriving ||
+      RideStatus.inProgress =>
+        true,
+      RideStatus.completed || RideStatus.cancelled => false,
+    };
+  }
+
+  factory RideSummaryResponse.fromJson(Map<String, dynamic> json) {
+    return RideSummaryResponse(
+      id: json['id'] as String,
+      passengerId: json['passenger_id'] as String,
+      assignedDriverId: json['assigned_driver_id'] as String?,
+      serviceType: ServiceType.fromJson(json['service_type'] as String),
+      category: ServiceCategory.fromJson(json['category'] as String),
+      status: RideStatus.fromJson(json['status'] as String),
+      passengerPaymentMethod: PassengerPaymentMethod.fromJson(
+        json['passenger_payment_method'] as String,
+      ),
+      paymentCollectionMode: PaymentCollectionMode.fromJson(
+        json['payment_collection_mode'] as String,
+      ),
+      createdAt: DateTime.parse(json['created_at'] as String),
+      scheduledAt: _toDateTime(json['scheduled_at']),
+      pickupStop: _toNullableModel(json['pickup_stop'], StopResponse.fromJson),
+      dropoffStop:
+          _toNullableModel(json['dropoff_stop'], StopResponse.fromJson),
+    );
+  }
+}
+
 class StopResponse {
   const StopResponse({
     required this.id,

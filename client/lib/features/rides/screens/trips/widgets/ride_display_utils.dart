@@ -72,6 +72,37 @@ class SRideDisplayUtils {
   }
 
   static String routeTitle(RideResponse ride) {
+    return routeTitleFromStops(ride.pickupStop, ride.dropoffStop);
+  }
+
+  static String summaryRouteTitle(RideSummaryResponse ride) {
+    return routeTitleFromStops(ride.pickupStop, ride.dropoffStop);
+  }
+
+  static String routeTitleFromStops(
+    StopResponse? pickup,
+    StopResponse? dropoff,
+  ) {
+    final pickupTitle = pickup?.placeName ?? 'Pickup';
+    final dropoffTitle = dropoff?.placeName ?? 'Dropoff';
+    return '$pickupTitle to $dropoffTitle';
+  }
+
+  static String pickupTitle(StopResponse? stop) {
+    return stop?.placeName ?? stop?.addressLine1 ?? 'Pickup';
+  }
+
+  static String dropoffTitle(StopResponse? stop) {
+    return stop?.placeName ?? stop?.addressLine1 ?? 'Dropoff';
+  }
+
+  static String? stopAddress(StopResponse? stop) {
+    final address = stop?.addressLine1;
+    if (address == null || address == stop?.placeName) return null;
+    return address;
+  }
+
+  static String routeTitleLegacy(RideResponse ride) {
     final pickup = ride.pickupStop?.placeName ?? 'Pickup';
     final dropoff = ride.dropoffStop?.placeName ?? 'Dropoff';
     return '$pickup to $dropoff';

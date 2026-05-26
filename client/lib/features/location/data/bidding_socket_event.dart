@@ -32,9 +32,7 @@ class SBiddingSocketEvent {
 
   factory SBiddingSocketEvent.fromJson(Map<String, dynamic> json) {
     final event = json['event']?.toString();
-    final data = json['data'] is Map<String, dynamic>
-        ? json['data'] as Map<String, dynamic>
-        : null;
+    final data = _modelJson(json, 'data') ?? _modelJson(json, 'payload');
     final bidJson = _modelJson(data, 'bid') ?? _modelJson(json, 'bid');
     final counterJson =
         _modelJson(data, 'counter_offer') ?? _modelJson(json, 'counter_offer');
@@ -58,16 +56,22 @@ class SBiddingSocketEvent {
 
 SBiddingSocketEventType _typeFor(String? event) {
   return switch (event) {
+    'NEW_BID' ||
     'BID_PLACED' => SBiddingSocketEventType.bidPlaced,
     'BID_ACCEPTED' => SBiddingSocketEventType.bidAccepted,
     'BID_WITHDRAWN' => SBiddingSocketEventType.bidWithdrawn,
+    'PASSENGER_COUNTER_BID' ||
     'PASSENGER_COUNTER_OFFER_CREATED' ||
     'COUNTER_OFFER_CREATED' =>
       SBiddingSocketEventType.counterOfferCreated,
     'PASSENGER_COUNTER_OFFER_ACCEPTED' ||
     'COUNTER_OFFER_ACCEPTED' =>
       SBiddingSocketEventType.counterOfferAccepted,
-    'SESSION_UPDATED' => SBiddingSocketEventType.sessionUpdated,
+    'BID_LEADER_UPDATED' ||
+    'SESSION_CLOSED' ||
+    'SESSION_CANCELLED' ||
+    'SESSION_UPDATED' =>
+      SBiddingSocketEventType.sessionUpdated,
     'ping' => SBiddingSocketEventType.ping,
     'pong' => SBiddingSocketEventType.pong,
     'error' => SBiddingSocketEventType.error,

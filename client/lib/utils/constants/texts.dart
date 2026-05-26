@@ -68,6 +68,28 @@ class STexts {
   static const String driverNavEarningsTitle = "Earnings";
   static const String driverNavEarningsSubTitle =
       "Daily totals, payouts, and earning history will appear here.";
+  static const String earningsTitle = "Earnings";
+  static const String earningsToday = "Today";
+  static const String earningsWeek = "Week";
+  static const String earningsMonth = "Month";
+  static const String earningsNet = "Net earnings";
+  static const String earningsGross = "Gross fares";
+  static const String earningsCommission = "Commission";
+  static const String earningsTrips = "Trips";
+  static const String earningsOnline = "Active";
+  static const String earningsRating = "Rating";
+  static const String earningsOverview = "Earnings Overview";
+  static const String earningsBreakdown = "Earnings Breakdown";
+  static const String earningsRecentTrips = "Recent Trips";
+  static const String earningsCashCollected = "Cash collected";
+  static const String earningsPlatformCollected = "Platform collected";
+  static const String earningsAvailableBalance = "Available balance";
+  static const String earningsReservedBalance = "Reserved balance";
+  static const String earningsTotal = "Total Earnings";
+  static const String earningsWithdraw = "Withdraw Earnings";
+  static const String earningsEmptyTitle = "No earnings yet";
+  static const String earningsEmptySubTitle =
+      "Completed trips for this period will appear here.";
   static const String tripsTabTitle = "Trips";
   static const String tripsTabSubTitle =
       "Your upcoming and completed rides will appear here once ride booking is connected.";

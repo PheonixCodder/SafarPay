@@ -20,7 +20,7 @@ void main() {
   test('parses bidding passenger websocket bid event', () {
     final event = SBiddingSocketEvent.fromJson({
       'event': 'BID_PLACED',
-      'data': {
+      'payload': {
         'session_id': 'session-001',
         'bid': {
           'id': 'bid-001',
@@ -40,5 +40,22 @@ void main() {
     expect(event.type, SBiddingSocketEventType.bidPlaced);
     expect(event.sessionId, 'session-001');
     expect(event.bid?.id, 'bid-001');
+  });
+
+  test('keeps flat bidding websocket payload available for refresh fallback', () {
+    final event = SBiddingSocketEvent.fromJson({
+      'event': 'NEW_BID',
+      'payload': {
+        'session_id': 'session-legacy',
+        'bid_id': 'bid-legacy',
+        'driver_id': 'driver-legacy',
+        'amount': 310,
+      },
+    });
+
+    expect(event.type, SBiddingSocketEventType.bidPlaced);
+    expect(event.sessionId, 'session-legacy');
+    expect(event.bid, isNull);
+    expect(event.data?['bid_id'], 'bid-legacy');
   });
 }

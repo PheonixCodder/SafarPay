@@ -53,6 +53,7 @@ class _RideSearchScreenState extends State<RideSearchScreen> {
         () {
           final pickup = _controller.pickup.value;
           final dropoff = _controller.selectedDropoff.value;
+          final hasRoute = _controller.route.value != null;
 
           return Stack(
             children: [
@@ -60,10 +61,15 @@ class _RideSearchScreenState extends State<RideSearchScreen> {
                 child: SMapView(
                   controller: _controller.mapController,
                   initialCenter: _controller.mapCenter,
+                  cameraMode: hasRoute
+                      ? SMapCameraMode.fitRoute
+                      : SMapCameraMode.manual,
+                  fitPadding: const EdgeInsets.fromLTRB(48, 140, 48, 360),
                   fullBleed: true,
                   showStatusPill: false,
                   showRecenterButton: false,
-                  showCenterPin: true,
+                  showCenterPin: !hasRoute,
+                  showUserLocation: false,
                   isLoading: _controller.isRouteLoading.value,
                   errorMessage: _controller.errorMessage.value.isEmpty
                       ? null

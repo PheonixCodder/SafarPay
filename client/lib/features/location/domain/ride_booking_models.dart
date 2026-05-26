@@ -1,5 +1,6 @@
 import '../../../data/rides/ride_models.dart';
 import '../../../utils/constants/images.dart';
+import 'location_models.dart';
 
 enum SBookingLocationTarget {
   pickup,
@@ -11,7 +12,192 @@ enum SBookingSheetMode {
   search,
   route,
   vehicles,
+  details,
+  review,
   matching,
+}
+
+enum SDriverGenderPreference {
+  noPreference('NO_PREFERENCE'),
+  male('MALE'),
+  female('FEMALE'),
+  any('ANY');
+
+  const SDriverGenderPreference(this.value);
+
+  final String value;
+}
+
+enum SFuelType {
+  petrol('PETROL'),
+  diesel('DIESEL'),
+  cng('CNG'),
+  hybrid('HYBRID'),
+  electric('ELECTRIC');
+
+  const SFuelType(this.value);
+
+  final String value;
+}
+
+class SCityRideOptions {
+  const SCityRideOptions({
+    this.passengerCount = 1,
+    this.driverGenderPreference = SDriverGenderPreference.noPreference,
+    this.allowedFuelTypes = const [],
+    this.isPetAllowed = false,
+    this.isSmokingAllowed = false,
+    this.requiresWheelchairAccess = false,
+    this.maxWaitTimeMinutes,
+    this.requiresOtpStart = false,
+    this.requiresOtpEnd = false,
+  });
+
+  final int passengerCount;
+  final SDriverGenderPreference driverGenderPreference;
+  final List<SFuelType> allowedFuelTypes;
+  final bool isPetAllowed;
+  final bool isSmokingAllowed;
+  final bool requiresWheelchairAccess;
+  final int? maxWaitTimeMinutes;
+  final bool requiresOtpStart;
+  final bool requiresOtpEnd;
+}
+
+class SIntercityRideOptions {
+  const SIntercityRideOptions({
+    this.passengerCount = 1,
+    this.luggageCount = 0,
+    this.childCount = 0,
+    this.seniorCount = 0,
+    this.allowedFuelTypes = const [],
+    this.preferredDepartureTime,
+    this.departureFlexibilityMinutes,
+    this.isRoundTrip = false,
+    this.returnTime,
+    this.minVehicleCapacity,
+    this.requiresLuggageCarrier = false,
+    this.isSharedRide = false,
+    this.maxCoPassengers,
+    this.requiresIdentityVerification = false,
+    this.emergencyContactName,
+    this.emergencyContactNumber,
+  });
+
+  final int passengerCount;
+  final int luggageCount;
+  final int childCount;
+  final int seniorCount;
+  final List<SFuelType> allowedFuelTypes;
+  final DateTime? preferredDepartureTime;
+  final int? departureFlexibilityMinutes;
+  final bool isRoundTrip;
+  final DateTime? returnTime;
+  final int? minVehicleCapacity;
+  final bool requiresLuggageCarrier;
+  final bool isSharedRide;
+  final int? maxCoPassengers;
+  final bool requiresIdentityVerification;
+  final String? emergencyContactName;
+  final String? emergencyContactNumber;
+}
+
+class SFreightRideOptions {
+  const SFreightRideOptions({
+    this.cargoWeight = 20,
+    this.cargoType = 'General cargo',
+    this.requiresLoader = false,
+    this.isFragile = false,
+    this.requiresTemperatureControl = false,
+    this.declaredValue,
+    this.commodityNotes,
+    this.estimatedLoadHours,
+  });
+
+  final double cargoWeight;
+  final String cargoType;
+  final bool requiresLoader;
+  final bool isFragile;
+  final bool requiresTemperatureControl;
+  final double? declaredValue;
+  final String? commodityNotes;
+  final int? estimatedLoadHours;
+}
+
+class SCourierRideOptions {
+  const SCourierRideOptions({
+    this.itemDescription = 'Package',
+    this.itemWeight = 1,
+    this.totalParcels = 1,
+    this.recipientName = 'Recipient',
+    this.recipientPhone = '03000000000',
+    this.recipientEmail,
+    this.isFragile = false,
+    this.requiresSignature = false,
+    this.declaredValue,
+    this.specialHandlingNotes,
+  });
+
+  final String itemDescription;
+  final double? itemWeight;
+  final int totalParcels;
+  final String recipientName;
+  final String recipientPhone;
+  final String? recipientEmail;
+  final bool isFragile;
+  final bool requiresSignature;
+  final double? declaredValue;
+  final String? specialHandlingNotes;
+}
+
+class SGroceryRideOptions {
+  const SGroceryRideOptions({
+    this.storeId = '',
+    this.totalItems = 0,
+    this.specialNotes,
+    this.contactlessDelivery = false,
+    this.estimatedBagCount,
+  });
+
+  final String storeId;
+  final int totalItems;
+  final String? specialNotes;
+  final bool contactlessDelivery;
+  final int? estimatedBagCount;
+}
+
+class SRideBookingDraft {
+  const SRideBookingDraft({
+    required this.pickup,
+    required this.dropoff,
+    required this.offer,
+    this.pricingMode = PricingMode.hybrid,
+    this.passengerOffer = 0,
+    this.autoAcceptDriver = false,
+    this.paymentMethod = PassengerPaymentMethod.cash,
+    this.paymentMethodId,
+    this.scheduledAt,
+    this.city = const SCityRideOptions(),
+    this.intercity = const SIntercityRideOptions(),
+    this.freight = const SFreightRideOptions(),
+    this.courier = const SCourierRideOptions(),
+    this.grocery = const SGroceryRideOptions(),
+  });
+
+  final SAddressResult pickup;
+  final SAddressResult dropoff;
+  final SRideVehicleOffer offer;
+  final PricingMode pricingMode;
+  final double passengerOffer;
+  final bool autoAcceptDriver;
+  final PassengerPaymentMethod paymentMethod;
+  final String? paymentMethodId;
+  final DateTime? scheduledAt;
+  final SCityRideOptions city;
+  final SIntercityRideOptions intercity;
+  final SFreightRideOptions freight;
+  final SCourierRideOptions courier;
+  final SGroceryRideOptions grocery;
 }
 
 enum SPassengerServiceCategory {
