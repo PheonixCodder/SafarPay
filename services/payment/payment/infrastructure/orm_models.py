@@ -105,7 +105,10 @@ class WalletORM(Base, TimestampMixin):
     )
 
     id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    driver_id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), ForeignKey("verification.drivers.id", ondelete="CASCADE"), unique=True, index=True)
+    # Cross-service Auth/Verification references are UUID columns at ORM
+    # runtime. Payment must stay independently loadable without importing
+    # other services' ORM metadata.
+    driver_id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), unique=True, index=True)
     available_balance: Mapped[float] = mapped_column(Numeric(14, 2), default=0, nullable=False)
     reserved_balance: Mapped[float] = mapped_column(Numeric(14, 2), default=0, nullable=False)
     current_balance: Mapped[float] = mapped_column(Numeric(14, 2), default=0, nullable=False)
@@ -151,8 +154,8 @@ class PaymentMethodORM(Base, TimestampMixin):
     )
 
     id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    owner_user_id: Mapped[uuid.UUID | None] = mapped_column(PgUUID(as_uuid=True), ForeignKey("auth.users.id", ondelete="CASCADE"), index=True)
-    owner_driver_id: Mapped[uuid.UUID | None] = mapped_column(PgUUID(as_uuid=True), ForeignKey("verification.drivers.id", ondelete="CASCADE"), index=True)
+    owner_user_id: Mapped[uuid.UUID | None] = mapped_column(PgUUID(as_uuid=True), index=True)
+    owner_driver_id: Mapped[uuid.UUID | None] = mapped_column(PgUUID(as_uuid=True), index=True)
     method_type: Mapped[str] = mapped_column(String(30), nullable=False)
     provider: Mapped[str] = mapped_column(String(40), nullable=False, default="SANDBOX")
     provider_customer_id: Mapped[str | None] = mapped_column(String(160))
@@ -174,7 +177,7 @@ class PaymentIntentORM(Base, TimestampMixin):
 
     id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     ride_id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), nullable=False, index=True)
-    passenger_id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), ForeignKey("auth.users.id", ondelete="CASCADE"), nullable=False, index=True)
+    passenger_id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), nullable=False, index=True)
     amount_estimated: Mapped[float | None] = mapped_column(Numeric(14, 2))
     amount_final: Mapped[float | None] = mapped_column(Numeric(14, 2))
     currency: Mapped[str] = mapped_column(String(10), default="PKR", nullable=False)
@@ -192,7 +195,7 @@ class RidePaymentORM(Base, TimestampMixin):
 
     id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     ride_id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), nullable=False, index=True)
-    passenger_id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), ForeignKey("auth.users.id", ondelete="CASCADE"), nullable=False, index=True)
+    passenger_id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), nullable=False, index=True)
     payment_intent_id: Mapped[uuid.UUID | None] = mapped_column(PgUUID(as_uuid=True), ForeignKey("payment.payment_intents.id", ondelete="SET NULL"))
     passenger_payment_method: Mapped[PassengerPaymentMethod] = mapped_column(SQLEnum(PassengerPaymentMethod, name="passenger_payment_method_enum", schema="payment"), nullable=False)
     collection_mode: Mapped[CollectionMode] = mapped_column(SQLEnum(CollectionMode, name="collection_mode_enum", schema="payment"), nullable=False)
@@ -225,7 +228,7 @@ class CommissionReservationORM(Base, TimestampMixin):
 
     id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     ride_id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), nullable=False, index=True)
-    driver_id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), ForeignKey("verification.drivers.id", ondelete="CASCADE"), nullable=False, index=True)
+    driver_id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), nullable=False, index=True)
     wallet_id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), ForeignKey("payment.wallets.id", ondelete="CASCADE"), nullable=False)
     commission_policy_id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), ForeignKey("payment.commission_policies.id", ondelete="RESTRICT"), nullable=False)
     rate_snapshot: Mapped[float] = mapped_column(Numeric(6, 4), nullable=False)

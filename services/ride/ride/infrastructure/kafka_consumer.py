@@ -14,7 +14,7 @@ from ..application.use_cases import InternalAssignDriverUseCase
 from .orm_models import RideInboxMessageORM
 from .outbox_publisher import RideOutboxPublisher
 from .repositories import ServiceRequestRepository
-from .websocket_manager import WebSocketManager
+from .websocket_manager import DriverEvent, WebSocketManager
 
 logger = logging.getLogger("ride.kafka_consumer")
 
@@ -93,19 +93,31 @@ class RideKafkaConsumer:
         data = payload.get("payload", {})
         ride_id = data.get("ride_id")
         pricing_mode = data.get("pricing_mode")
-        if event_type == "driver.matching.completed" and pricing_mode in {"BID_BASED", "HYBRID"}:
-            logger.info(
-                "Ignoring geospatial final assignment for bidding ride=%s mode=%s",
-                ride_id,
-                pricing_mode,
-            )
-            return
-
         driver_id = data.get("driver_id")
         if event_type == "driver.matching.completed" and not driver_id:
             selected_driver = data.get("selected_driver")
             if selected_driver:
                 driver_id = selected_driver.get("driver_id")
+
+        if event_type == "driver.matching.completed":
+            if not ride_id or not driver_id:
+                logger.error("%s missing ride_id or driver_id: %s", event_type, data)
+                return
+            await self._ws.broadcast_to_driver(
+                UUID(str(driver_id)),
+                DriverEvent.NEW_JOB,
+                {
+                    "ride_id": str(ride_id),
+                    "pricing_mode": pricing_mode,
+                },
+            )
+            logger.info(
+                "Notified driver=%s for matched ride=%s mode=%s",
+                driver_id,
+                ride_id,
+                pricing_mode,
+            )
+            return
 
         amount = data.get("amount")
         if not ride_id or not driver_id:

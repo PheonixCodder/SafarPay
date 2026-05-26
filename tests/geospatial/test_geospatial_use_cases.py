@@ -88,6 +88,24 @@ async def test_find_nearby_drivers_uses_distance_eta_fallback_when_matrix_fails(
 
 
 @pytest.mark.asyncio
+async def test_find_nearby_drivers_keeps_unknown_vehicle_type_from_location_service() -> None:
+    location = FakeLocationProvider([make_candidate(vehicle_type="OTHER")])
+
+    result = await FindNearbyDriversUseCase(
+        cast(Any, location),
+        cast(Any, FakeRouting()),
+    ).execute(
+        MatchingCriteria(
+            pickup=Coordinates(31.52, 74.35),
+            radius_km=5,
+            required_vehicle_type="CAR",
+        )
+    )
+
+    assert result[0].driver_id == DRIVER_ID
+
+
+@pytest.mark.asyncio
 async def test_match_driver_for_ride_applies_zone_and_surge_and_raises_when_empty() -> None:
     spatial = FakeSpatialRepo()
     find_uc = FindNearbyDriversUseCase(

@@ -6,6 +6,7 @@ from uuid import uuid4
 import pytest
 from bidding.application.use_cases import _bid_to_resp
 from bidding.domain.exceptions import (
+    BiddingDomainError,
     BiddingClosedError,
     BiddingSessionNotFoundError,
     BidNotFoundError,
@@ -23,6 +24,15 @@ from bidding.infrastructure.dependencies import (
     get_place_bid_uc,
     get_session_repo,
     get_withdraw_bid_uc,
+    get_ws_manager,
+    get_ws_manager_ws,
+)
+from bidding.infrastructure.orm_models import (
+    RideBidAcceptanceORM,
+    RideBidCounterOfferORM,
+    RideBidORM,
+    RideBidStatusHistoryORM,
+    RideBiddingSessionORM,
 )
 from fastapi import FastAPI
 from sp.infrastructure.security.dependencies import get_current_driver, get_current_user
@@ -65,6 +75,28 @@ def override(app: FastAPI, dependency: Any, value: Any) -> Any:
     return value
 
 
+def test_bidding_orm_keeps_external_service_ids_as_plain_uuid_columns() -> None:
+    external_tables = {
+        "auth.users",
+        "verification.drivers",
+        "verification.driver_vehicles",
+        "service_request.service_requests",
+    }
+
+    for orm_model in (
+        RideBiddingSessionORM,
+        RideBidORM,
+        RideBidStatusHistoryORM,
+        RideBidCounterOfferORM,
+        RideBidAcceptanceORM,
+    ):
+        referenced_tables = {
+            foreign_key.column.table.fullname for foreign_key in orm_model.__table__.foreign_keys
+        }
+
+        assert referenced_tables.isdisjoint(external_tables)
+
+
 def counter_response(counter: Any) -> dict[str, Any]:
     return {
         "id": counter.id,
@@ -81,7 +113,9 @@ def counter_response(counter: Any) -> dict[str, Any]:
     }
 
 
-def test_all_bidding_routes_success_and_actor_parameters(bidding_app: FastAPI, bidding_client: Any) -> None:
+def test_all_bidding_routes_success_and_actor_parameters(
+    bidding_app: FastAPI, bidding_client: Any
+) -> None:
     session = make_session(pricing_mode=PricingMode.HYBRID)
     bid = make_bid(session)
     counter = make_counter(session)
@@ -112,29 +146,53 @@ def test_all_bidding_routes_success_and_actor_parameters(bidding_app: FastAPI, b
     accept = override(bidding_app, get_accept_bid_uc, StubUseCase(_bid_to_resp(bid)))
     get_items = override(bidding_app, get_item_bids_uc, StubUseCase(item_response))
     withdraw = override(bidding_app, get_withdraw_bid_uc, StubUseCase(_bid_to_resp(bid)))
-    passenger_counter = override(bidding_app, get_passenger_counter_uc, StubUseCase(counter_response(counter)))
-    driver_accept_counter = override(bidding_app, get_driver_accept_counter_uc, StubUseCase(_bid_to_resp(bid)))
+    passenger_counter = override(
+        bidding_app, get_passenger_counter_uc, StubUseCase(counter_response(counter))
+    )
+    driver_accept_counter = override(
+        bidding_app, get_driver_accept_counter_uc, StubUseCase(_bid_to_resp(bid))
+    )
     override(bidding_app, get_counter_offer_repo, CounterRepoStub([counter]))
     override(bidding_app, get_session_repo, FakeSessionRepo(session))
 
-    assert bidding_client.post(
-        f"/api/v1/bidding/sessions/{session.id}/bids",
-        json={"bid_amount": 380, "eta_minutes": 10},
-    ).status_code == 201
-    assert bidding_client.post(
-        f"/api/v1/bidding/sessions/{session.id}/accept",
-        json={"bid_id": str(bid.id)},
-    ).status_code == 200
+    assert (
+        bidding_client.post(
+            f"/api/v1/bidding/sessions/{session.id}/bids",
+            json={"bid_amount": 380, "eta_minutes": 10},
+        ).status_code
+        == 201
+    )
+    assert (
+        bidding_client.post(
+            f"/api/v1/bidding/sessions/{session.id}/accept",
+            json={"bid_id": str(bid.id)},
+        ).status_code
+        == 200
+    )
     assert bidding_client.get(f"/api/v1/bidding/sessions/{session.id}").status_code == 200
-    assert bidding_client.post(f"/api/v1/bidding/sessions/{session.id}/bids/{bid.id}/withdraw").status_code == 200
-    assert bidding_client.post(
-        f"/api/v1/bidding/sessions/{session.id}/passenger-counter",
-        json={"counter_price": 375, "counter_eta_minutes": 12},
-    ).status_code == 201
-    assert bidding_client.post(
-        f"/api/v1/bidding/sessions/{session.id}/counter/{counter.id}/accept",
-    ).status_code == 200
-    assert bidding_client.get(f"/api/v1/bidding/sessions/{session.id}/counter-offers").status_code == 200
+    assert (
+        bidding_client.post(
+            f"/api/v1/bidding/sessions/{session.id}/bids/{bid.id}/withdraw"
+        ).status_code
+        == 200
+    )
+    assert (
+        bidding_client.post(
+            f"/api/v1/bidding/sessions/{session.id}/passenger-counter",
+            json={"counter_price": 375, "counter_eta_minutes": 12},
+        ).status_code
+        == 201
+    )
+    assert (
+        bidding_client.post(
+            f"/api/v1/bidding/sessions/{session.id}/counter/{counter.id}/accept",
+        ).status_code
+        == 200
+    )
+    assert (
+        bidding_client.get(f"/api/v1/bidding/sessions/{session.id}/counter-offers").status_code
+        == 200
+    )
 
     assert place.calls[0][2] == DRIVER_ID
     assert accept.calls[0][2] == PASSENGER_ID
@@ -149,18 +207,96 @@ def test_all_bidding_routes_success_and_actor_parameters(bidding_app: FastAPI, b
     [
         (get_place_bid_uc, BidTooLowError("too low"), "bids", "post", {"bid_amount": 400}, 409),
         (get_place_bid_uc, BiddingClosedError("closed"), "bids", "post", {"bid_amount": 400}, 422),
-        (get_place_bid_uc, BiddingSessionNotFoundError("missing"), "bids", "post", {"bid_amount": 400}, 404),
-        (get_place_bid_uc, UnauthorisedBiddingAccessError("forbidden"), "bids", "post", {"bid_amount": 400}, 403),
-        (get_accept_bid_uc, LockAcquisitionError("locked"), "accept", "post", {"bid_id": str(uuid4())}, 409),
-        (get_accept_bid_uc, BidNotFoundError("bad bid"), "accept", "post", {"bid_id": str(uuid4())}, 422),
-        (get_accept_bid_uc, UnauthorisedBiddingAccessError("forbidden"), "accept", "post", {"bid_id": str(uuid4())}, 403),
+        (
+            get_place_bid_uc,
+            BiddingSessionNotFoundError("missing"),
+            "bids",
+            "post",
+            {"bid_amount": 400},
+            404,
+        ),
+        (
+            get_place_bid_uc,
+            UnauthorisedBiddingAccessError("forbidden"),
+            "bids",
+            "post",
+            {"bid_amount": 400},
+            403,
+        ),
+        (
+            get_accept_bid_uc,
+            LockAcquisitionError("locked"),
+            "accept",
+            "post",
+            {"bid_id": str(uuid4())},
+            409,
+        ),
+        (
+            get_accept_bid_uc,
+            BidNotFoundError("bad bid"),
+            "accept",
+            "post",
+            {"bid_id": str(uuid4())},
+            422,
+        ),
+        (
+            get_accept_bid_uc,
+            UnauthorisedBiddingAccessError("forbidden"),
+            "accept",
+            "post",
+            {"bid_id": str(uuid4())},
+            403,
+        ),
+        (
+            get_accept_bid_uc,
+            BiddingDomainError("Service request failed"),
+            "accept",
+            "post",
+            {"bid_id": str(uuid4())},
+            502,
+        ),
         (get_item_bids_uc, BiddingSessionNotFoundError("missing"), "", "get", None, 404),
         (get_withdraw_bid_uc, BidNotFoundError("bad bid"), "withdraw", "post", None, 422),
-        (get_withdraw_bid_uc, UnauthorisedBiddingAccessError("forbidden"), "withdraw", "post", None, 403),
-        (get_passenger_counter_uc, BiddingClosedError("not hybrid"), "passenger-counter", "post", {"counter_price": 300}, 422),
-        (get_passenger_counter_uc, BiddingSessionNotFoundError("missing"), "passenger-counter", "post", {"counter_price": 300}, 404),
-        (get_driver_accept_counter_uc, LockAcquisitionError("locked"), "counter-accept", "post", None, 409),
-        (get_driver_accept_counter_uc, BidNotFoundError("missing"), "counter-accept", "post", None, 422),
+        (
+            get_withdraw_bid_uc,
+            UnauthorisedBiddingAccessError("forbidden"),
+            "withdraw",
+            "post",
+            None,
+            403,
+        ),
+        (
+            get_passenger_counter_uc,
+            BiddingClosedError("not hybrid"),
+            "passenger-counter",
+            "post",
+            {"counter_price": 300},
+            422,
+        ),
+        (
+            get_passenger_counter_uc,
+            BiddingSessionNotFoundError("missing"),
+            "passenger-counter",
+            "post",
+            {"counter_price": 300},
+            404,
+        ),
+        (
+            get_driver_accept_counter_uc,
+            LockAcquisitionError("locked"),
+            "counter-accept",
+            "post",
+            None,
+            409,
+        ),
+        (
+            get_driver_accept_counter_uc,
+            BidNotFoundError("missing"),
+            "counter-accept",
+            "post",
+            None,
+            422,
+        ),
     ],
 )
 def test_bidding_route_error_mappings(
@@ -191,31 +327,48 @@ def test_bidding_route_error_mappings(
     else:
         path = f"/api/v1/bidding/sessions/{session_id}"
 
-    response = getattr(bidding_client, method)(path, json=body) if body is not None else getattr(bidding_client, method)(path)
+    response = (
+        getattr(bidding_client, method)(path, json=body)
+        if body is not None
+        else getattr(bidding_client, method)(path)
+    )
 
     assert response.status_code == status_code
 
 
-def test_bidding_schema_validation_errors_return_422(bidding_app: FastAPI, bidding_client: Any) -> None:
+def test_bidding_schema_validation_errors_return_422(
+    bidding_app: FastAPI, bidding_client: Any
+) -> None:
     session_id = uuid4()
     override(bidding_app, get_place_bid_uc, StubUseCase())
     override(bidding_app, get_passenger_counter_uc, StubUseCase())
     override(bidding_app, get_accept_bid_uc, StubUseCase())
-    assert bidding_client.post(
-        f"/api/v1/bidding/sessions/{session_id}/bids",
-        json={"bid_amount": 0},
-    ).status_code == 422
-    assert bidding_client.post(
-        f"/api/v1/bidding/sessions/{session_id}/passenger-counter",
-        json={"counter_price": -1},
-    ).status_code == 422
-    assert bidding_client.post(
-        f"/api/v1/bidding/sessions/{session_id}/accept",
-        json={"bid_id": "not-a-uuid"},
-    ).status_code == 422
+    assert (
+        bidding_client.post(
+            f"/api/v1/bidding/sessions/{session_id}/bids",
+            json={"bid_amount": 0},
+        ).status_code
+        == 422
+    )
+    assert (
+        bidding_client.post(
+            f"/api/v1/bidding/sessions/{session_id}/passenger-counter",
+            json={"counter_price": -1},
+        ).status_code
+        == 422
+    )
+    assert (
+        bidding_client.post(
+            f"/api/v1/bidding/sessions/{session_id}/accept",
+            json={"bid_id": "not-a-uuid"},
+        ).status_code
+        == 422
+    )
 
 
-def test_counter_offers_endpoint_returns_all_statuses(bidding_app: FastAPI, bidding_client: Any) -> None:
+def test_counter_offers_endpoint_returns_all_statuses(
+    bidding_app: FastAPI, bidding_client: Any
+) -> None:
     session = make_session(pricing_mode=PricingMode.HYBRID)
     pending = make_counter(session, status=CounterOfferStatus.PENDING)
     accepted = make_counter(session, status=CounterOfferStatus.ACCEPTED)
@@ -231,16 +384,22 @@ def test_counter_offers_endpoint_returns_all_statuses(bidding_app: FastAPI, bidd
     assert response.json()[1]["driver_id"] == str(DRIVER_ID)
 
 
-def test_driver_and_passenger_dependency_overrides_are_separate(bidding_app: FastAPI, bidding_client: Any) -> None:
+def test_driver_and_passenger_dependency_overrides_are_separate(
+    bidding_app: FastAPI, bidding_client: Any
+) -> None:
     session = make_session()
     bid = make_bid(session, driver_id=OTHER_DRIVER_ID)
-    bidding_app.dependency_overrides[get_current_user] = lambda: token(PASSENGER_ID, role="passenger")
+    bidding_app.dependency_overrides[get_current_user] = lambda: token(
+        PASSENGER_ID, role="passenger"
+    )
     bidding_app.dependency_overrides[get_current_driver] = lambda: OTHER_DRIVER_ID
     place = override(bidding_app, get_place_bid_uc, StubUseCase(_bid_to_resp(bid)))
     accept = override(bidding_app, get_accept_bid_uc, StubUseCase(_bid_to_resp(bid)))
 
     bidding_client.post(f"/api/v1/bidding/sessions/{session.id}/bids", json={"bid_amount": 300})
-    bidding_client.post(f"/api/v1/bidding/sessions/{session.id}/accept", json={"bid_id": str(bid.id)})
+    bidding_client.post(
+        f"/api/v1/bidding/sessions/{session.id}/accept", json={"bid_id": str(bid.id)}
+    )
 
     assert place.calls[0][2] == OTHER_DRIVER_ID
     assert accept.calls[0][2] == PASSENGER_ID
@@ -254,3 +413,18 @@ def test_bid_response_preserves_status_and_driver_identity() -> None:
 
     assert response.driver_id == DRIVER_ID
     assert response.status == "ACTIVE"
+
+
+def test_ws_manager_dependency_supports_websocket_scope() -> None:
+    manager = object()
+
+    class State:
+        ws_manager = manager
+
+    class App:
+        state = State()
+
+    class WebSocketScope:
+        app = App()
+
+    assert get_ws_manager_ws(WebSocketScope()) is manager

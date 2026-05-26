@@ -15,6 +15,7 @@ from ride.application.use_cases import (
 )
 from ride.domain.exceptions import (
     InvalidStateTransitionError,
+    RideCompletionLocationError,
     RideNotFoundError,
     StopNotArrivedError,
     UnauthorisedRideAccessError,
@@ -39,6 +40,7 @@ from ride.infrastructure.dependencies import (
     get_start_ride_uc,
     get_upload_proof_uc,
     get_verify_code_uc,
+    get_ws_manager_ws,
 )
 from sp.infrastructure.security.dependencies import get_current_user, get_optional_driver_id
 
@@ -198,6 +200,7 @@ def test_proof_routes_use_driver_uuid_when_optional_driver_is_present(ride_app: 
         (get_accept_ride_uc, InvalidStateTransitionError("bad state"), 409),
         (get_start_ride_uc, VerificationCodeInvalidError("bad code"), 422),
         (get_complete_ride_uc, VerificationCodeExhaustedError("too many"), 429),
+        (get_complete_ride_uc, RideCompletionLocationError("too far"), 409),
         (get_mark_completed_uc, StopNotArrivedError("not arrived"), 409),
     ],
 )
@@ -261,6 +264,21 @@ def test_nearby_drivers_route_passes_query_parameters(ride_app: FastAPI, ride_cl
     assert response.status_code == 200
     assert uc.calls[0][0:3] == (31.5, 74.3, 7.0)
     assert uc.calls[0][3]["ride_id"] == ride_id
+
+
+def test_ws_manager_dependency_supports_websocket_scope() -> None:
+    manager = object()
+
+    class State:
+        ws_manager = manager
+
+    class App:
+        state = State()
+
+    class WebSocketScope:
+        app = App()
+
+    assert get_ws_manager_ws(WebSocketScope()) is manager
 
 
 def test_response_serializers_include_expected_datetime_and_identity_fields() -> None:

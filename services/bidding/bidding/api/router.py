@@ -1,4 +1,5 @@
 """Bidding API router."""
+
 from __future__ import annotations
 
 from typing import Annotated
@@ -32,6 +33,7 @@ from ..application.use_cases import (
     WithdrawBidUseCase,
 )
 from ..domain.exceptions import (
+    BiddingDomainError,
     BiddingClosedError,
     BiddingSessionNotFoundError,
     BidNotFoundError,
@@ -50,6 +52,7 @@ from ..infrastructure.dependencies import (
     get_session_repo,
     get_withdraw_bid_uc,
     get_ws_manager,
+    get_ws_manager_ws,
 )
 from ..infrastructure.websocket_manager import WebSocketManager
 
@@ -57,7 +60,9 @@ router = APIRouter(tags=["bidding"])
 logger = get_logger("bidding.api")
 
 
-@router.post("/sessions/{session_id}/bids", response_model=BidResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/sessions/{session_id}/bids", response_model=BidResponse, status_code=status.HTTP_201_CREATED
+)
 async def place_bid(
     session_id: UUID,
     req: PlaceBidRequest,
@@ -69,7 +74,9 @@ async def place_bid(
     except BidTooLowError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from None
     except BiddingClosedError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from None
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+        ) from None
     except BiddingSessionNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from None
     except UnauthorisedBiddingAccessError as exc:
@@ -80,7 +87,7 @@ async def place_bid(
 async def accept_bid(
     session_id: UUID,
     req: AcceptBidRequest,
-    current_user: CurrentUser, # Passengers
+    current_user: CurrentUser,  # Passengers
     use_case: Annotated[AcceptBidUseCase, Depends(get_accept_bid_uc)],
 ) -> BidResponse:
     try:
@@ -88,22 +95,36 @@ async def accept_bid(
     except LockAcquisitionError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from None
     except (BiddingClosedError, BidNotFoundError, BiddingSessionNotFoundError) as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from None
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+        ) from None
     except UnauthorisedBiddingAccessError as exc:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from None
+    except BiddingDomainError as exc:
+        logger.error("Accept bid failed due to upstream service error: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Unable to reserve commission for this bid. Please try again.",
+        ) from None
 
 
 @router.get("/sessions/by-ride/{ride_id}", response_model=ItemBidsResponse)
 async def get_bids_for_ride_session(
     ride_id: UUID,
     current_user: CurrentUser,
+    current_driver_id: OptionalDriverId,
     session_repo: Annotated[BiddingSessionRepositoryProtocol, Depends(get_session_repo)],
     use_case: Annotated[GetItemBidsUseCase, Depends(get_item_bids_uc)],
 ) -> ItemBidsResponse:
     session = await session_repo.find_by_ride(ride_id)
     if not session:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
-    if current_user.role != "admin" and session.passenger_user_id != current_user.user_id:
+    is_driver = current_driver_id is not None
+    if (
+        current_user.role != "admin"
+        and session.passenger_user_id != current_user.user_id
+        and not is_driver
+    ):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
     return await use_case.execute(session.id)
 
@@ -129,7 +150,9 @@ async def withdraw_bid(
     try:
         return await use_case.execute(session_id, bid_id, current_driver)
     except (BiddingClosedError, BidNotFoundError) as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from None
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+        ) from None
     except UnauthorisedBiddingAccessError as exc:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from None
 
@@ -159,7 +182,9 @@ async def submit_passenger_counter(
             counter_eta_minutes=req.counter_eta_minutes,
         )
     except BiddingClosedError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from None
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+        ) from None
     except BiddingSessionNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from None
     except UnauthorisedBiddingAccessError as exc:
@@ -201,6 +226,12 @@ async def accept_passenger_counter(
         ) from None
     except UnauthorisedBiddingAccessError as exc:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from None
+    except BiddingDomainError as exc:
+        logger.error("Accept passenger counter failed due to upstream service error: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Unable to reserve commission for this offer. Please try again.",
+        ) from None
 
 
 @router.get(
@@ -233,26 +264,28 @@ async def get_counter_offers(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
     results = []
     for co_domain in counter_offers:
-        results.append(CounterOfferResponse(
-            id=co_domain.id,
-            session_id=co_domain.session_id,
-            price=co_domain.price,
-            eta_minutes=co_domain.eta_minutes,
-            user_id=co_domain.user_id,
-            driver_id=co_domain.driver_id,
-            bid_id=co_domain.bid_id,
-            status=co_domain.status.value,
-            responded_at=co_domain.responded_at,
-            reason=co_domain.reason,
-            created_at=co_domain.created_at,
-        ))
+        results.append(
+            CounterOfferResponse(
+                id=co_domain.id,
+                session_id=co_domain.session_id,
+                price=co_domain.price,
+                eta_minutes=co_domain.eta_minutes,
+                user_id=co_domain.user_id,
+                driver_id=co_domain.driver_id,
+                bid_id=co_domain.bid_id,
+                status=co_domain.status.value,
+                responded_at=co_domain.responded_at,
+                reason=co_domain.reason,
+                created_at=co_domain.created_at,
+            )
+        )
     return results
 
 
 @router.websocket("/ws/drivers")
 async def driver_websocket(
     websocket: WebSocket,
-    manager: Annotated[WebSocketManager, Depends(get_ws_manager)],
+    manager: Annotated[WebSocketManager, Depends(get_ws_manager_ws)],
     session_repo: Annotated[BiddingSessionRepositoryProtocol, Depends(get_session_repo)],
     driver_id: Annotated[UUID, Depends(get_current_driver_ws)],
 ):
@@ -272,7 +305,7 @@ async def driver_websocket(
 @router.websocket("/ws/passengers")
 async def passenger_websocket(
     websocket: WebSocket,
-    manager: Annotated[WebSocketManager, Depends(get_ws_manager)],
+    manager: Annotated[WebSocketManager, Depends(get_ws_manager_ws)],
     session_repo: Annotated[BiddingSessionRepositoryProtocol, Depends(get_session_repo)],
     token_payload: Annotated[TokenPayload, Depends(get_current_user_ws)],
 ):

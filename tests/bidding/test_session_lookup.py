@@ -71,6 +71,7 @@ async def test_get_bids_for_ride_session_returns_owned_passenger_session() -> No
     response = await get_bids_for_ride_session(
         ride_id=ride_id,
         current_user=_token(passenger_id),
+        current_driver_id=None,
         session_repo=repo,
         use_case=use_case,
     )
@@ -95,6 +96,7 @@ async def test_get_bids_for_ride_session_rejects_unrelated_passenger() -> None:
         await get_bids_for_ride_session(
             ride_id=session.service_request_id,
             current_user=_token(uuid4()),
+            current_driver_id=None,
             session_repo=FakeSessionRepository(session),
             use_case=FakeGetItemBidsUseCase(),
         )

@@ -79,13 +79,36 @@ class ResilientHttpClient:
     async def _post(self, path: str, payload: dict[str, Any], *, idempotency_key: str) -> dict[str, Any]:
         if not self._client:
             raise BiddingDomainError("Client not started.")
-        try:
-            resp = await self._client.post(path, json=payload, headers={"Idempotency-Key": idempotency_key})
-            if resp.status_code >= 400:
-                raise BiddingDomainError(f"HTTP {resp.status_code}: {resp.text[:200]}")
-            return resp.json() if resp.content else {}
-        except (httpx.TransportError, httpx.TimeoutException) as exc:
-            raise BiddingDomainError("Service request failed") from exc
+
+        last_exc: httpx.TransportError | httpx.TimeoutException | None = None
+        for attempt in range(1, self._max_retries + 1):
+            try:
+                resp = await self._client.post(
+                    path,
+                    json=payload,
+                    headers={"Idempotency-Key": idempotency_key},
+                )
+                if resp.status_code >= 500 and attempt < self._max_retries:
+                    await asyncio.sleep(0.1 * attempt)
+                    continue
+                if resp.status_code >= 400:
+                    raise BiddingDomainError(f"HTTP {resp.status_code}: {resp.text[:200]}")
+                self._failures = 0
+                return resp.json() if resp.content else {}
+            except (httpx.TransportError, httpx.TimeoutException) as exc:
+                last_exc = exc
+                self._failures += 1
+                if attempt == self._max_retries:
+                    logger.error(
+                        "HTTP POST %s failed after %d attempts: %s",
+                        path,
+                        self._max_retries,
+                        exc,
+                    )
+                    raise BiddingDomainError("Service request failed") from exc
+                await asyncio.sleep(0.1 * attempt)
+
+        raise BiddingDomainError("Service request failed") from last_exc
 
 # ** TODO Fix all clients
 class RideServiceClient(ResilientHttpClient, RideServiceClientProtocol):
@@ -117,7 +140,7 @@ class DriverEligibilityClient(ResilientHttpClient, DriverEligibilityClientProtoc
 
 class PaymentClient(ResilientHttpClient, PaymentClientProtocol):
     def __init__(self, base_url: str) -> None:
-        super().__init__(base_url, timeout=2.0, max_retries=1)
+        super().__init__(base_url, timeout=3.0, max_retries=2)
 
     async def reserve_commission(
         self,

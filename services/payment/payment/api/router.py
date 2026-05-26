@@ -15,6 +15,8 @@ from ..application.schemas import (
     CreateRidePaymentRequest,
     CreateSandboxCardRequest,
     CreateTopupRequest,
+    DriverEarningsPeriod,
+    DriverEarningsResponse,
     EligibilityRequest,
     EligibilityResponse,
     LedgerEntryResponse,
@@ -30,6 +32,7 @@ from ..application.schemas import (
 )
 from ..application.use_cases import (
     CommissionUseCases,
+    DriverEarningsUseCases,
     PaymentMethodUseCases,
     RidePaymentUseCases,
     WalletUseCases,
@@ -41,6 +44,7 @@ from ..domain.exceptions import (
 )
 from ..infrastructure.dependencies import (
     get_commission_uc,
+    get_driver_earnings_uc,
     get_payment_method_uc,
     get_ride_payment_uc,
     get_wallet_uc,
@@ -127,6 +131,15 @@ async def get_ledger(
         )
         for e in entries
     ]
+
+
+@router.get("/earnings/me", response_model=DriverEarningsResponse)
+async def get_driver_earnings(
+    driver_id: CurrentDriver,
+    uc: Annotated[DriverEarningsUseCases, Depends(get_driver_earnings_uc)],
+    period: DriverEarningsPeriod = Query(default="today"),
+) -> DriverEarningsResponse:
+    return await uc.get_earnings(driver_id, period)
 
 
 @router.post("/wallets/topups", response_model=TopupResponse, status_code=status.HTTP_201_CREATED)

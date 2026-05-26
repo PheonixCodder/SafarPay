@@ -224,8 +224,8 @@ def _build_detail_orm(
             is_pet_allowed=detail.get("is_pet_allowed", False),
             requires_wheelchair_access=detail.get("requires_wheelchair_access", False),
             max_wait_time_minutes=detail.get("max_wait_time_minutes"),
-            requires_otp_start=detail.get("requires_otp_start", True),
-            requires_otp_end=detail.get("requires_otp_end", True),
+            requires_otp_start=detail.get("requires_otp_start", False),
+            requires_otp_end=detail.get("requires_otp_end", False),
             estimated_price=detail.get("estimated_price"),
             surge_multiplier_applied=detail.get("surge_multiplier_applied"),
         )
@@ -438,6 +438,55 @@ class ServiceRequestRepository:
         )
         orm = result.scalar_one_or_none()
         return _ride_orm_to_domain(orm) if orm else None
+
+    async def find_available_for_driver(
+        self,
+        driver_id: UUID,
+        *,
+        limit: int = 50,
+    ) -> list[ServiceRequest]:
+        capability_rows = await self._session.execute(
+            sqlalchemy.text(
+                """
+                SELECT dsc.service_type
+                FROM verification.driver_service_capabilities dsc
+                JOIN verification.drivers d ON d.id = dsc.driver_id
+                WHERE d.id = :driver_id
+                  AND dsc.is_active = true
+                  AND d.verification_status::text IN ('VERIFIED', 'verified')
+                """
+            ),
+            {"driver_id": driver_id},
+        )
+        service_types = [row[0] for row in capability_rows.fetchall()]
+        if not service_types:
+            return []
+
+        from .orm_models import ServiceType as OrmServiceType
+
+        orm_service_types = [
+            getattr(OrmServiceType, service_type)
+            for service_type in service_types
+            if hasattr(OrmServiceType, service_type)
+        ]
+        if not orm_service_types:
+            return []
+
+        result = await self._session.execute(
+            select(ServiceRequestORM)
+            .where(
+                ServiceRequestORM.assigned_driver_id.is_(None),
+                ServiceRequestORM.status == RequestStatus.MATCHING,
+                ServiceRequestORM.service_type.in_(orm_service_types),
+            )
+            .options(
+                selectinload(ServiceRequestORM.stops),
+                selectinload(ServiceRequestORM.city_ride),
+            )
+            .order_by(ServiceRequestORM.created_at.desc())
+            .limit(limit)
+        )
+        return [_ride_orm_to_domain(o) for o in result.scalars().all()]
 
     async def update_status(
         self,

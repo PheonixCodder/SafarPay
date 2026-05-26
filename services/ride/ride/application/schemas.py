@@ -201,8 +201,8 @@ class CityRideDetailInput(BaseModel):
     is_pet_allowed: bool = False
     requires_wheelchair_access: bool = False
     max_wait_time_minutes: int | None = Field(None, ge=0)
-    requires_otp_start: bool = True
-    requires_otp_end: bool = True
+    requires_otp_start: bool = False
+    requires_otp_end: bool = False
     estimated_price: float | None = Field(None, ge=0)
     surge_multiplier_applied: float | None = Field(None, ge=1)
 
@@ -367,6 +367,9 @@ class VerifyAndCompleteRequest(BaseModel):
     """
     verification_code: str | None = Field(None, min_length=4, max_length=10)
     final_price: float | None = Field(None, ge=0)
+    driver_latitude: float | None = Field(None, ge=-90, le=90)
+    driver_longitude: float | None = Field(None, ge=-180, le=180)
+    accuracy_meters: float | None = Field(None, ge=0)
 
 
 class AddStopRequest(BaseModel):
@@ -447,6 +450,36 @@ class NearbyDriversResponse(BaseModel):
     ride_id: UUID | None
     candidates: list[DriverCandidateResponse]
     count: int
+
+
+class DriverRouteSummaryResponse(BaseModel):
+    distance_km: float
+    duration_minutes: float
+    polyline: str | None = None
+
+
+class DriverRideRequestResponse(BaseModel):
+    id: UUID
+    passenger_id: UUID
+    service_type: ServiceType
+    category: ServiceCategory
+    pricing_mode: PricingMode
+    status: RideStatus
+    baseline_min_price: float | None
+    baseline_max_price: float | None
+    final_price: float | None
+    passenger_payment_method: PassengerPaymentMethod
+    payment_collection_mode: PaymentCollectionMode
+    created_at: datetime
+    pickup_stop: StopResponse | None
+    dropoff_stop: StopResponse | None
+    driver_to_pickup: DriverRouteSummaryResponse | None = None
+    trip_route: DriverRouteSummaryResponse | None = None
+
+
+class DriverActiveRideResponse(RideResponse):
+    driver_to_pickup: DriverRouteSummaryResponse | None = None
+    trip_route: DriverRouteSummaryResponse | None = None
 
 
 class PaginatedRidesResponse(BaseModel):

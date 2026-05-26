@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import select, update
+from sqlalchemy import select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..application.schemas import (
@@ -12,6 +12,10 @@ from ..application.schemas import (
     CreateRidePaymentRequest,
     CreateSandboxCardRequest,
     CreateTopupRequest,
+    DriverEarningsBreakdownItem,
+    DriverEarningsResponse,
+    DriverEarningsSummary,
+    DriverEarningsTrip,
 )
 from .orm_models import (
     CollectionMode,
@@ -47,6 +51,25 @@ def _wallet_snapshot(wallet: WalletORM) -> dict[str, float]:
     }
 
 
+def _period_bounds(period: str) -> tuple[datetime, datetime, list[date]]:
+    now = datetime.now(timezone.utc)
+    today = now.date()
+    if period == "today":
+        start_day = today
+    elif period == "month":
+        start_day = today.replace(day=1)
+    else:
+        start_day = today - timedelta(days=6)
+
+    start = datetime.combine(start_day, time.min, tzinfo=timezone.utc)
+    days = [start_day + timedelta(days=offset) for offset in range((today - start_day).days + 1)]
+    return start, now, days
+
+
+def _date_label(value: date) -> str:
+    return value.strftime("%a")
+
+
 class PaymentRepository:
     def __init__(self, session: AsyncSession, event_topic: str = "payment-events") -> None:
         self._session = session
@@ -61,6 +84,169 @@ class PaymentRepository:
         self._session.add(wallet)
         await self._session.flush()
         return wallet
+
+    async def get_driver_earnings(self, driver_id: UUID, period: str) -> DriverEarningsResponse:
+        start, end, days = _period_bounds(period)
+        wallet = await self.get_or_create_wallet(driver_id)
+        stats = await self._driver_stats(driver_id)
+        trips = await self._driver_completed_trip_rows(driver_id, start, end)
+
+        gross_fares = _money(sum(float(row["final_fare"] or 0) for row in trips))
+        commission_total = _money(sum(float(row["commission"] or 0) for row in trips))
+        cash_collected = _money(
+            sum(
+                float(row["final_fare"] or 0)
+                for row in trips
+                if (row["collection_mode"] or "") == CollectionMode.DRIVER_COLLECTED.value
+            )
+        )
+        platform_collected = _money(
+            sum(
+                float(row["final_fare"] or 0)
+                for row in trips
+                if (row["collection_mode"] or "") == CollectionMode.PLATFORM_COLLECTED.value
+            )
+        )
+        active_minutes = sum(int(row["active_minutes"] or 0) for row in trips)
+
+        by_day: dict[date, dict[str, float | int]] = {
+            day: {
+                "gross_fares": 0.0,
+                "commission_total": 0.0,
+                "net_earnings": 0.0,
+                "completed_trips": 0,
+            }
+            for day in days
+        }
+        for row in trips:
+            completed_at = row["completed_at"]
+            completed_day = completed_at.date()
+            if completed_day not in by_day:
+                continue
+            final_fare = _money(row["final_fare"])
+            commission = _money(row["commission"])
+            by_day[completed_day]["gross_fares"] = _money(by_day[completed_day]["gross_fares"] + final_fare)
+            by_day[completed_day]["commission_total"] = _money(by_day[completed_day]["commission_total"] + commission)
+            by_day[completed_day]["net_earnings"] = _money(by_day[completed_day]["net_earnings"] + final_fare - commission)
+            by_day[completed_day]["completed_trips"] = int(by_day[completed_day]["completed_trips"]) + 1
+
+        return DriverEarningsResponse(
+            period=period,  # type: ignore[arg-type]
+            currency=wallet.currency,
+            summary=DriverEarningsSummary(
+                net_earnings=_money(gross_fares - commission_total),
+                gross_fares=gross_fares,
+                commission_total=commission_total,
+                available_balance=_money(wallet.available_balance),
+                reserved_balance=_money(wallet.reserved_balance),
+                completed_trips=len(trips),
+                active_minutes=active_minutes,
+                rating_avg=stats["rating_avg"],
+                cash_collected=cash_collected,
+                platform_collected=platform_collected,
+            ),
+            daily_breakdown=[
+                DriverEarningsBreakdownItem(
+                    label=_date_label(day),
+                    date=day.isoformat(),
+                    gross_fares=_money(values["gross_fares"]),
+                    commission_total=_money(values["commission_total"]),
+                    net_earnings=_money(values["net_earnings"]),
+                    completed_trips=int(values["completed_trips"]),
+                )
+                for day, values in by_day.items()
+            ],
+            recent_trips=[
+                DriverEarningsTrip(
+                    ride_id=row["ride_id"],
+                    completed_at=row["completed_at"],
+                    pickup_label=row["pickup_label"] or "Pickup",
+                    dropoff_label=row["dropoff_label"] or "Dropoff",
+                    service_type=row["service_type"] or "CITY_RIDE",
+                    final_fare=_money(row["final_fare"]),
+                    commission=_money(row["commission"]),
+                    net_earning=_money(_money(row["final_fare"]) - _money(row["commission"])),
+                    collection_mode=row["collection_mode"] or CollectionMode.DRIVER_COLLECTED.value,
+                )
+                for row in trips[:10]
+            ],
+            withdraw_available=False,
+            withdraw_unavailable_reason="Withdrawals are not enabled yet.",
+        )
+
+    async def _driver_stats(self, driver_id: UUID) -> dict[str, float | None]:
+        result = await self._session.execute(
+            text(
+                """
+                SELECT rating_avg
+                FROM verification.driver_stats
+                WHERE driver_id = :driver_id
+                LIMIT 1
+                """
+            ),
+            {"driver_id": driver_id},
+        )
+        row = result.mappings().first()
+        return {"rating_avg": _money(row["rating_avg"]) if row and row["rating_avg"] is not None else None}
+
+    async def _driver_completed_trip_rows(self, driver_id: UUID, start: datetime, end: datetime) -> list[dict[str, Any]]:
+        result = await self._session.execute(
+            text(
+                """
+                WITH commission_by_ride AS (
+                    SELECT
+                        ride_id,
+                        driver_id,
+                        SUM(COALESCE(captured_amount, 0)) AS commission
+                    FROM payment.commission_reservations
+                    WHERE driver_id = :driver_id
+                    GROUP BY ride_id, driver_id
+                ),
+                first_pickup AS (
+                    SELECT DISTINCT ON (service_request_id)
+                        service_request_id,
+                        COALESCE(place_name, address_line_1, city, 'Pickup') AS pickup_label
+                    FROM service_request.service_stops
+                    WHERE stop_type = 'PICKUP'
+                    ORDER BY service_request_id, sequence_order ASC
+                ),
+                last_dropoff AS (
+                    SELECT DISTINCT ON (service_request_id)
+                        service_request_id,
+                        COALESCE(place_name, address_line_1, city, 'Dropoff') AS dropoff_label
+                    FROM service_request.service_stops
+                    WHERE stop_type = 'DROPOFF'
+                    ORDER BY service_request_id, sequence_order DESC
+                )
+                SELECT
+                    sr.id AS ride_id,
+                    COALESCE(sr.completed_at, sr.updated_at, sr.created_at) AS completed_at,
+                    fp.pickup_label,
+                    ld.dropoff_label,
+                    sr.service_type::text AS service_type,
+                    COALESCE(rp.amount_final, sr.final_price, ba.final_price, 0) AS final_fare,
+                    COALESCE(cbr.commission, 0) AS commission,
+                    COALESCE(rp.collection_mode::text, sr.payment_collection_mode, 'DRIVER_COLLECTED') AS collection_mode,
+                    GREATEST(
+                        0,
+                        FLOOR(EXTRACT(EPOCH FROM (COALESCE(sr.completed_at, sr.updated_at, sr.created_at) - COALESCE(sr.accepted_at, sr.created_at))) / 60)
+                    )::int AS active_minutes
+                FROM service_request.service_requests sr
+                LEFT JOIN payment.ride_payments rp ON rp.ride_id = sr.id
+                LEFT JOIN commission_by_ride cbr ON cbr.ride_id = sr.id AND cbr.driver_id = sr.assigned_driver_id
+                LEFT JOIN bidding.bid_acceptances ba ON ba.service_request_id = sr.id
+                LEFT JOIN first_pickup fp ON fp.service_request_id = sr.id
+                LEFT JOIN last_dropoff ld ON ld.service_request_id = sr.id
+                WHERE sr.assigned_driver_id = :driver_id
+                  AND sr.status = 'COMPLETED'
+                  AND COALESCE(sr.completed_at, sr.updated_at, sr.created_at) >= :start
+                  AND COALESCE(sr.completed_at, sr.updated_at, sr.created_at) <= :end
+                ORDER BY completed_at DESC
+                """
+            ),
+            {"driver_id": driver_id, "start": start, "end": end},
+        )
+        return [dict(row) for row in result.mappings().all()]
 
     async def _locked_wallet(self, wallet_id: UUID) -> WalletORM:
         result = await self._session.execute(

@@ -122,17 +122,18 @@ class ServiceRequestORM(Base, TimestampMixin):
 
     id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
+    # Cross-service references are UUIDs at ORM runtime. The ride service must
+    # not import Auth/Verification ORM metadata just to sort its own tables.
+    # Database migrations can still enforce external constraints where needed.
     # PASSENGER ONLY (source of truth)
     user_id: Mapped[uuid.UUID] = mapped_column(
         PgUUID(as_uuid=True),
-        ForeignKey("auth.users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
 
     assigned_driver_id: Mapped[uuid.UUID | None] = mapped_column(
         PgUUID(as_uuid=True),
-        ForeignKey("verification.drivers.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
     )
@@ -375,8 +376,8 @@ class CityRideDetailORM(Base, TimestampMixin):
     requires_wheelchair_access: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     max_wait_time_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    requires_otp_start: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    requires_otp_end: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    requires_otp_start: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    requires_otp_end: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     estimated_price: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
     surge_multiplier_applied: Mapped[float | None] = mapped_column(Numeric(5, 2), nullable=True)
@@ -545,14 +546,12 @@ class ServiceProofImageORM(Base, TimestampMixin):
 
     uploaded_by_user_id: Mapped[uuid.UUID] = mapped_column(
         PgUUID(as_uuid=True),
-        ForeignKey("auth.users.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
     )
 
     uploaded_by_driver_id: Mapped[uuid.UUID] = mapped_column(
         PgUUID(as_uuid=True),
-        ForeignKey("verification.drivers.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
     )
@@ -595,12 +594,10 @@ class ServiceVerificationCodeORM(Base, TimestampMixin):
     verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     verified_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
         PgUUID(as_uuid=True),
-        ForeignKey("auth.users.id", ondelete="SET NULL"),
         nullable=True
     )
     verified_by_driver_id: Mapped[uuid.UUID | None] = mapped_column(
         PgUUID(as_uuid=True),
-        ForeignKey("verification.drivers.id", ondelete="SET NULL"),
         nullable=True
     )
 

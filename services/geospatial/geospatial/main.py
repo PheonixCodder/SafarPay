@@ -167,7 +167,7 @@ def create_app() -> FastAPI:
                 "status": "ok",
                 "service": SERVICE_NAME,
                 "postgis": postgis_status,
-                "environment": request.app.state.metrics._service_name,
+                "environment": SERVICE_NAME,
             },
             status_code=status.HTTP_200_OK,
         )

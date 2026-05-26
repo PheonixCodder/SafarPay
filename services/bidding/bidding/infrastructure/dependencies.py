@@ -1,9 +1,10 @@
 """Bidding DI providers."""
+
 from __future__ import annotations
 
 from typing import Annotated, Any
 
-from fastapi import Depends, Request
+from fastapi import Depends, Request, WebSocket
 from sp.infrastructure.cache.manager import CacheManager
 from sp.infrastructure.db.session import get_async_session, register_post_commit_hook
 from sp.infrastructure.messaging.publisher import EventPublisher
@@ -58,6 +59,10 @@ def get_publisher(request: Request) -> EventPublisher | None:
 
 def get_ws_manager(request: Request) -> WebSocketManager:
     return request.app.state.ws_manager
+
+
+def get_ws_manager_ws(websocket: WebSocket) -> WebSocketManager:
+    return websocket.app.state.ws_manager
 
 
 def get_webhook_client(request: Request) -> WebhookClientProtocol:
@@ -119,7 +124,12 @@ def get_item_bids_uc(
     counter_offer_repo: Annotated[CounterOfferRepositoryProtocol, Depends(get_counter_offer_repo)],
     request: Request,
 ) -> GetItemBidsUseCase:
-    return GetItemBidsUseCase(session_repo=session_repo, bid_repo=bid_repo, counter_offer_repo=counter_offer_repo, cache=get_cache(request))
+    return GetItemBidsUseCase(
+        session_repo=session_repo,
+        bid_repo=bid_repo,
+        counter_offer_repo=counter_offer_repo,
+        cache=get_cache(request),
+    )
 
 
 def get_withdraw_bid_uc(

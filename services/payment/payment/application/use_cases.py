@@ -18,6 +18,7 @@ from .schemas import (
     CreateRidePaymentRequest,
     CreateSandboxCardRequest,
     CreateTopupRequest,
+    DriverEarningsPeriod,
     EligibilityRequest,
     ReleaseCommissionRequest,
     ReserveCommissionRequest,
@@ -183,3 +184,11 @@ class CommissionUseCases:
 
     async def expire_stale(self) -> int:
         return await self._repo.expire_stale_reservations()
+
+
+class DriverEarningsUseCases:
+    def __init__(self, repo) -> None:
+        self._repo = repo
+
+    async def get_earnings(self, driver_id: UUID, period: DriverEarningsPeriod):
+        return await self._repo.get_driver_earnings(driver_id, period)

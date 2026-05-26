@@ -132,7 +132,10 @@ class FindNearbyDriversUseCase:
     ) -> list[DriverCandidate]:
         out: list[DriverCandidate] = []
         for c in candidates:
-            if criteria.required_vehicle_type and c.vehicle_type != criteria.required_vehicle_type:
+            if (
+                criteria.required_vehicle_type
+                and c.vehicle_type not in {criteria.required_vehicle_type, "OTHER", ""}
+            ):
                 continue
             if criteria.min_rating and (c.rating or 0) < criteria.min_rating:
                 continue

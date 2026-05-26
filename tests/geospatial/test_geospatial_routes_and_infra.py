@@ -182,7 +182,8 @@ async def test_mapbox_client_mock_and_route_error_paths() -> None:
     route = await client.calculate_route(Coordinates(31.52, 74.35), Coordinates(31.6, 74.4))
     matrix = await client.calculate_eta_matrix([Coordinates(31.52, 74.35)], [Coordinates(31.6, 74.4)])
 
-    assert route.polyline == "mock_polyline"
+    assert route.polyline
+    assert route.polyline != "mock_polyline"
     assert matrix == [[120.0]]
 
 

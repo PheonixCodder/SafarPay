@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -194,3 +195,50 @@ class CollectionConfirmationResponse(BaseModel):
     confirmed_by_driver_at: datetime
     confirmed_by_passenger_at: datetime | None
     is_disputed: bool
+
+
+DriverEarningsPeriod = Literal["today", "week", "month"]
+
+
+class DriverEarningsSummary(BaseModel):
+    net_earnings: float
+    gross_fares: float
+    commission_total: float
+    available_balance: float
+    reserved_balance: float
+    completed_trips: int
+    active_minutes: int
+    rating_avg: float | None
+    cash_collected: float
+    platform_collected: float
+
+
+class DriverEarningsBreakdownItem(BaseModel):
+    label: str
+    date: str
+    gross_fares: float
+    commission_total: float
+    net_earnings: float
+    completed_trips: int
+
+
+class DriverEarningsTrip(BaseModel):
+    ride_id: UUID
+    completed_at: datetime
+    pickup_label: str
+    dropoff_label: str
+    service_type: str
+    final_fare: float
+    commission: float
+    net_earning: float
+    collection_mode: str
+
+
+class DriverEarningsResponse(BaseModel):
+    period: DriverEarningsPeriod
+    currency: str
+    summary: DriverEarningsSummary
+    daily_breakdown: list[DriverEarningsBreakdownItem]
+    recent_trips: list[DriverEarningsTrip]
+    withdraw_available: bool = False
+    withdraw_unavailable_reason: str | None = None
