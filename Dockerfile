@@ -53,6 +53,10 @@ RUN if [ "$SERVICE_NAME" = "verification" ]; then \
         apt-get update && \
         apt-get install -y --no-install-recommends libgl1 libglib2.0-0 libgomp1 && \
         rm -rf /var/lib/apt/lists/*; \
+    elif [ "$SERVICE_NAME" = "location" ]; then \
+        apt-get update && \
+        apt-get install -y --no-install-recommends libexpat1 && \
+        rm -rf /var/lib/apt/lists/*; \
     fi
 
 # Non-root user for security

@@ -313,3 +313,45 @@ class Address:
     city: str | None = None
     country: str | None = None
     postal_code: str | None = None
+
+
+@dataclass
+class Place:
+    """Canonical searchable place owned by the Location service."""
+
+    name: str
+    formatted: str
+    coordinates: Coordinates
+    place_type: str
+    source: str
+    source_key: str
+    country_code: str = "PK"
+    street: str | None = None
+    city: str | None = None
+    district: str | None = None
+    region: str | None = None
+    country: str | None = None
+    postal_code: str | None = None
+    popularity: int = 0
+    is_verified: bool = False
+
+
+@dataclass
+class PlaceSearchResult:
+    """Ranked place search candidate."""
+
+    place: Place
+    confidence: float
+    distance_meters: float | None = None
+
+    @property
+    def formatted(self) -> str:
+        return self.place.formatted
+
+    @property
+    def coordinates(self) -> Coordinates:
+        return self.place.coordinates
+
+    @property
+    def source(self) -> str:
+        return self.place.source

@@ -25,6 +25,81 @@ Identity rule:
 
 ---
 
+## Local-First Place Search
+
+Route:
+
+```text
+POST /api/v1/location/places/search
+```
+
+Schema:
+
+```python
+class PlaceSearchRequest(BaseModel):
+    query: str
+    latitude: float | None = None
+    longitude: float | None = None
+    limit: int = 10
+    country_code: str = "PK"
+```
+
+Flow:
+
+1. The request is normalized with `location.maps.normalization.normalise_search_query`.
+2. `SearchPlacesUseCase` queries `location.places` and `location.place_aliases`.
+3. Results are ranked by trigram similarity, optional proximity, popularity, and `is_verified`.
+4. If the best local result meets `LOCATION_SEARCH_MIN_CONFIDENCE`, the service returns local data only.
+5. If local data is empty or low confidence and `LOCATION_MAPBOX_FALLBACK_ENABLED=true`, Mapbox is queried.
+6. Mapbox fallback results are returned as `source=MAPBOX_TEMPORARY` and are not stored.
+7. Every lookup records one row in `location.place_search_events` for gap analysis.
+
+Response:
+
+```python
+class PlaceSearchResponse(BaseModel):
+    results: list[PlaceSearchResultResponse]
+```
+
+Local storage:
+
+- `location.places`: canonical OSM/curated places with generated PostGIS point.
+- `location.place_aliases`: alternate names and local spellings.
+- `location.place_search_events`: search telemetry.
+- `location.place_import_runs`: bulk import audit trail.
+
+OSM import:
+
+```bash
+python -m location.maps.import_osm --file services/location/location/maps/pakistan.osm.pbf
+```
+
+The importer reads `services/location/location/maps/pakistan.osm.pbf`, extracts city/town/neighbourhood/POI nodes, upserts them into `location.places`, and stores aliases from OSM name tags. It requires the location service dependencies, including `osmium`.
+
+Curated import:
+
+```bash
+python -m location.maps.import_curated --file services/location/location/maps/pakistan_lahore_seed.csv
+```
+
+Curated places are stored with `source=CURATED`, `is_verified=true`, and explicit aliases. Search ranking prioritizes exact name/alias matches, then curated/verified places, then OSM results. The Lahore seed is the first production-quality layer and should be expanded from real failed searches in `location.place_search_events`.
+
+Mapbox policy:
+
+- `LOCATION_MAPBOX_FALLBACK_ENABLED=true` allows fallback lookups when local confidence is low.
+- `LOCATION_MAPBOX_PERMANENT_GEOCODING=false` means fallback results must remain temporary and must not be persisted.
+- Use curated/OSM imports for permanent data expansion.
+
+Legacy route:
+
+```text
+POST /api/v1/location/geocode
+```
+
+This route now checks local places first, then falls back to Mapbox. It remains for older client flows.
+
+---
+
 ## Update Driver Location (HTTP Fallback)
 
 Route:

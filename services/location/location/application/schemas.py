@@ -32,6 +32,7 @@ class LocationUpdateRequest(BaseModel):
     speed: float | None = Field(None, ge=0.0, description="Speed in km/h")
     heading: float | None = Field(None, ge=0.0, le=360.0, description="Heading in degrees (0=North)")
     ts: int = Field(..., description="Unix epoch milliseconds (client device clock)")
+    ride_id: UUID | None = Field(None, description="Active ride id for ride-scoped driver tracking")
 
 
 class DriverStatusRequest(BaseModel):
@@ -154,6 +155,25 @@ class AddressResponse(BaseModel):
     city: str | None = None
     country: str | None = None
     postal_code: str | None = None
+
+
+class PlaceSearchRequest(BaseModel):
+    query: str = Field(..., min_length=3, examples=["Askari 10 Lahore"])
+    latitude: float | None = Field(None, ge=-90, le=90)
+    longitude: float | None = Field(None, ge=-180, le=180)
+    limit: int = Field(default=10, gt=0, le=20)
+    country_code: str = Field(default="PK", min_length=2, max_length=2)
+
+
+class PlaceSearchResultResponse(AddressResponse):
+    source: str
+    confidence: float = Field(..., ge=0.0, le=1.0)
+    distance_meters: float | None = Field(None, ge=0.0)
+    place_type: str | None = None
+
+
+class PlaceSearchResponse(BaseModel):
+    results: list[PlaceSearchResultResponse]
 
 
 class GeocodeRequest(BaseModel):

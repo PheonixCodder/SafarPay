@@ -15,7 +15,8 @@ import uuid
 from datetime import datetime
 
 from sp.infrastructure.db.base import Base
-from sqlalchemy import DateTime, Index, Numeric, String, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, Numeric, String, Text, UniqueConstraint, func
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -69,3 +70,92 @@ class LocationHistoryORM(Base):
         server_default=func.now(),
         nullable=False,
     )
+
+
+class PlaceORM(Base):
+    """Locally indexed search place sourced from OSM or curated data."""
+
+    __tablename__ = "places"
+    __table_args__ = (
+        UniqueConstraint("source", "source_key", name="uq_location_places_source_key"),
+        Index("ix_location_places_city", "city"),
+        Index("ix_location_places_type", "place_type"),
+        Index("ix_location_places_popularity", "popularity"),
+        {"schema": "location"},
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    source: Mapped[str] = mapped_column(String(32), nullable=False)
+    source_key: Mapped[str] = mapped_column(String(128), nullable=False)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    normalised_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    formatted: Mapped[str] = mapped_column(Text, nullable=False)
+    place_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    country_code: Mapped[str] = mapped_column(String(2), nullable=False, server_default="PK")
+    street: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    city: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    district: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    region: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    country: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    postal_code: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    latitude: Mapped[float] = mapped_column(Numeric(10, 7), nullable=False)
+    longitude: Mapped[float] = mapped_column(Numeric(10, 7), nullable=False)
+    popularity: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    is_verified: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
+    metadata_json: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class PlaceAliasORM(Base):
+    """Search alias for a local place."""
+
+    __tablename__ = "place_aliases"
+    __table_args__ = (
+        Index("ix_location_place_aliases_place_id", "place_id"),
+        {"schema": "location"},
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    place_id: Mapped[uuid.UUID] = mapped_column(
+        PgUUID(as_uuid=True),
+        ForeignKey("location.places.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    alias: Mapped[str] = mapped_column(String(255), nullable=False)
+    normalised_alias: Mapped[str] = mapped_column(String(255), nullable=False)
+    source: Mapped[str] = mapped_column(String(32), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class PlaceSearchEventORM(Base):
+    """Operational search telemetry for ranking and gap analysis."""
+
+    __tablename__ = "place_search_events"
+    __table_args__ = ({"schema": "location"},)
+
+    id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    query: Mapped[str] = mapped_column(Text, nullable=False)
+    normalised_query: Mapped[str] = mapped_column(String(255), nullable=False)
+    result_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    served_from: Mapped[str] = mapped_column(String(64), nullable=False)
+    latitude: Mapped[float | None] = mapped_column(Numeric(10, 7), nullable=True)
+    longitude: Mapped[float | None] = mapped_column(Numeric(10, 7), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class PlaceImportRunORM(Base):
+    """Audit record for bulk place imports."""
+
+    __tablename__ = "place_import_runs"
+    __table_args__ = ({"schema": "location"},)
+
+    id: Mapped[uuid.UUID] = mapped_column(PgUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    source: Mapped[str] = mapped_column(String(32), nullable=False)
+    file_path: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    imported_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    skipped_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

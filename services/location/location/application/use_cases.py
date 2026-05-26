@@ -40,13 +40,17 @@ from ..domain.interfaces import (
     LocationEventPublisherProtocol,
     LocationHistoryProtocol,
     LocationRateLimiterProtocol,
+    PlaceRepositoryProtocol,
     RideLocationStoreProtocol,
     LocationStoreProtocol,
 )
 from ..domain.models import (
     ActorType,
+    Coordinates,
     DriverStatus,
     LocationUpdate,
+    Place,
+    PlaceSearchResult,
 )
 from ..infrastructure.websocket_manager import WebSocketManager
 from .schemas import (
@@ -59,6 +63,8 @@ from .schemas import (
     LocationUpdateRequest,
     NearbyDriversResponse,
     PassengerLocationResponse,
+    PlaceSearchResponse,
+    PlaceSearchResultResponse,
     RideLocationsResponse,
     StatusResponse,
 )
@@ -124,6 +130,25 @@ def _passenger_to_response(pl) -> PassengerLocationResponse | None:
         accuracy=u.accuracy_meters,
         updated_at=pl.updated_at,
         ride_id=pl.ride_id,
+    )
+
+
+def _place_to_response(result: PlaceSearchResult) -> PlaceSearchResultResponse:
+    place = result.place
+    return PlaceSearchResultResponse(
+        formatted=place.formatted,
+        coordinates=CoordinatesResponse(
+            latitude=place.coordinates.latitude,
+            longitude=place.coordinates.longitude,
+        ),
+        street=place.street,
+        city=place.city,
+        country=place.country,
+        postal_code=place.postal_code,
+        source=place.source,
+        confidence=result.confidence,
+        distance_meters=result.distance_meters,
+        place_type=place.place_type,
     )
 
 
@@ -570,16 +595,147 @@ class SetDriverStatusUseCase:
 # ---------------------------------------------------------------------------
 
 
-class GeocodeUseCase:
-    """Convert a free-text address to coordinates via Mapbox (cache-first)."""
+class SearchPlacesUseCase:
+    """Local-first place search with Mapbox as a temporary fallback."""
 
-    def __init__(self, client: GeocodingClientProtocol) -> None:
+    def __init__(
+        self,
+        place_repo: PlaceRepositoryProtocol,
+        geocoder: GeocodingClientProtocol,
+        *,
+        local_enabled: bool = True,
+        fallback_enabled: bool = True,
+        min_confidence: float = 0.65,
+    ) -> None:
+        self._place_repo = place_repo
+        self._geocoder = geocoder
+        self._local_enabled = local_enabled
+        self._fallback_enabled = fallback_enabled
+        self._min_confidence = min_confidence
+
+    async def execute(
+        self,
+        query: str,
+        *,
+        latitude: float | None = None,
+        longitude: float | None = None,
+        limit: int = 10,
+    ) -> PlaceSearchResponse:
+        local_results = (
+            await self._place_repo.search_places(
+                query,
+                latitude=latitude,
+                longitude=longitude,
+                limit=limit,
+            )
+            if self._local_enabled
+            else []
+        )
+        if local_results and local_results[0].confidence >= self._min_confidence:
+            await self._place_repo.record_search_event(
+                query,
+                result_count=len(local_results),
+                served_from="LOCAL",
+                latitude=latitude,
+                longitude=longitude,
+            )
+            return PlaceSearchResponse(
+                results=[_place_to_response(result) for result in local_results]
+            )
+
+        if not self._fallback_enabled:
+            await self._place_repo.record_search_event(
+                query,
+                result_count=len(local_results),
+                served_from="LOCAL_LOW_CONFIDENCE" if local_results else "EMPTY",
+                latitude=latitude,
+                longitude=longitude,
+            )
+            return PlaceSearchResponse(
+                results=[_place_to_response(result) for result in local_results]
+            )
+
+        candidates = await self._geocoder.geocode(query)
+        fallback_results = [
+            PlaceSearchResult(
+                place=Place(
+                    name=query,
+                    formatted=query,
+                    coordinates=Coordinates(
+                        latitude=candidate.latitude,
+                        longitude=candidate.longitude,
+                    ),
+                    place_type="mapbox_place",
+                    source="MAPBOX_TEMPORARY",
+                    source_key=f"mapbox:temporary:{index}",
+                    country_code="PK",
+                ),
+                confidence=0.50,
+                distance_meters=None,
+            )
+            for index, candidate in enumerate(candidates[:limit])
+        ]
+        await self._place_repo.record_search_event(
+            query,
+            result_count=len(fallback_results),
+            served_from="MAPBOX_FALLBACK" if fallback_results else "EMPTY",
+            latitude=latitude,
+            longitude=longitude,
+        )
+        return PlaceSearchResponse(
+            results=[_place_to_response(result) for result in fallback_results]
+        )
+
+
+class GeocodeUseCase:
+    """Convert a free-text address to coordinates via local search, then Mapbox."""
+
+    def __init__(
+        self,
+        client: GeocodingClientProtocol,
+        place_repo: PlaceRepositoryProtocol | None = None,
+        *,
+        local_enabled: bool = True,
+        fallback_enabled: bool = True,
+        min_confidence: float = 0.65,
+    ) -> None:
         self._client = client
+        self._place_repo = place_repo
+        self._local_enabled = local_enabled
+        self._fallback_enabled = fallback_enabled
+        self._min_confidence = min_confidence
 
     async def execute(self, address: str) -> AddressResponse:
-        candidates = await self._client.geocode(address)
+        if self._local_enabled and self._place_repo is not None:
+            local_results = await self._place_repo.search_places(address, limit=1)
+            if local_results and local_results[0].confidence >= self._min_confidence:
+                result = local_results[0]
+                await self._place_repo.record_search_event(
+                    address,
+                    result_count=1,
+                    served_from="LOCAL_GEOCODE",
+                )
+                return AddressResponse(
+                    formatted=result.place.formatted,
+                    coordinates=CoordinatesResponse(
+                        latitude=result.place.coordinates.latitude,
+                        longitude=result.place.coordinates.longitude,
+                    ),
+                    street=result.place.street,
+                    city=result.place.city,
+                    country=result.place.country,
+                    postal_code=result.place.postal_code,
+                )
+
+        candidates = await self._client.geocode(address) if self._fallback_enabled else []
         if candidates:
             first = candidates[0]
+            if self._place_repo is not None:
+                await self._place_repo.record_search_event(
+                    address,
+                    result_count=len(candidates),
+                    served_from="MAPBOX_GEOCODE_FALLBACK",
+                )
             return AddressResponse(
                 formatted=address,
                 coordinates=CoordinatesResponse(
