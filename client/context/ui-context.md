@@ -78,6 +78,9 @@ Use `iconsax` icons for Flutter UI. Typical sizes come from `SSizes.iconSm`, `SS
 - Common edit drawer: existing-value edits use a right-side shadcn `ShadSheet` with SafarPay colors, compact labels, a single input, and clear cancel/save actions.
 - Profile user info: profile rows initialize from the cached authenticated user, use boxed edit icons instead of right-arrow affordances, and update visible cached values locally until backend persistence is planned.
 - Privacy Policy: the Settings `Privacy & Security` row opens an informational subpage with `SAppBar`, the shared right-slide transition, a white summary panel, compact trust cues, and expandable policy sections rendered from mapped content.
+- Passenger Trips: cards show backend ride summaries with a compact route header, status chip, pickup/dropoff line, and a clear primary action. Ongoing actions should say `Track ride`; historical/scheduled actions should open refreshed details.
+- Ride booking details: the bottom sheet details step should group service requirements and fare/payment controls into white bordered sections with small icon headers. Do not show a long unstructured stack of switches and pricing controls.
+- Ride communication: chat should feel tied to the active ride, with a dedicated communication header, call affordance, clear unavailable state, and a voice-call screen that uses dark active-call styling without changing the controller's chat/call behavior.
 - Notifications: the Settings `Notifications` row opens a timeline-style inbox subpage with a compact summary panel, horizontal filter chips, grouped date labels, and soft notification rows for trips, payments, offers, safety, and system updates.
 - Help & Support: the Settings `Help & Support` row opens a reference-matched support hub with a teal `SPrimaryHeaderContainer`, centered scooter support illustration, and a rounded white options sheet with simple icon rows.
 - Terms & Conditions: the Help & Support terms row opens a compact legal hub with a rounded white policy list, teal icon tiles, centered last-updated copy, and shared-app-bar detail pages with numbered expandable policy sections backed by typed local data.
@@ -85,10 +88,12 @@ Use `iconsax` icons for Flutter UI. Typical sizes come from `SSizes.iconSm`, `SS
 - Something Else: the Help & Support Something Else row opens a focused support-ticket form with a centered title, issue text area, optional related ride card, image/file/audio attachment action tiles, full-width submit CTA, and a confirmation screen showing ticket id, expected response, My Tickets, and Back to Home actions.
 - Contact Us: the Help & Support contact row opens a compact page with `SAppBar`, a centered support-agent illustration, three elevated action cards for call/email/chat, and a simple social media list for Twitter, Instagram, Facebook, Linked In, and Medium.
 - Driver registration: the Settings `Register as a Driver` row opens a light-mode earning category list with image tiles, titles, subtitles, and chevrons. Category selection opens a matching vehicle selection list. Vehicle selection opens a teal `SPrimaryHeaderContainer` verification checklist with a stacked vehicle chip, category title, helper copy, right-aligned driver artwork, an overall status notice, and four actionable status cards for CNIC, license, selfie, and vehicle details. Each card opens a focused light-mode form with document upload tiles or a realtime selfie capture surface. When all four status groups are submitted, a full-width primary `Submit for Review` button appears beneath the checklist.
+- Driver Earnings: the driver bottom-nav Earnings tab uses a compact operational dashboard with a top period menu, a white net-earnings hero card, three metric columns, a simple teal bar chart, a detailed financial breakdown, recent trip rows, and a disabled withdraw CTA until payout support exists.
 - Trips: the bottom navigation Trips tab opens a clean ride operations page with `SAppBar`, a segmented four-tab control, compact route-first ride cards, and a shared ride details screen.
-- Passenger booking: Home search opens a full-screen map-first booking surface. The Mapbox map stays behind a draggable bottom sheet where pickup/dropoff bars, backend search results, service categories, route summary, vehicle choices, fare stepper, auto-accept toggle, and matching state are composed in SafarPay light theme.
+- Passenger booking: Home search opens a full-screen map-first booking surface. The Mapbox map stays behind a draggable bottom sheet, renders selected pickup/dropoff markers with a connecting route line, and supports pickup/dropoff bars, backend search results, service categories, route summary, vehicle choices, fare stepper, auto-accept toggle, and matching state in SafarPay light theme.
+- Passenger booking options: service-specific ride details use progressive bottom-sheet steps instead of one long form. Passengers choose the ride, fill only relevant city/intercity/courier/freight options, pick fixed or hybrid pricing, choose payment, then review before creation. Shared ride controls appear only for intercity rides.
 - Home: first navigation tab with app bar greeting and a large icon treatment.
-- Starter tabs: Trips and Rent use restrained empty states until their full feature units are built; Profile opens the Settings experience.
+- Starter tabs: Rent uses a restrained empty state until its full feature unit is built; Profile opens the Settings experience. Driver mode now has a real Earnings tab, while Drive and Requests remain starter placeholders.
 
 ## Current Visual Assets
 
@@ -100,3 +105,12 @@ Use `iconsax` icons for Flutter UI. Typical sizes come from `SSizes.iconSm`, `SS
 - Driver registration: `assets/images/driver/register_image.png`, vehicle placeholders under `assets/images/driver/`, and `assets/images/rides/car.png`.
 - Icons: local SVG assets plus Iconsax for Flutter controls.
 - Fonts: upright SF Pro Display variants declared in `pubspec.yaml`.
+## Driver Requests UI
+
+- The driver Requests tab uses the light SafarPay operational direction: compact white surfaces, dense request cards, teal primary actions, and map-first active trip controls.
+- Incoming fixed and hybrid ride prompts are bottom-sheet style overlays; active rides replace the marketplace list until completion or cancellation.
+# Ride Communication UI
+
+- Accepted-but-not-started ride screens expose a bottom-right chat floating action button.
+- The ride chat screen uses a compact appbar, message list, image/voice bubbles, and composer with attach, text, microphone, and send actions.
+- The voice call screen uses a dark focused layout with participant status, accept/decline for incoming calls, mute, and end-call controls.

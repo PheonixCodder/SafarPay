@@ -283,3 +283,42 @@ Permanent record of decisions that affect product scope, architecture, auth beha
 
 - **Decision**: A driver reuses one physical vehicle per vehicle type and attaches additional services through `driver_service_capabilities` instead of creating duplicate vehicle rows.
 - **Reason**: A Car used for City Ride, Intercity, and Courier is the same asset and should share documents, verification state, and plate identity while exposing service-specific capability state to matching and UI flows.
+
+### 0045 - Enable real passenger ride backend paths behind demo flag
+
+- **Decision**: Location, Geospatial, Ride, Bidding, and live socket repositories use real backend HTTP/WebSocket paths when `SAFARPAY_USE_LOCATION_DEMO_DATA=false`, while keeping deterministic fixtures when the flag is true.
+- **Reason**: The passenger booking UI still needs offline demo support, but production testing must exercise the same backend contracts used by Ride, Bidding, Location, and Geospatial services without editing source files.
+
+### 0046 - Use Payment as the driver earnings source of truth
+
+- **Decision**: Driver earnings are exposed from the Payment service through a driver-scoped read model, enriched by cross-schema reads from Ride, Bidding, and Verification.
+- **Reason**: Wallet balances, commission captures, cash confirmations, and payment collection modes are financial data owned by Payment. Ride and Bidding provide operational context, but Flutter should not reconstruct authoritative earnings from non-payment endpoints.
+
+### 0047 - Keep driver withdrawals disabled until payouts are modeled
+
+- **Decision**: The Earnings screen shows a disabled withdraw CTA and the backend returns `withdraw_available=false`.
+- **Reason**: Payment currently has wallet, ledger, top-up, ride payment, and commission models, but no payout/withdrawal domain. A disabled control communicates the future action without creating fake financial behavior.
+## 2026-05-23 - Passenger Ride Options Bottom Sheet
+
+- Decision: passenger booking uses progressive bottom-sheet steps for ride details, price/payment, and review instead of one long form.
+- Decision: passenger UI exposes `FIXED` and `HYBRID` pricing only; `BID_BASED` remains hidden.
+- Decision: shared ride controls are intercity-only, while city rides always send `is_shared_ride: false`.
+
+## 2026-05-24 - Complete Ride Lifecycle Hardening
+
+- Decision: lifecycle correctness is verified at API/service boundaries first; websockets remain UX delivery channels, not the only source of truth.
+- Decision: Docker service-to-service URLs must use container-internal port `8000`; Bidding and Ride call Payment through `http://payment:8000`.
+- Decision: Flutter authenticated refresh is single-flight because refresh tokens rotate and parallel refresh attempts can invalidate otherwise valid sessions.
+- Decision: Ride, Bidding, and Location websocket repositories request a fresh access token before connecting.
+
+## 2026-05-24 - Complete Ride Lifecycle E2E Verification
+
+- Decision: the canonical lifecycle smoke test is an opt-in Docker-backed API E2E test under `tests/e2e`, gated by `SAFARPAY_RUN_DOCKER_E2E=1` because it mutates local service data.
+- Decision: the E2E test seeds deterministic passenger, driver, verification, vehicle, wallet, and commission-policy data directly, then drives public HTTP APIs with JWTs minted by the shared platform JWT utility.
+- Decision: fixed and hybrid lifecycle completion must assert both operational state (`COMPLETED`, assigned driver, no active ride) and financial state (ride payment plus captured commission reservation).
+# 2026-05-25 - Ride Communication
+
+- Use the existing communication service as the source of truth for ride conversations instead of creating conversations from the client.
+- Add a backend by-ride lookup route to avoid list/filter client behavior.
+- Implement real voice calls now with `flutter_webrtc`; use the existing communication WebSocket for WebRTC signaling.
+- Add `record` and `audioplayers` for voice-note capture and playback.

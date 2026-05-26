@@ -6,7 +6,7 @@ The flow must open from the existing Home search entry and replace the current e
 
 Pickup and dropoff must support both backend-powered search and map-pin selection. The client must not call Mapbox geocoding, directions, matrix, or search APIs directly; those remain backend-mediated through the existing Location and Geospatial repositories.
 
-After pickup and dropoff are selected, calculate the route through the backend, render it on the map, and show route summary in the sheet. The next state should show vehicle/fare options similar to the inDrive offer screen, using SafarPay's light visual system.
+After pickup and dropoff are selected, calculate the route through the backend, render pickup/dropoff markers and a connecting route line on the map, and show route summary in the sheet. If backend route geometry is unavailable, the map can show a straight connector between the selected points while the backend-mediated route summary remains the source of distance and ETA. The next state should show vehicle/fare options similar to the inDrive offer screen, using SafarPay's light visual system.
 
 Support the five passenger categories:
 - Groceries

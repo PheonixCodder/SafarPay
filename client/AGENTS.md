@@ -50,6 +50,7 @@ Read these files in order before implementing code or making architectural decis
 42. `context/feature-specs/047-auth-profile-demographics.md` - prompt for auth profile demographics and editable profile sync
 43. `context/feature-specs/052-driver-vehicle-service-consent.md` - prompt for confirming existing vehicle reuse before service attachment
 44. `context/feature-specs/053-safe-branch-split-and-pr-merge.md` - prompt for safe branch splitting and sequential PR merges
+45. `context/feature-specs/054-ride-backend-client-integration.md` - prompt for real passenger Ride, Bidding, Location, and Geospatial backend integration
 45. `plans/000-client-product-and-architecture-plan.md` - canonical client product and architecture plan
 45. `plans/001-flutter-scaffold-plan.md` - Flutter scaffold plan
 46. `plans/002-design-system-foundation-plan.md` - shared design system plan
@@ -88,9 +89,10 @@ Read these files in order before implementing code or making architectural decis
 79. `plans/047-auth-profile-demographics-plan.md` - auth profile demographics implementation plan
 81. `plans/052-driver-vehicle-service-consent-plan.md` - driver vehicle reuse consent plan
 82. `plans/053-safe-branch-split-and-pr-merge-plan.md` - safe branch split and sequential PR merge plan
-83. `plans/900-branch-split-and-merge-plan.md` - Git branch split and merge plan
-84. `plans/901-empty-folder-restoration-plan.md` - empty-folder preservation plan
-85. `plans/decisions-log.md` - permanent decision record
+83. `plans/054-ride-backend-client-integration-plan.md` - real passenger Ride, Bidding, Location, and Geospatial backend integration plan
+84. `plans/900-branch-split-and-merge-plan.md` - Git branch split and merge plan
+85. `plans/901-empty-folder-restoration-plan.md` - empty-folder preservation plan
+86. `plans/decisions-log.md` - permanent decision record
 
 Update `context/progress-tracker.md` after each meaningful implementation change.
 

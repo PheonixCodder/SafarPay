@@ -8,7 +8,7 @@ Update this file after every meaningful implementation change.
 
 ## Current Goal
 
-- Keep client context synchronized while expanding the passenger ride booking surface.
+- Keep client context synchronized while expanding real backend integrations across passenger ride booking and driver mode, including the real-time driver Requests tab.
 
 ## Completed
 
@@ -40,18 +40,25 @@ Update this file after every meaningful implementation change.
 - Home search now uses a reusable common `SSearchBar` while keeping recent ride rows in the Home feature.
 - Passenger map/location foundation was added with Mapbox Flutter SDK, device GPS service, backend location/geospatial repositories, ride tracking WebSocket parsing, reusable map widget, ride search, route preview, and tracking screens.
 - Passenger ride search was redesigned as a map-first booking flow with a draggable bottom sheet, backend search, map-pin pickup/dropoff selection, route preview, category/vehicle choices, and hybrid offer creation.
+- Passenger ride search map now renders selected pickup/dropoff markers and a connecting route line, falling back to a straight connector when backend route geometry is unavailable.
+- Passenger ride search map route rendering now depends on backend route geometry for the displayed route instead of drawing a misleading straight pickup-to-dropoff connector.
 - Driver registration entry flow was added from Settings with earning category selection, vehicle selection, Verification `/me` status parsing, and a status checklist.
 - Driver registration verification demo mode was added so all `/me` checklist states can be previewed without running the backend.
 - Driver registration submit-review CTA and polished verification header layout were added for ready-to-submit checklist states.
 - Driver registration step submission pages were implemented with per-step forms, presigned upload handling, realtime selfie capture, and backend-offline demo responses.
 - Client screen structure normalization was applied across feature screens so screen files, widgets, subscreens, and content/model files follow one convention.
-- Driver-capable accounts can switch between passenger and driver app modes from Settings; driver mode currently shows Drive, Requests, Earnings, and Profile starter tabs.
+- Driver-capable accounts can switch between passenger and driver app modes from Settings; driver mode currently shows Drive and Requests starter tabs, a real Earnings tab, and Profile.
 - Authentication mocks were removed from the Flutter auth repository; phone OTP, registration, refresh, logout, and `/me` now call the real Auth service.
 - Auth local Docker testing now uses backend console OTP mode so OTPs print in auth service logs while WhatsApp remains available outside console mode.
 - Existing phone OTP users now log in directly after verification; new phone users still continue to Complete Profile with a `registration_token`.
 - Auth profile demographics are persisted: Complete Profile collects email, gender, and DOB, and Profile edits name/email/gender/DOB through Auth.
 - Google login now handles verified emails that already exist in Auth: existing email + phone users verify OTP against the saved phone before tokens are issued; existing email + no phone users reuse the current phone-link flow.
 - Linked Google accounts with saved phones now also verify OTP against the saved phone before app tokens are issued.
+- Passenger ride, route, live tracking, and HYBRID bidding repositories now call real backend HTTP/WebSocket APIs when `SAFARPAY_USE_LOCATION_DEMO_DATA=false`, while preserving demo fixtures when it is true.
+- Driver Earnings tab now calls real Payment service data through `GET /api/v1/earnings/me`, with Payment aggregating completed Ride rows, accepted Bidding data, Verification driver stats, wallet balances, commission reservations, and ride payments.
+- Payment service exposes a driver-scoped earnings read model and focused tests for the use case and route contract.
+- Demo driver earnings seed SQL was added at `scripts/demo/seed_driver_earnings.sql` for the requested driver/rider emails.
+- Driver Requests tab is being implemented with real Ride driver request/active ride endpoints, Bidding HYBRID offer support, Location online/GPS streaming, Geospatial route summaries, and an active-trip map state.
 
 ## In Progress
 
@@ -66,7 +73,8 @@ Update this file after every meaningful implementation change.
 - Manually test returning Google login on a previously linked account with a saved phone; it should route to OTP before Home.
 - Test real phone OTP registration on a physical device using `SAFARPAY_AUTH_BASE_URL=http://<laptop-wifi-ip>:8001/api/v1/auth`.
 - Clean existing analyzer info items when the team chooses a lint-cleanup pass.
-- Restore the commented real HTTP/WebSocket blocks and run an end-to-end backend test for passenger HYBRID matching when services are available.
+- Run an end-to-end backend test for passenger HYBRID matching with Ride, Bidding, Location, Geospatial, Kafka, Redis, Auth, and Postgres running.
+- Seed `scripts/demo/seed_driver_earnings.sql` into the Docker Postgres database and manually verify the driver Earnings tab with `SAFARPAY_PAYMENT_BASE_URL=http://<laptop-wifi-ip>:8009/api/v1`.
 - Add the dedicated full-screen passenger bidding/offers experience after the bottom-sheet live offer state is validated against real drivers.
 - Verify the real driver registration submission forms, presigned upload flow, and submit-review readiness with the Verification backend when it is available.
 - Restore the real Verification `/me` HTTP call after backend testing is available and remove or disable temporary demo status mode.
@@ -155,3 +163,19 @@ Update this file after every meaningful implementation change.
 - Driver vehicle taxonomy work added `context/feature-specs/050-driver-vehicle-taxonomy.md` and `plans/050-driver-vehicle-taxonomy-plan.md`; verification and ride now use canonical physical vehicle values while service type represents driver work capability.
 - Driver vehicle service reuse work added `context/feature-specs/051-driver-vehicle-service-reuse.md` and `plans/051-driver-vehicle-service-reuse-plan.md`; vehicle selection now uses real Verification state and reuses existing physical vehicles across services.
 - Driver vehicle service consent work added `context/feature-specs/052-driver-vehicle-service-consent.md` and `plans/052-driver-vehicle-service-consent-plan.md`; existing vehicles must be confirmed by the driver before attaching them to another service.
+- Ride backend client integration work added `context/feature-specs/054-ride-backend-client-integration.md` and `plans/054-ride-backend-client-integration-plan.md`; passenger ride, geospatial, location, and HYBRID bidding repositories now use real backend paths when demo mode is disabled.
+- Driver earnings real-data work added `context/feature-specs/055-driver-earnings-real-data.md` and `plans/055-driver-earnings-real-data-plan.md`; Payment now exposes driver earnings and Flutter driver mode renders a real Earnings tab.
+- Passenger ride options work added `context/feature-specs/057-passenger-ride-options-bottom-sheet.md` and `plans/057-passenger-ride-options-bottom-sheet-plan.md`; the ride search bottom sheet now collects backend-aligned fixed/hybrid, payment, city, intercity, courier, and freight options through a progressive flow.
+- Complete ride lifecycle hardening work added `context/feature-specs/058-complete-ride-lifecycle-hardening.md` and `plans/058-complete-ride-lifecycle-hardening-plan.md`; Bidding now has the internal Payment URL contract, client token refresh is single-flight, websocket connections request fresh tokens, and lifecycle-critical backend/client checks pass.
+- Complete ride lifecycle E2E verification work added `context/feature-specs/059-complete-ride-lifecycle-e2e-verification.md`, `plans/059-complete-ride-lifecycle-e2e-verification-plan.md`, and `tests/e2e/test_complete_ride_lifecycle.py`; the harness is opt-in with `SAFARPAY_RUN_DOCKER_E2E=1` and verifies fixed plus hybrid lifecycle completion across Ride, Bidding, Location, Verification, and Payment against the Docker stack.
+# 2026-05-25 - Ride Communication Chat And Calls
+
+- Added ride-scoped communication prompt and plan for accepted-before-start rides.
+- Integrated `services/communication` by-ride conversation lookup.
+- Added Flutter communication data/socket/controller/UI structure for chat, image attachments, voice notes, and WebRTC voice calls.
+- Added chat entry buttons to passenger Live Ride and driver active ride screens before trip start.
+# 2026-05-25 - Passenger Ride UX And Trips Real Data
+
+- Planned real backend-backed Trips, fresh ride details, improved booking details, and improved ride communication/call UI.
+- Scope is tracked in `client/context/feature-specs/061-passenger-ride-ux-and-trips-real-data.md`.
+- Implementation plan is tracked in `client/plans/061-passenger-ride-ux-and-trips-real-data-plan.md`.
