@@ -6,7 +6,7 @@ Replace the existing passenger ride search screen with a map-first booking flow.
 
 ## Implementation
 
-- Upgrade `SMapView` so it can render full-bleed, hide default status/recenter controls, show a center pin, and expose the current map camera center through `SMapController`.
+- Upgrade `SMapView` so it can render full-bleed, hide default status/recenter controls, show a center pin, expose the current map camera center through `SMapController`, and render pickup/dropoff markers plus route geometry from existing map inputs.
 - Replace `RideSearchScreen` with a `Stack` layout: full-screen map, top map controls, and `DraggableScrollableSheet`.
 - Expand `SRideSearchController` into the booking state owner for pickup/dropoff, search target, map-pin selection, category, vehicle, route preview, passenger fare, auto-accept, ride creation, and controlled matching state.
 - Add a passenger booking catalog under the Location domain with the five service categories and backend-aligned vehicle/ride payload metadata.

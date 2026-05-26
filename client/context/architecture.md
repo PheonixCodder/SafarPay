@@ -15,6 +15,7 @@
 | Device location | `geolocator` + `permission_handler` | Foreground passenger GPS for pickup and live ride context |
 | Realtime | `web_socket_channel` | Passenger ride tracking and bidding WebSocket consumption |
 | Driver verification | Verification service HTTP APIs + presigned document uploads | Driver registration status, KYC step submissions, and direct upload to backend-issued object storage URLs |
+| Driver earnings | Payment service HTTP API enriched with Ride, Bidding, and Verification schema reads | Driver wallet balance, completed-trip earnings, commission, chart breakdown, and recent trip history |
 | UI assets | Local fonts, images, logos, icons | Branded client experience |
 | UI components | Material widgets, GetX shell, and `shadcn_ui` | Native Flutter UI with reusable shadcn overlays where planned |
 | Documentation | `client/context`, `client/context/feature-specs`, `client/plans` | Source of truth for prompts, plans, decisions, and progress |
@@ -43,6 +44,7 @@
 - `lib/data/rides/` - backend-aligned ride response models, proof/nearby-driver DTOs, and demo ride data for UI development before live API integration.
 - `lib/features/authentication/` - onboarding, login, OTP, profile completion, permissions, auth models, repository, and auth navigation helpers.
 - `lib/features/home/` - post-auth starter home experience, using screen folders with screen-local widgets.
+- `lib/features/drivers/` - driver-mode feature code, including Payment-backed earnings models, repository, controller, and Earnings tab UI.
 - `lib/features/location/` - passenger location, geospatial, map-first ride booking, route preview, hybrid offers, and live ride tracking client layer, with each screen isolated in its own screen folder.
 - `lib/features/personalization/` - settings and profile-facing personalization surfaces.
 - `lib/features/personalization/screens/driver_registration/` - Settings-launched driver onboarding entry, earning category and vehicle selection, Verification `/me` status rendering, KYC step forms, and presigned document upload orchestration.
@@ -73,7 +75,11 @@
 - Physical-device testing must point `SAFARPAY_AUTH_BASE_URL` at the laptop Wi-Fi IP, not localhost, for example `http://192.168.100.3:8001/api/v1/auth`.
 - Passenger map flows call backend Location and Geospatial services for geocoding, reverse geocoding, pickup validation, route preview, and live ride location reads.
 - Passenger booking creates backend Ride requests with `HYBRID` pricing for offer-style flows and keeps `FIXED` support available for direct-price flows; passenger UI must not expose `BID_BASED`.
-- Temporary passenger ride/location demo mode is active while backend services are unavailable. Location, Geospatial, Ride, Bidding, and live socket repositories return demo fixtures directly, with real HTTP/WebSocket blocks commented beside each method for restoration.
+- Passenger booking options are collected into a typed draft before Ride creation. The draft owns service-specific detail payloads for city, intercity, courier, and freight rides; shared rides are intercity-only, and grocery booking remains disabled until store selection can supply a valid store UUID.
+- Passenger Trips uses the Ride service as source of truth. `SRideRepository.listPassengerRides()` maps `GET /rides` summaries into `RideSummaryResponse`, Trips tabs filter those summaries locally, ongoing rides open `RideTrackingScreen`, and non-ongoing ride details fetch fresh full ride data from `GET /rides/{id}`.
+- Ride communication resolves the ride conversation through the Communication service before enabling chat attachments, voice notes, and WebRTC voice calls. The UI must preserve that controller-owned setup instead of inventing local-only chat state.
+- Passenger ride/location demo mode is compile-time gated. Location, Geospatial, Ride, Bidding, and live socket repositories return demo fixtures when `SAFARPAY_USE_LOCATION_DEMO_DATA=true`; when false they call real backend HTTP/WebSocket APIs.
+- Driver earnings call the Payment service directly through `SApiService.payment`; Payment owns financial aggregation while reading completed ride, accepted bid, and driver stats rows from the existing schemas.
 - Active ride tracking uses separate WebSockets for Location live coordinates, Ride lifecycle updates, and Bidding negotiation updates because each backend service owns a different event contract.
 - Driver registration status reads from Verification service `GET /api/v1/verification/me`; CNIC, license, selfie, and vehicle steps POST metadata to Verification endpoints, receive presigned upload URLs, and PUT image bytes directly to those URLs.
 - Driver vehicle service reuse must be explicit: if an existing vehicle is attached to a new service, the client asks for confirmation before calling the attach-service endpoint.
@@ -126,3 +132,15 @@
 32. OTP verify routing must trust backend `next_step`: `login` persists tokens, `complete_profile` opens profile completion with `registration_token`, and `link_phone` continues Google phone linking.
 33. Profile phone number is immutable from the Profile screen; editable profile fields are name, email, gender, and date of birth through Auth `PATCH /me`.
 34. Vehicle verification belongs to the physical vehicle; adding that vehicle to another driver service requires explicit user consent in the client before creating the service capability.
+35. Passenger Ride, Bidding, Location, and Geospatial repositories must keep demo behavior behind `SAFARPAY_USE_LOCATION_DEMO_DATA` and use real backend paths when that flag is false.
+36. Driver earnings must remain Payment-backed. Flutter should not calculate authoritative earnings from Ride or Bidding responses.
+## Driver Requests Integration
+
+- Driver Requests uses Ride for request list and active ride state, Bidding for HYBRID offers, Location for online/GPS state, and Geospatial for road-route summaries.
+- While a driver has an active ride, the client suppresses marketplace request UI and renders the active trip map/lifecycle controls instead.
+# Ride Communication
+
+- `services/communication` owns ride-scoped conversations and opens them from `service.request.accepted` Kafka events.
+- Mobile clients resolve an active ride conversation with `/api/v1/communication/conversations/by-ride/{ride_id}` and then subscribe to `/api/v1/communication/ws`.
+- Chat media uses presigned upload URLs from the communication service followed by media message registration.
+- Voice calls use WebRTC peer connections in Flutter and relay offer/answer/ICE payloads through the communication WebSocket.
