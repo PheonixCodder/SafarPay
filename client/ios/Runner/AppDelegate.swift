@@ -1,4 +1,5 @@
 import Flutter
+import flutter_foreground_task
 import UIKit
 
 @main
@@ -7,6 +8,9 @@ import UIKit
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
+    SwiftFlutterForegroundTaskPlugin.setPluginRegistrantCallback { registry in
+      GeneratedPluginRegistrant.register(with: registry)
+    }
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 

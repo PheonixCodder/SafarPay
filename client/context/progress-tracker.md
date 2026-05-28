@@ -9,6 +9,7 @@ Update this file after every meaningful implementation change.
 ## Current Goal
 
 - Keep client context synchronized while expanding real backend integrations across passenger ride booking and driver mode, including the real-time driver Requests tab.
+- Move ride-entry, notification-routing, and active-ride orchestration onto a shared lifecycle platform so those decisions stop living in isolated feature widgets.
 
 ## Completed
 
@@ -59,6 +60,8 @@ Update this file after every meaningful implementation change.
 - Payment service exposes a driver-scoped earnings read model and focused tests for the use case and route contract.
 - Demo driver earnings seed SQL was added at `scripts/demo/seed_driver_earnings.sql` for the requested driver/rider emails.
 - Driver Requests tab is being implemented with real Ride driver request/active ride endpoints, Bidding HYBRID offer support, Location online/GPS streaming, Geospatial route summaries, and an active-trip map state.
+- Closed-app ride communication notification recovery is being added so message and voice-call pushes can reopen ride communication with enough call context to survive a cold start.
+- Client lifecycle-platform hardening is underway so passenger ride entry, push routing, and active ride state share one lifecycle model instead of scattered conditionals.
 
 ## In Progress
 
@@ -168,12 +171,37 @@ Update this file after every meaningful implementation change.
 - Passenger ride options work added `context/feature-specs/057-passenger-ride-options-bottom-sheet.md` and `plans/057-passenger-ride-options-bottom-sheet-plan.md`; the ride search bottom sheet now collects backend-aligned fixed/hybrid, payment, city, intercity, courier, and freight options through a progressive flow.
 - Complete ride lifecycle hardening work added `context/feature-specs/058-complete-ride-lifecycle-hardening.md` and `plans/058-complete-ride-lifecycle-hardening-plan.md`; Bidding now has the internal Payment URL contract, client token refresh is single-flight, websocket connections request fresh tokens, and lifecycle-critical backend/client checks pass.
 - Complete ride lifecycle E2E verification work added `context/feature-specs/059-complete-ride-lifecycle-e2e-verification.md`, `plans/059-complete-ride-lifecycle-e2e-verification-plan.md`, and `tests/e2e/test_complete_ride_lifecycle.py`; the harness is opt-in with `SAFARPAY_RUN_DOCKER_E2E=1` and verifies fixed plus hybrid lifecycle completion across Ride, Bidding, Location, Verification, and Payment against the Docker stack.
+- Shared ride lifecycle primitives, a centralized passenger ride-entry policy, a shared notification route parser, and an app-level ride lifecycle coordinator were added under `lib/features/rides`.
+- Shared ride destinations and navigation helpers now own ride details, fixed waiting, hybrid matching, live tracking, communication, and driver request entry from lifecycle-owned flows.
+- Trips ongoing ride navigation now uses the shared lifecycle policy instead of hard-coded hybrid/fixed/tracking branches in the list widget.
+- Push notification routing now resolves a shared notification route intent before opening driver requests, ride tracking, or ride communication.
+- Passenger ride tracking and driver requests now publish active lifecycle state into the shared coordinator.
+- Booking acceptance, pending matching recovery, ride preview completion, and the ride communication FAB now use the shared destination helpers instead of direct screen pushes.
+- Phase 3 realtime/runtime orchestration was added with a shared `SRideRealtimeOrchestrator` that owns lifecycle-stage rules for passenger ride sockets, passenger live location sockets, hybrid bidding sockets, ride communication sockets, driver marketplace suppression, and driver foreground GPS runtime.
+- App lifecycle resume recovery now refreshes HTTP snapshots first and then reattaches live channels in passenger tracking, passenger hybrid matching, driver requests, and ride communication controllers.
+- Phase 4A runtime diagnostics were added with `SRuntimeModeConfig` and `SRuntimeDiagnosticsController`; diagnostics now expose app lifecycle state, demo-vs-real location mode, active passenger/driver ride lifecycle, realtime channel flags, and driver foreground runtime state.
+- Runtime repository extraction was split into `073-runtime-repository-extraction` so demo-vs-real implementation separation can happen repository family by repository family without destabilizing the ride lifecycle.
+- Runtime repository extraction Phase 073 completed for Location, Geospatial, Bidding, Ride, and socket repository families; Phase 074 completed the dedicated `SRideRepository` method extraction into demo and HTTP delegates while preserving static booking payload builders.
+- Android driver urgent ride alerts were added in `075-android-driver-urgent-ride-alerts`: driver ride-job notifications now carry `driver_ride_request`, FCM Android payloads use urgent ride-alert settings, Flutter foreground/background handlers show urgent local ride notifications, and driver online mode refreshes push token registration with `driver_id`.
+- Enterprise notification delivery matrix work was added in `076-enterprise-notification-delivery-matrix`: driver marketplace ride requests now have Android overlay support gated by Display over other apps, communication calls use call-channel notification actions, data-only communication payloads route correctly, and FCM marks communication calls as urgent `ride_calls` notifications.
 # 2026-05-25 - Ride Communication Chat And Calls
 
 - Added ride-scoped communication prompt and plan for accepted-before-start rides.
 - Integrated `services/communication` by-ride conversation lookup.
 - Added Flutter communication data/socket/controller/UI structure for chat, image attachments, voice notes, and WebRTC voice calls.
 - Added chat entry buttons to passenger Live Ride and driver active ride screens before trip start.
+# 2026-05-27 - Closed-App Ride Communication Notifications
+
+- Added the closed-app ride communication notification prompt and implementation plan.
+- Communication message, media, and call events are being enriched with ride and recipient metadata so notification routing can work when the app is backgrounded or killed.
+- Ride communication is gaining call recovery by `call_id` so notification taps can reopen the pending call state after a cold start.
+# 2026-05-27 - Enterprise Client Lifecycle Platform
+
+- Added the lifecycle-platform prompt and implementation plan.
+- Added shared ride lifecycle and notification route policy modules under `lib/features/rides`.
+- Trips navigation, push routing, driver active ride state, and passenger tracking state now use the shared lifecycle platform as the first extraction point for wider client orchestration.
+- Added the phase-split prompt/plan docs for `070`, `071`, and `072`.
+- Implemented Phase 2 by adding shared ride destinations and moving lifecycle-owned ride entry and recovery flows onto them.
 # 2026-05-25 - Passenger Ride UX And Trips Real Data
 
 - Planned real backend-backed Trips, fresh ride details, improved booking details, and improved ride communication/call UI.

@@ -1,10 +1,10 @@
-import 'package:client/common/widgets/ride/search_result.dart';
+import 'package:client/common/navigation/right_slide_page_route.dart';
+import 'package:client/common/widgets/ride/recent_ride_destinations.dart';
 import 'package:client/common/widgets/searchbar/searchbar.dart';
-import 'package:client/data/rides/demi_rides.dart';
-import 'package:client/data/rides/ride_models.dart';
+import 'package:client/features/location/data/device_location_service.dart';
+import 'package:client/features/location/screens/ride_search/ride_search_screen.dart';
 import 'package:client/utils/constants/sizes.dart';
 import 'package:flutter/material.dart';
-import 'package:iconsax/iconsax.dart';
 
 class SSearchContainer extends StatelessWidget {
   const SSearchContainer({
@@ -25,8 +25,6 @@ class SSearchContainer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final recentRides = SDemoRides.items.take(2).toList();
-
     return Column(
       children: [
         SSearchBar(
@@ -38,44 +36,17 @@ class SSearchContainer extends StatelessWidget {
           showBorder: showBorder,
         ),
         const SizedBox(height: SSizes.md),
-        ...recentRides.indexed.map((entry) {
-          final index = entry.$1;
-          final ride = entry.$2;
-          final dropoff = ride.dropoffStop;
-
-          return SSearchResult(
-            icon: Iconsax.location,
-            title: dropoff?.placeName ?? 'Recent destination',
-            address: _formatAddress(dropoff),
-            duration: _recentDuration(index),
-            showDivider: index != recentRides.length - 1,
-          );
-        }),
+        SRecentRideDestinations(
+          originFuture: const SDeviceLocationService().currentCoordinate(),
+          onSelected: (destination) {
+            Navigator.of(context).push(
+              SRightSlidePageRoute(
+                page: RideSearchScreen(initialDropoff: destination),
+              ),
+            );
+          },
+        ),
       ],
     );
-  }
-
-  String _formatAddress(StopResponse? stop) {
-    if (stop == null) return 'Address unavailable';
-
-    final parts = <String>[
-      if (stop.addressLine1 != null && stop.addressLine1!.trim().isNotEmpty)
-        stop.addressLine1!,
-      if (stop.addressLine2 != null && stop.addressLine2!.trim().isNotEmpty)
-        stop.addressLine2!,
-      if (stop.city != null && stop.city!.trim().isNotEmpty) stop.city!,
-      if (stop.state != null && stop.state!.trim().isNotEmpty) stop.state!,
-    ];
-
-    return parts.join(', ');
-  }
-
-  String _recentDuration(int index) {
-    const durations = [
-      '40 min',
-      '29 min',
-    ];
-
-    return durations[index];
   }
 }

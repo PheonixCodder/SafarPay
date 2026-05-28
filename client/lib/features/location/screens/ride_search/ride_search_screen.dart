@@ -1,11 +1,11 @@
 import 'package:client/common/widgets/maps/map_models.dart';
 import 'package:client/common/widgets/maps/map_view.dart';
-import 'package:client/common/navigation/right_slide_page_route.dart';
 import 'package:client/features/location/controllers/ride_search_controller.dart';
+import 'package:client/features/location/domain/location_models.dart';
 import 'package:client/features/location/domain/ride_booking_models.dart';
+import 'package:client/features/rides/navigation/ride_navigation_destinations.dart';
 import 'package:client/features/location/screens/ride_search/widgets/booking_map_controls.dart';
 import 'package:client/features/location/screens/ride_search/widgets/booking_sheet.dart';
-import 'package:client/features/location/screens/ride_tracking/ride_tracking_screen.dart';
 import 'package:client/utils/constants/colors.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -14,9 +14,11 @@ class RideSearchScreen extends StatefulWidget {
   const RideSearchScreen({
     super.key,
     this.initialCategory = SPassengerServiceCategory.cityRides,
+    this.initialDropoff,
   });
 
   final SPassengerServiceCategory initialCategory;
+  final SAddressResult? initialDropoff;
 
   @override
   State<RideSearchScreen> createState() => _RideSearchScreenState();
@@ -32,7 +34,10 @@ class _RideSearchScreenState extends State<RideSearchScreen> {
     _controllerTag =
         'ride-search-${widget.initialCategory.name}-${identityHashCode(this)}';
     _controller = Get.put(
-      SRideSearchController(initialCategory: widget.initialCategory),
+      SRideSearchController(
+        initialCategory: widget.initialCategory,
+        initialDropoff: widget.initialDropoff,
+      ),
       tag: _controllerTag,
     );
   }
@@ -102,10 +107,9 @@ class _RideSearchScreenState extends State<RideSearchScreen> {
               SBookingSheet(
                 controller: _controller,
                 onAcceptedRideTrackingRequested: (rideId) {
-                  Navigator.of(context).pushReplacement(
-                    SRightSlidePageRoute(
-                      page: RideTrackingScreen(rideId: rideId),
-                    ),
+                  sReplaceWithRideDestination(
+                    context,
+                    sRideTrackingDestination(rideId),
                   );
                 },
               ),

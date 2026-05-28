@@ -3,13 +3,17 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:record/record.dart';
 
+import '../../../common/runtime/app_lifecycle_controller.dart';
+import '../../../common/runtime/runtime_diagnostics_controller.dart';
 import '../../../utils/helpers/helpers.dart';
 import '../../../utils/http/client.dart';
+import '../../rides/orchestration/ride_realtime_orchestrator.dart';
 import '../data/communication_repository.dart';
 import '../data/communication_socket_event.dart';
 import '../data/communication_socket_repository.dart';
@@ -18,15 +22,27 @@ import '../domain/communication_models.dart';
 class SRideCommunicationController extends GetxController {
   SRideCommunicationController({
     required this.rideId,
+    this.notificationCallId,
+    this.openCallOnLoad = false,
     SCommunicationRepository repository = const SCommunicationRepository(),
     SCommunicationSocketRepository? socketRepository,
+    SAppLifecycleController? appLifecycleController,
+    SRideRealtimeOrchestrator? realtimeOrchestrator,
   })  : _repository = repository,
         _socketRepository =
-            socketRepository ?? SCommunicationSocketRepository();
+            socketRepository ?? SCommunicationSocketRepository(),
+        _appLifecycleController =
+            appLifecycleController ?? SAppLifecycleController.instance,
+        _realtimeOrchestrator =
+            realtimeOrchestrator ?? SRideRealtimeOrchestrator.instance;
 
   final String rideId;
+  final String? notificationCallId;
+  final bool openCallOnLoad;
   final SCommunicationRepository _repository;
   final SCommunicationSocketRepository _socketRepository;
+  final SAppLifecycleController _appLifecycleController;
+  final SRideRealtimeOrchestrator _realtimeOrchestrator;
   final ImagePicker _imagePicker = ImagePicker();
   final AudioRecorder _recorder = AudioRecorder();
   final AudioPlayer _audioPlayer = AudioPlayer();
@@ -39,6 +55,7 @@ class SRideCommunicationController extends GetxController {
   final RxString errorMessage = ''.obs;
   final RxString draft = ''.obs;
   final RxString callStatusText = 'Ready'.obs;
+  final RxBool shouldPresentCallScreen = false.obs;
   final Rxn<SConversation> conversation = Rxn<SConversation>();
   final Rxn<SCommunicationCall> activeCall = Rxn<SCommunicationCall>();
   final RxList<SCommunicationMessage> messages = <SCommunicationMessage>[].obs;
@@ -48,10 +65,19 @@ class SRideCommunicationController extends GetxController {
   rtc.RTCPeerConnection? _peerConnection;
   rtc.MediaStream? _localStream;
   Timer? _typingTimer;
+  Worker? _appLifecycleWorker;
 
   @override
   void onInit() {
     super.onInit();
+    _appLifecycleWorker = ever<AppLifecycleState>(
+      _appLifecycleController.state,
+      (state) {
+        if (state == AppLifecycleState.resumed) {
+          unawaited(recoverRealtimeState());
+        }
+      },
+    );
     unawaited(connect());
   }
 
@@ -59,7 +85,12 @@ class SRideCommunicationController extends GetxController {
   void onClose() {
     _typingTimer?.cancel();
     _socketSub?.cancel();
+    _appLifecycleWorker?.dispose();
     _socketRepository.close();
+    SRuntimeDiagnosticsController.instance.updateRealtimeChannel(
+      SRuntimeRealtimeChannel.communication,
+      isConnected: false,
+    );
     _recorder.dispose();
     _audioPlayer.dispose();
     _disposeCall();
@@ -73,7 +104,17 @@ class SRideCommunicationController extends GetxController {
       final resolved = await _resolveConversationWithRetry();
       conversation.value = resolved;
       await refreshMessages();
-      _connectSocket(resolved.id);
+      if (notificationCallId != null && notificationCallId!.isNotEmpty) {
+        await hydrateNotificationCall(
+          notificationCallId!,
+          presentCallScreen: openCallOnLoad,
+        );
+      }
+      if (_realtimeOrchestrator.shouldConnectCommunicationSocketForRide(
+        rideId,
+      )) {
+        _connectSocket(resolved.id);
+      }
     } catch (_) {
       errorMessage.value = 'Ride chat is not ready yet.';
     } finally {
@@ -230,7 +271,43 @@ class SRideCommunicationController extends GetxController {
     callStatusText.value = 'Ended';
     isInCall.value = false;
     activeCall.value = null;
+    shouldPresentCallScreen.value = false;
     await _disposeCall();
+  }
+
+  Future<void> recoverRealtimeState() async {
+    if (isClosed) return;
+    final current = conversation.value;
+    if (current == null) {
+      await connect();
+      return;
+    }
+    await refreshMessages();
+    if (_realtimeOrchestrator.shouldConnectCommunicationSocketForRide(rideId)) {
+      _connectSocket(current.id);
+    } else {
+      await _socketSub?.cancel();
+      _socketSub = null;
+      await _socketRepository.close();
+      SRuntimeDiagnosticsController.instance.updateRealtimeChannel(
+        SRuntimeRealtimeChannel.communication,
+        isConnected: false,
+      );
+    }
+  }
+
+  void markCallScreenPresented() {
+    shouldPresentCallScreen.value = false;
+  }
+
+  Future<void> hydrateNotificationCall(
+    String callId, {
+    bool presentCallScreen = true,
+  }) async {
+    await _restoreCallFromNotification(callId);
+    if (presentCallScreen && activeCall.value != null) {
+      shouldPresentCallScreen.value = true;
+    }
   }
 
   void toggleMute() {
@@ -259,9 +336,25 @@ class SRideCommunicationController extends GetxController {
 
   void _connectSocket(String conversationId) {
     _socketSub?.cancel();
+    SRuntimeDiagnosticsController.instance.updateRealtimeChannel(
+      SRuntimeRealtimeChannel.communication,
+      isConnected: true,
+    );
     _socketSub = _socketRepository.connect(conversationId).listen(
           _handleSocketEvent,
-          onError: (_) => errorMessage.value = 'Chat is reconnecting...',
+          onError: (_) {
+            SRuntimeDiagnosticsController.instance.updateRealtimeChannel(
+              SRuntimeRealtimeChannel.communication,
+              isConnected: false,
+            );
+            errorMessage.value = 'Chat is reconnecting...';
+          },
+          onDone: () {
+            SRuntimeDiagnosticsController.instance.updateRealtimeChannel(
+              SRuntimeRealtimeChannel.communication,
+              isConnected: false,
+            );
+          },
         );
   }
 
@@ -277,6 +370,9 @@ class SRideCommunicationController extends GetxController {
         event.call != null) {
       activeCall.value = event.call;
       callStatusText.value = 'Incoming call';
+      if (openCallOnLoad) {
+        shouldPresentCallScreen.value = true;
+      }
       return;
     }
     if (event.type == SCommunicationSocketEventType.callAccepted) {
@@ -313,6 +409,19 @@ class SRideCommunicationController extends GetxController {
     if (event.type == SCommunicationSocketEventType.webRtcIceCandidate &&
         event.payload != null) {
       await _peerConnection?.addCandidate(_candidateFrom(event.payload!));
+    }
+  }
+
+  Future<void> _restoreCallFromNotification(String callId) async {
+    try {
+      final call = await _repository.callById(callId);
+      activeCall.value = call;
+      callStatusText.value =
+          call.status == SCommunicationCallStatus.accepted
+              ? 'Connected'
+              : 'Incoming call';
+    } catch (_) {
+      // Ignore stale call notifications and keep chat usable.
     }
   }
 

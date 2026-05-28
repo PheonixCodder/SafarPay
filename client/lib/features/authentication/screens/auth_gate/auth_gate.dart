@@ -5,6 +5,7 @@ import '../../../../utils/constants/sizes.dart';
 import '../../../../utils/http/client.dart';
 import '../../../../utils/local_storage/token_storage.dart';
 import '../../../../navigation_menu.dart';
+import '../../../personalization/screens/notifications/controllers/push_notification_controller.dart';
 import '../../controllers/current_user_controller.dart';
 import '../../controllers/permissions.dart';
 import '../auth_flow/auth_flow.dart';
@@ -43,6 +44,7 @@ class AuthGateScreen extends StatelessWidget {
 
     try {
       await SCurrentUserController.instance.refreshFromBackend();
+      await SPushNotificationController.instance.ensurePermissionAndRegister();
     } on SHttpException {
       await STokenStorage.clear();
       await SCurrentUserController.instance.clear();

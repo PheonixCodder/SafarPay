@@ -3,6 +3,7 @@ import '../../../utils/http/client.dart';
 import '../../../utils/local_storage/app_mode_storage.dart';
 import '../../../utils/local_storage/token_storage.dart';
 import '../../../utils/local_storage/user_storage.dart';
+import '../../personalization/screens/notifications/controllers/push_notification_controller.dart';
 import '../models/auth_models.dart';
 
 class SAuthRepository {
@@ -122,6 +123,7 @@ class SAuthRepository {
 
   Future<void> logout() async {
     try {
+      await SPushNotificationController.instance.unregisterCurrentToken();
       await SHttpClient.post('/logout', requiresAuth: true);
     } finally {
       await STokenStorage.clear();

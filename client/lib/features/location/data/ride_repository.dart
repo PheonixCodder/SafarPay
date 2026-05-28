@@ -1,4 +1,5 @@
 import 'demo/location_demo_data.dart';
+import '../../../common/runtime/runtime_mode.dart';
 import '../../../data/rides/ride_models.dart';
 import '../domain/location_models.dart';
 import '../domain/ride_booking_models.dart';
@@ -7,9 +8,13 @@ import '../../../utils/http/client.dart';
 
 class SRideRepository {
   const SRideRepository({bool? useDemoData})
-      : _useDemoData = useDemoData ?? SApiConstants.useLocationDemoData;
+      : _delegate = (useDemoData ?? SRuntimeModeConfig.useLocationDemoData)
+            ? const _DemoRideRepositoryDelegate()
+            : const _HttpRideRepositoryDelegate();
 
-  final bool _useDemoData;
+  final _RideRepositoryDelegate _delegate;
+
+  SRuntimeDataSource get runtimeDataSource => _delegate.runtimeDataSource;
 
   static Map<String, dynamic> buildCityRideRequest({
     required SAddressResult pickup,
@@ -105,7 +110,502 @@ class SRideRepository {
   }
 
   Future<Map<String, dynamic>> createRide(Map<String, dynamic> body) {
-    if (_useDemoData) return Future.value(SLocationDemoData.createdRide(body));
+    return _delegate.createRide(body);
+  }
+
+  Future<Map<String, dynamic>> fetchRide(String rideId) {
+    return _delegate.fetchRide(rideId);
+  }
+
+  Future<Map<String, dynamic>> cancelRide({
+    required String rideId,
+    required String reason,
+  }) {
+    return _delegate.cancelRide(rideId: rideId, reason: reason);
+  }
+
+  Future<List<RideSummaryResponse>> listPassengerRides({
+    List<String> statuses = const [],
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    return _delegate.listPassengerRides(
+      statuses: statuses,
+      limit: limit,
+      offset: offset,
+    );
+  }
+
+  Future<List<RecentRideDestinationResponse>> listRecentDestinations({
+    int limit = 5,
+  }) async {
+    return _delegate.listRecentDestinations(limit: limit);
+  }
+
+  Future<Map<String, dynamic>> acceptFixedRide(String rideId) {
+    return _delegate.acceptFixedRide(rideId);
+  }
+
+  Future<Map<String, dynamic>> startRide({
+    required String rideId,
+    String? verificationCode,
+  }) {
+    return _delegate.startRide(
+      rideId: rideId,
+      verificationCode: verificationCode,
+    );
+  }
+
+  Future<Map<String, dynamic>> completeRide({
+    required String rideId,
+    String? verificationCode,
+    double? finalPrice,
+    SCoordinate? driverLocation,
+    double? accuracyMeters,
+  }) {
+    return _delegate.completeRide(
+      rideId: rideId,
+      verificationCode: verificationCode,
+      finalPrice: finalPrice,
+      driverLocation: driverLocation,
+      accuracyMeters: accuracyMeters,
+    );
+  }
+
+  Future<Map<String, dynamic>> addStop({
+    required String rideId,
+    required Map<String, dynamic> stop,
+  }) {
+    return _delegate.addStop(rideId: rideId, stop: stop);
+  }
+
+  Future<Map<String, dynamic>> markStopArrived(String stopId) {
+    return _delegate.markStopArrived(stopId);
+  }
+
+  Future<Map<String, dynamic>> markStopCompleted(String stopId) {
+    return _delegate.markStopCompleted(stopId);
+  }
+
+  Future<Map<String, dynamic>> generateVerificationCode({
+    required String rideId,
+    String? stopId,
+    int expiresInMinutes = 15,
+    int maxAttempts = 5,
+    int length = 6,
+  }) {
+    return _delegate.generateVerificationCode(
+      rideId: rideId,
+      stopId: stopId,
+      expiresInMinutes: expiresInMinutes,
+      maxAttempts: maxAttempts,
+      length: length,
+    );
+  }
+
+  Future<Map<String, dynamic>> verifyCode({
+    required String rideId,
+    required String code,
+    String? userId,
+    String? driverId,
+  }) {
+    return _delegate.verifyCode(
+      rideId: rideId,
+      code: code,
+      userId: userId,
+      driverId: driverId,
+    );
+  }
+
+  Future<Map<String, dynamic>> requestProofUploadUrl({
+    required String rideId,
+    required String proofType,
+    String? fileName,
+    String mimeType = 'image/jpeg',
+    String? stopId,
+  }) {
+    return _delegate.requestProofUploadUrl(
+      rideId: rideId,
+      proofType: proofType,
+      fileName: fileName,
+      mimeType: mimeType,
+      stopId: stopId,
+    );
+  }
+
+  Future<void> uploadProofBytes({
+    required String presignedUrl,
+    required List<int> bytes,
+    String contentType = 'image/jpeg',
+  }) {
+    return _delegate.uploadProofBytes(
+      presignedUrl: presignedUrl,
+      bytes: bytes,
+      contentType: contentType,
+    );
+  }
+
+  Future<Map<String, dynamic>> registerProof({
+    required String rideId,
+    required String proofType,
+    required String fileKey,
+    String? fileName,
+    String? mimeType,
+    int? fileSizeBytes,
+    String? checksumSha256,
+    bool isPrimary = false,
+    String? stopId,
+  }) {
+    return _delegate.registerProof(
+      rideId: rideId,
+      proofType: proofType,
+      fileKey: fileKey,
+      fileName: fileName,
+      mimeType: mimeType,
+      fileSizeBytes: fileSizeBytes,
+      checksumSha256: checksumSha256,
+      isPrimary: isPrimary,
+      stopId: stopId,
+    );
+  }
+
+  Future<Map<String, dynamic>> getProofUrl({
+    required String rideId,
+    required String proofId,
+  }) {
+    return _delegate.getProofUrl(rideId: rideId, proofId: proofId);
+  }
+
+  Future<Map<String, dynamic>> nearbyDrivers({
+    required double latitude,
+    required double longitude,
+    double radiusKm = 5,
+    String? rideId,
+  }) {
+    return _delegate.nearbyDrivers(
+      latitude: latitude,
+      longitude: longitude,
+      radiusKm: radiusKm,
+      rideId: rideId,
+    );
+  }
+}
+
+abstract class _RideRepositoryDelegate {
+  const _RideRepositoryDelegate();
+
+  SRuntimeDataSource get runtimeDataSource;
+
+  Future<Map<String, dynamic>> createRide(Map<String, dynamic> body);
+
+  Future<Map<String, dynamic>> fetchRide(String rideId);
+
+  Future<Map<String, dynamic>> cancelRide({
+    required String rideId,
+    required String reason,
+  });
+
+  Future<List<RideSummaryResponse>> listPassengerRides({
+    List<String> statuses = const [],
+    int limit = 20,
+    int offset = 0,
+  });
+
+  Future<List<RecentRideDestinationResponse>> listRecentDestinations({
+    int limit = 5,
+  });
+
+  Future<Map<String, dynamic>> acceptFixedRide(String rideId);
+
+  Future<Map<String, dynamic>> startRide({
+    required String rideId,
+    String? verificationCode,
+  });
+
+  Future<Map<String, dynamic>> completeRide({
+    required String rideId,
+    String? verificationCode,
+    double? finalPrice,
+    SCoordinate? driverLocation,
+    double? accuracyMeters,
+  });
+
+  Future<Map<String, dynamic>> addStop({
+    required String rideId,
+    required Map<String, dynamic> stop,
+  });
+
+  Future<Map<String, dynamic>> markStopArrived(String stopId);
+
+  Future<Map<String, dynamic>> markStopCompleted(String stopId);
+
+  Future<Map<String, dynamic>> generateVerificationCode({
+    required String rideId,
+    String? stopId,
+    int expiresInMinutes = 15,
+    int maxAttempts = 5,
+    int length = 6,
+  });
+
+  Future<Map<String, dynamic>> verifyCode({
+    required String rideId,
+    required String code,
+    String? userId,
+    String? driverId,
+  });
+
+  Future<Map<String, dynamic>> requestProofUploadUrl({
+    required String rideId,
+    required String proofType,
+    String? fileName,
+    String mimeType = 'image/jpeg',
+    String? stopId,
+  });
+
+  Future<void> uploadProofBytes({
+    required String presignedUrl,
+    required List<int> bytes,
+    String contentType = 'image/jpeg',
+  });
+
+  Future<Map<String, dynamic>> registerProof({
+    required String rideId,
+    required String proofType,
+    required String fileKey,
+    String? fileName,
+    String? mimeType,
+    int? fileSizeBytes,
+    String? checksumSha256,
+    bool isPrimary = false,
+    String? stopId,
+  });
+
+  Future<Map<String, dynamic>> getProofUrl({
+    required String rideId,
+    required String proofId,
+  });
+
+  Future<Map<String, dynamic>> nearbyDrivers({
+    required double latitude,
+    required double longitude,
+    double radiusKm = 5,
+    String? rideId,
+  });
+}
+
+class _DemoRideRepositoryDelegate extends _RideRepositoryDelegate {
+  const _DemoRideRepositoryDelegate();
+
+  @override
+  SRuntimeDataSource get runtimeDataSource => SRuntimeDataSource.demo;
+
+  @override
+  Future<Map<String, dynamic>> createRide(Map<String, dynamic> body) {
+    return Future.value(SLocationDemoData.createdRide(body));
+  }
+
+  @override
+  Future<Map<String, dynamic>> fetchRide(String rideId) {
+    return Future.value(SLocationDemoData.rideDetails(rideId));
+  }
+
+  @override
+  Future<Map<String, dynamic>> cancelRide({
+    required String rideId,
+    required String reason,
+  }) {
+    return Future.value(SLocationDemoData.canceledRide(rideId, reason));
+  }
+
+  @override
+  Future<List<RideSummaryResponse>> listPassengerRides({
+    List<String> statuses = const [],
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    return SLocationDemoData.passengerRideSummaries()
+        .map((item) => RideSummaryResponse.fromJson(item))
+        .toList(growable: false);
+  }
+
+  @override
+  Future<List<RecentRideDestinationResponse>> listRecentDestinations({
+    int limit = 5,
+  }) async {
+    return SLocationDemoData.recentRideDestinations()
+        .map(RecentRideDestinationResponse.fromJson)
+        .take(limit)
+        .toList(growable: false);
+  }
+
+  @override
+  Future<Map<String, dynamic>> acceptFixedRide(String rideId) {
+    return Future.value(SLocationDemoData.rideAccepted(rideId));
+  }
+
+  @override
+  Future<Map<String, dynamic>> startRide({
+    required String rideId,
+    String? verificationCode,
+  }) {
+    return Future.value(
+      SLocationDemoData.rideStarted(
+        rideId: rideId,
+        verificationCode: verificationCode,
+      ),
+    );
+  }
+
+  @override
+  Future<Map<String, dynamic>> completeRide({
+    required String rideId,
+    String? verificationCode,
+    double? finalPrice,
+    SCoordinate? driverLocation,
+    double? accuracyMeters,
+  }) {
+    return Future.value(
+      SLocationDemoData.rideCompleted(
+        rideId: rideId,
+        verificationCode: verificationCode,
+        finalPrice: finalPrice,
+      ),
+    );
+  }
+
+  @override
+  Future<Map<String, dynamic>> addStop({
+    required String rideId,
+    required Map<String, dynamic> stop,
+  }) {
+    return Future.value(SLocationDemoData.addedStop(rideId: rideId, stop: stop));
+  }
+
+  @override
+  Future<Map<String, dynamic>> markStopArrived(String stopId) {
+    return Future.value(SLocationDemoData.stopArrived(stopId));
+  }
+
+  @override
+  Future<Map<String, dynamic>> markStopCompleted(String stopId) {
+    return Future.value(SLocationDemoData.stopCompleted(stopId));
+  }
+
+  @override
+  Future<Map<String, dynamic>> generateVerificationCode({
+    required String rideId,
+    String? stopId,
+    int expiresInMinutes = 15,
+    int maxAttempts = 5,
+    int length = 6,
+  }) {
+    return Future.value(
+      SLocationDemoData.verificationCode(rideId: rideId, stopId: stopId),
+    );
+  }
+
+  @override
+  Future<Map<String, dynamic>> verifyCode({
+    required String rideId,
+    required String code,
+    String? userId,
+    String? driverId,
+  }) {
+    return Future.value(
+      SLocationDemoData.verificationCode(rideId: rideId, isVerified: true),
+    );
+  }
+
+  @override
+  Future<Map<String, dynamic>> requestProofUploadUrl({
+    required String rideId,
+    required String proofType,
+    String? fileName,
+    String mimeType = 'image/jpeg',
+    String? stopId,
+  }) {
+    return Future.value(
+      SLocationDemoData.proofUploadUrl(
+        proofType: proofType,
+        mimeType: mimeType,
+      ),
+    );
+  }
+
+  @override
+  Future<void> uploadProofBytes({
+    required String presignedUrl,
+    required List<int> bytes,
+    String contentType = 'image/jpeg',
+  }) {
+    return Future.value();
+  }
+
+  @override
+  Future<Map<String, dynamic>> registerProof({
+    required String rideId,
+    required String proofType,
+    required String fileKey,
+    String? fileName,
+    String? mimeType,
+    int? fileSizeBytes,
+    String? checksumSha256,
+    bool isPrimary = false,
+    String? stopId,
+  }) {
+    return Future.value(
+      SLocationDemoData.proofImage(
+        rideId: rideId,
+        proofType: proofType,
+        fileKey: fileKey,
+        fileName: fileName,
+        mimeType: mimeType,
+        fileSizeBytes: fileSizeBytes,
+        stopId: stopId,
+      ),
+    );
+  }
+
+  @override
+  Future<Map<String, dynamic>> getProofUrl({
+    required String rideId,
+    required String proofId,
+  }) {
+    return Future.value(
+      SLocationDemoData.proofImage(
+        rideId: rideId,
+        proofType: 'PICKUP',
+        fileKey: 'demo/ride/proofs/pickup_proof.jpg',
+        withViewUrl: true,
+      ),
+    );
+  }
+
+  @override
+  Future<Map<String, dynamic>> nearbyDrivers({
+    required double latitude,
+    required double longitude,
+    double radiusKm = 5,
+    String? rideId,
+  }) {
+    return Future.value(
+      SLocationDemoData.nearbyDrivers(
+        latitude: latitude,
+        longitude: longitude,
+        rideId: rideId,
+      ),
+    );
+  }
+}
+
+class _HttpRideRepositoryDelegate extends _RideRepositoryDelegate {
+  const _HttpRideRepositoryDelegate();
+
+  @override
+  SRuntimeDataSource get runtimeDataSource => SRuntimeDataSource.real;
+
+  @override
+  Future<Map<String, dynamic>> createRide(Map<String, dynamic> body) {
     return SHttpClient.post(
       '/rides',
       service: SApiService.ride,
@@ -114,10 +614,8 @@ class SRideRepository {
     );
   }
 
+  @override
   Future<Map<String, dynamic>> fetchRide(String rideId) {
-    if (_useDemoData) {
-      return Future.value(SLocationDemoData.rideDetails(rideId));
-    }
     return SHttpClient.get(
       '/rides/$rideId',
       service: SApiService.ride,
@@ -125,13 +623,11 @@ class SRideRepository {
     );
   }
 
+  @override
   Future<Map<String, dynamic>> cancelRide({
     required String rideId,
     required String reason,
   }) {
-    if (_useDemoData) {
-      return Future.value(SLocationDemoData.canceledRide(rideId, reason));
-    }
     return SHttpClient.post(
       '/rides/$rideId/cancel',
       service: SApiService.ride,
@@ -140,16 +636,12 @@ class SRideRepository {
     );
   }
 
+  @override
   Future<List<RideSummaryResponse>> listPassengerRides({
     List<String> statuses = const [],
     int limit = 20,
     int offset = 0,
   }) async {
-    if (_useDemoData) {
-      return SLocationDemoData.passengerRideSummaries()
-          .map((item) => RideSummaryResponse.fromJson(item))
-          .toList(growable: false);
-    }
     final baseQuery = Uri(
       queryParameters: {
         'limit': limit.toString(),
@@ -177,10 +669,26 @@ class SRideRepository {
         .toList(growable: false);
   }
 
+  @override
+  Future<List<RecentRideDestinationResponse>> listRecentDestinations({
+    int limit = 5,
+  }) async {
+    final query = Uri(queryParameters: {'limit': limit.toString()}).query;
+    final data = await SHttpClient.get(
+      '/rides/recent-destinations?$query',
+      service: SApiService.ride,
+      requiresAuth: true,
+    );
+    final values = data['data'] ?? data;
+    if (values is! List) return const [];
+    return values
+        .whereType<Map<String, dynamic>>()
+        .map(RecentRideDestinationResponse.fromJson)
+        .toList(growable: false);
+  }
+
+  @override
   Future<Map<String, dynamic>> acceptFixedRide(String rideId) {
-    if (_useDemoData) {
-      return Future.value(SLocationDemoData.rideAccepted(rideId));
-    }
     return SHttpClient.post(
       '/rides/$rideId/accept',
       service: SApiService.ride,
@@ -188,18 +696,11 @@ class SRideRepository {
     );
   }
 
+  @override
   Future<Map<String, dynamic>> startRide({
     required String rideId,
     String? verificationCode,
   }) {
-    if (_useDemoData) {
-      return Future.value(
-        SLocationDemoData.rideStarted(
-          rideId: rideId,
-          verificationCode: verificationCode,
-        ),
-      );
-    }
     return SHttpClient.post(
       '/rides/$rideId/start',
       service: SApiService.ride,
@@ -210,6 +711,7 @@ class SRideRepository {
     );
   }
 
+  @override
   Future<Map<String, dynamic>> completeRide({
     required String rideId,
     String? verificationCode,
@@ -217,15 +719,6 @@ class SRideRepository {
     SCoordinate? driverLocation,
     double? accuracyMeters,
   }) {
-    if (_useDemoData) {
-      return Future.value(
-        SLocationDemoData.rideCompleted(
-          rideId: rideId,
-          verificationCode: verificationCode,
-          finalPrice: finalPrice,
-        ),
-      );
-    }
     return SHttpClient.post(
       '/rides/$rideId/complete',
       service: SApiService.ride,
@@ -242,15 +735,11 @@ class SRideRepository {
     );
   }
 
+  @override
   Future<Map<String, dynamic>> addStop({
     required String rideId,
     required Map<String, dynamic> stop,
   }) {
-    if (_useDemoData) {
-      return Future.value(
-        SLocationDemoData.addedStop(rideId: rideId, stop: stop),
-      );
-    }
     return SHttpClient.post(
       '/rides/$rideId/stops',
       service: SApiService.ride,
@@ -259,10 +748,8 @@ class SRideRepository {
     );
   }
 
+  @override
   Future<Map<String, dynamic>> markStopArrived(String stopId) {
-    if (_useDemoData) {
-      return Future.value(SLocationDemoData.stopArrived(stopId));
-    }
     return SHttpClient.post(
       '/stops/$stopId/arrived',
       service: SApiService.ride,
@@ -270,10 +757,8 @@ class SRideRepository {
     );
   }
 
+  @override
   Future<Map<String, dynamic>> markStopCompleted(String stopId) {
-    if (_useDemoData) {
-      return Future.value(SLocationDemoData.stopCompleted(stopId));
-    }
     return SHttpClient.post(
       '/stops/$stopId/completed',
       service: SApiService.ride,
@@ -281,6 +766,7 @@ class SRideRepository {
     );
   }
 
+  @override
   Future<Map<String, dynamic>> generateVerificationCode({
     required String rideId,
     String? stopId,
@@ -288,11 +774,6 @@ class SRideRepository {
     int maxAttempts = 5,
     int length = 6,
   }) {
-    if (_useDemoData) {
-      return Future.value(
-        SLocationDemoData.verificationCode(rideId: rideId, stopId: stopId),
-      );
-    }
     return SHttpClient.post(
       '/rides/$rideId/verification-codes',
       service: SApiService.ride,
@@ -306,17 +787,13 @@ class SRideRepository {
     );
   }
 
+  @override
   Future<Map<String, dynamic>> verifyCode({
     required String rideId,
     required String code,
     String? userId,
     String? driverId,
   }) {
-    if (_useDemoData) {
-      return Future.value(
-        SLocationDemoData.verificationCode(rideId: rideId, isVerified: true),
-      );
-    }
     return SHttpClient.post(
       '/rides/$rideId/verification-codes/verify',
       service: SApiService.ride,
@@ -329,6 +806,7 @@ class SRideRepository {
     );
   }
 
+  @override
   Future<Map<String, dynamic>> requestProofUploadUrl({
     required String rideId,
     required String proofType,
@@ -336,14 +814,6 @@ class SRideRepository {
     String mimeType = 'image/jpeg',
     String? stopId,
   }) {
-    if (_useDemoData) {
-      return Future.value(
-        SLocationDemoData.proofUploadUrl(
-          proofType: proofType,
-          mimeType: mimeType,
-        ),
-      );
-    }
     return SHttpClient.post(
       '/rides/$rideId/proofs/upload-url',
       service: SApiService.ride,
@@ -357,12 +827,12 @@ class SRideRepository {
     );
   }
 
+  @override
   Future<void> uploadProofBytes({
     required String presignedUrl,
     required List<int> bytes,
     String contentType = 'image/jpeg',
   }) {
-    if (_useDemoData) return Future.value();
     return SHttpClient.putBytesToAbsoluteUrl(
       presignedUrl,
       bytes: bytes,
@@ -370,6 +840,7 @@ class SRideRepository {
     );
   }
 
+  @override
   Future<Map<String, dynamic>> registerProof({
     required String rideId,
     required String proofType,
@@ -381,19 +852,6 @@ class SRideRepository {
     bool isPrimary = false,
     String? stopId,
   }) {
-    if (_useDemoData) {
-      return Future.value(
-        SLocationDemoData.proofImage(
-          rideId: rideId,
-          proofType: proofType,
-          fileKey: fileKey,
-          fileName: fileName,
-          mimeType: mimeType,
-          fileSizeBytes: fileSizeBytes,
-          stopId: stopId,
-        ),
-      );
-    }
     return SHttpClient.post(
       '/rides/$rideId/proofs',
       service: SApiService.ride,
@@ -411,20 +869,11 @@ class SRideRepository {
     );
   }
 
+  @override
   Future<Map<String, dynamic>> getProofUrl({
     required String rideId,
     required String proofId,
   }) {
-    if (_useDemoData) {
-      return Future.value(
-        SLocationDemoData.proofImage(
-          rideId: rideId,
-          proofType: 'PICKUP',
-          fileKey: 'demo/ride/proofs/pickup_proof.jpg',
-          withViewUrl: true,
-        ),
-      );
-    }
     return SHttpClient.get(
       '/rides/$rideId/proofs/$proofId/url',
       service: SApiService.ride,
@@ -432,21 +881,13 @@ class SRideRepository {
     );
   }
 
+  @override
   Future<Map<String, dynamic>> nearbyDrivers({
     required double latitude,
     required double longitude,
     double radiusKm = 5,
     String? rideId,
   }) {
-    if (_useDemoData) {
-      return Future.value(
-        SLocationDemoData.nearbyDrivers(
-          latitude: latitude,
-          longitude: longitude,
-          rideId: rideId,
-        ),
-      );
-    }
     final query = Uri(
       queryParameters: {
         'lat': latitude.toString(),

@@ -144,6 +144,7 @@ class SLocationDemoData {
         'assigned_driver_id': null,
         'service_type': 'CITY_RIDE',
         'category': 'MINI',
+        'pricing_mode': 'HYBRID',
         'status': 'MATCHING',
         'passenger_payment_method': 'CASH',
         'payment_collection_mode': 'DRIVER_COLLECTED',
@@ -161,6 +162,45 @@ class SLocationDemoData {
           rideId: 'demo-ride-001',
           type: 'DROPOFF',
           address: dropoff,
+          sequenceOrder: 2,
+        ),
+      },
+    ];
+  }
+
+  static List<Map<String, dynamic>> recentRideDestinations() {
+    final rides = passengerRideSummaries();
+    final first = rides.first;
+    return [
+      {
+        'ride_id': first['id'],
+        'service_type': first['service_type'],
+        'category': first['category'],
+        'pricing_mode': first['pricing_mode'],
+        'created_at': first['created_at'],
+        'pickup_stop': first['pickup_stop'],
+        'dropoff_stop': first['dropoff_stop'],
+      },
+      {
+        'ride_id': 'demo-ride-002',
+        'service_type': 'CITY_RIDE',
+        'category': 'RIDE_AC',
+        'pricing_mode': 'FIXED',
+        'created_at': DateTime.now()
+            .subtract(const Duration(days: 2))
+            .toIso8601String(),
+        'pickup_stop': demoStop(
+          id: 'demo-stop-pickup-002',
+          rideId: 'demo-ride-002',
+          type: 'PICKUP',
+          address: pickup,
+          sequenceOrder: 1,
+        ),
+        'dropoff_stop': demoStop(
+          id: 'demo-stop-dropoff-002',
+          rideId: 'demo-ride-002',
+          type: 'DROPOFF',
+          address: searchResults[1],
           sequenceOrder: 2,
         ),
       },
@@ -278,9 +318,8 @@ class SLocationDemoData {
       'is_verified': isVerified,
       'attempts': isVerified ? 1 : 0,
       'max_attempts': 5,
-      'expires_at': DateTime.now()
-          .add(const Duration(minutes: 15))
-          .toIso8601String(),
+      'expires_at':
+          DateTime.now().add(const Duration(minutes: 15)).toIso8601String(),
       'generated_at': DateTime.now().toIso8601String(),
       'verified_at': isVerified ? DateTime.now().toIso8601String() : null,
     };

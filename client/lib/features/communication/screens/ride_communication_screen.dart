@@ -15,14 +15,22 @@ class SRideCommunicationScreen extends StatelessWidget {
   const SRideCommunicationScreen({
     super.key,
     required this.rideId,
+    this.notificationCallId,
+    this.openCallOnLoad = false,
   });
 
   final String rideId;
+  final String? notificationCallId;
+  final bool openCallOnLoad;
 
   @override
   Widget build(BuildContext context) {
     final controller = Get.put(
-      SRideCommunicationController(rideId: rideId),
+      SRideCommunicationController(
+        rideId: rideId,
+        notificationCallId: notificationCallId,
+        openCallOnLoad: openCallOnLoad,
+      ),
       tag: rideId,
     );
 
@@ -47,6 +55,15 @@ class SRideCommunicationScreen extends StatelessWidget {
                 message: controller.errorMessage.value,
                 onRetry: controller.connect,
               );
+            }
+            if (controller.shouldPresentCallScreen.value) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (!controller.shouldPresentCallScreen.value) {
+                  return;
+                }
+                controller.markCallScreenPresented();
+                Get.to(() => SRideCallScreen(controller: controller));
+              });
             }
             return Column(
               children: [
