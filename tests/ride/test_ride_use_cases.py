@@ -28,6 +28,8 @@ from ride.application.use_cases import (
     GenerateVerificationCodeUseCase,
     GetProofWithUrlUseCase,
     InternalAssignDriverUseCase,
+    ListPassengerRidesUseCase,
+    ListRecentRideDestinationsUseCase,
     MarkStopArrivedUseCase,
     MarkStopCompletedUseCase,
     StartRideUseCase,
@@ -116,6 +118,39 @@ async def test_create_ride_preserves_enabled_city_otp_flags() -> None:
     assert repo.created_detail is not None
     assert repo.created_detail["requires_otp_start"] is True
     assert repo.created_detail["requires_otp_end"] is True
+
+
+@pytest.mark.asyncio
+async def test_list_passenger_rides_summary_includes_pricing_mode() -> None:
+    ride = make_ride(pricing_mode=PricingMode.HYBRID)
+    repo = FakeRideRepo(ride)
+
+    response = await ListPassengerRidesUseCase(cast(Any, repo)).execute(
+        PASSENGER_ID,
+    )
+
+    assert response[0].pricing_mode == PricingMode.HYBRID
+
+
+@pytest.mark.asyncio
+async def test_list_recent_destinations_returns_completed_unique_dropoffs() -> None:
+    first = make_ride(status=RideStatus.COMPLETED)
+    duplicate = make_ride(status=RideStatus.COMPLETED)
+    active = make_ride(status=RideStatus.MATCHING)
+    duplicate.stops[1].latitude = first.stops[1].latitude
+    duplicate.stops[1].longitude = first.stops[1].longitude
+    duplicate.stops[1].place_name = first.stops[1].place_name
+    repo = FakeRideRepo(rides=[first, duplicate, active])
+
+    response = await ListRecentRideDestinationsUseCase(cast(Any, repo)).execute(
+        PASSENGER_ID,
+        limit=5,
+    )
+
+    assert len(response) == 1
+    assert response[0].ride_id == first.id
+    assert response[0].dropoff_stop.latitude == first.dropoff_stop.latitude
+    assert repo.find_by_passenger_calls[0][1] == [RideStatus.COMPLETED]
 
 
 @pytest.mark.parametrize(

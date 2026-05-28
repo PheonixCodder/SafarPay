@@ -326,7 +326,13 @@ class MessageRepository:
         self._session = session
         self._event_topic = event_topic or get_settings().COMMUNICATION_EVENTS_TOPIC
 
-    async def create(self, message: Message) -> Message:
+    async def create(
+        self,
+        message: Message,
+        *,
+        emit_event: bool = True,
+        event_payload: dict[str, Any] | None = None,
+    ) -> Message:
         from .orm_models import MessageStatus as OrmStatus
         from .orm_models import MessageType as OrmType
 
@@ -341,19 +347,21 @@ class MessageRepository:
             sent_at=message.sent_at,
         )
         self._session.add(orm)
-        self._session.add(
-            CommunicationEventORM(
-                event_type=CommunicationEventType.MESSAGE_SENT.value,
-                aggregate_id=message.id,
-                aggregate_type="message",
-                topic=self._event_topic,
-                payload={
-                    "conversation_id": str(message.conversation_id),
-                    "message_id": str(message.id),
-                    "message_type": message.message_type.value,
-                },
+        if emit_event:
+            self._session.add(
+                CommunicationEventORM(
+                    event_type=CommunicationEventType.MESSAGE_SENT.value,
+                    aggregate_id=message.id,
+                    aggregate_type="message",
+                    topic=self._event_topic,
+                    payload=event_payload
+                    or {
+                        "conversation_id": str(message.conversation_id),
+                        "message_id": str(message.id),
+                        "message_type": message.message_type.value,
+                    },
+                )
             )
-        )
         await self._session.flush()
         return _message_to_domain(orm)
 
@@ -423,7 +431,13 @@ class MediaRepository:
         orm = result.scalar_one_or_none()
         return _media_to_domain(orm) if orm else None
 
-    async def attach_to_message(self, media_id: UUID, message_id: UUID) -> MessageMedia:
+    async def attach_to_message(
+        self,
+        media_id: UUID,
+        message_id: UUID,
+        *,
+        event_payload: dict[str, Any] | None = None,
+    ) -> MessageMedia:
         from .orm_models import MediaUploadStatus as OrmUploadStatus
 
         await self._session.execute(
@@ -437,7 +451,8 @@ class MediaRepository:
                 aggregate_id=message_id,
                 aggregate_type="message",
                 topic=self._event_topic,
-                payload={"message_id": str(message_id), "media_id": str(media_id)},
+                payload=event_payload
+                or {"message_id": str(message_id), "media_id": str(media_id)},
             )
         )
         await self._session.flush()
@@ -456,7 +471,12 @@ class CallRepository:
         self._session = session
         self._event_topic = event_topic or get_settings().COMMUNICATION_EVENTS_TOPIC
 
-    async def create(self, call: VoiceCall) -> VoiceCall:
+    async def create(
+        self,
+        call: VoiceCall,
+        *,
+        event_payload: dict[str, Any] | None = None,
+    ) -> VoiceCall:
         from .orm_models import CallStatus as OrmCallStatus
 
         orm = VoiceCallORM(
@@ -477,7 +497,8 @@ class CallRepository:
                 aggregate_id=call.id,
                 aggregate_type="call",
                 topic=self._event_topic,
-                payload={
+                payload=event_payload
+                or {
                     "conversation_id": str(call.conversation_id),
                     "call_id": str(call.id),
                     "status": call.status.value,
@@ -491,6 +512,18 @@ class CallRepository:
         result = await self._session.execute(select(VoiceCallORM).where(VoiceCallORM.id == call_id))
         orm = result.scalar_one_or_none()
         return _call_to_domain(orm) if orm else None
+
+    async def find_latest_offer(self, call_id: UUID) -> dict[str, Any] | None:
+        result = await self._session.execute(
+            select(CallSignalingEventORM.payload)
+            .where(
+                CallSignalingEventORM.call_id == call_id,
+                CallSignalingEventORM.signal_type == SignalType.OFFER,
+            )
+            .order_by(CallSignalingEventORM.created_at.desc())
+            .limit(1)
+        )
+        return result.scalar_one_or_none()
 
     async def update(self, call: VoiceCall) -> VoiceCall:
         from .orm_models import CallStatus as OrmCallStatus

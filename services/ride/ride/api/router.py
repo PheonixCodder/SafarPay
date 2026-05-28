@@ -29,6 +29,7 @@ from ..application.schemas import (
     ProofImageWithUrlResponse,
     ProofUploadUrlRequest,
     ProofUploadUrlResponse,
+    RecentRideDestinationResponse,
     RideResponse,
     RideSummaryResponse,
     UploadProofRequest,
@@ -51,6 +52,7 @@ from ..application.use_cases import (
     GetRideUseCase,
     ListDriverRequestsUseCase,
     ListPassengerRidesUseCase,
+    ListRecentRideDestinationsUseCase,
     MarkStopArrivedUseCase,
     MarkStopCompletedUseCase,
     StartRideUseCase,
@@ -93,6 +95,7 @@ from ..infrastructure.dependencies import (
     get_driver_active_ride_uc,
     get_get_ride_uc,
     get_list_driver_requests_uc,
+    get_list_recent_destinations_uc,
     get_list_rides_uc,
     get_mark_arrived_uc,
     get_mark_completed_uc,
@@ -176,6 +179,15 @@ async def list_rides(
     offset: int = Query(default=0, ge=0),
 ) -> list[RideSummaryResponse]:
     return await uc.execute(current_user.user_id, status_filter=status_filter, limit=limit, offset=offset)
+
+
+@router.get("/rides/recent-destinations", response_model=list[RecentRideDestinationResponse])
+async def list_recent_destinations(
+    current_user: CurrentUser,
+    uc: Annotated[ListRecentRideDestinationsUseCase, Depends(get_list_recent_destinations_uc)],
+    limit: int = Query(default=5, ge=1, le=10),
+) -> list[RecentRideDestinationResponse]:
+    return await uc.execute(current_user.user_id, limit=limit)
 
 
 @router.get("/driver/requests", response_model=list[DriverRideRequestResponse])

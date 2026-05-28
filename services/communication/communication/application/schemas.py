@@ -88,6 +88,7 @@ class CallResponse(BaseModel):
     accepted_at: datetime | None = None
     ended_at: datetime | None = None
     end_reason: str | None = None
+    initial_offer: dict[str, Any] | None = None
 
 
 class EndCallRequest(BaseModel):

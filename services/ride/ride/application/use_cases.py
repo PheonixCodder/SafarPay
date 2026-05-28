@@ -75,6 +75,7 @@ from .schemas import (
     ProofImageResponse,
     ProofImageWithUrlResponse,
     ProofUploadUrlResponse,
+    RecentRideDestinationResponse,
     RideResponse,
     RideSummaryResponse,
     StopResponse,
@@ -165,6 +166,7 @@ def _ride_to_summary(ride: ServiceRequest) -> RideSummaryResponse:
         id=ride.id, passenger_id=ride.passenger_id,
         assigned_driver_id=ride.assigned_driver_id,
         service_type=ride.service_type, category=ride.category,
+        pricing_mode=ride.pricing_mode,
         status=ride.status,
         passenger_payment_method=ride.passenger_payment_method,
         payment_collection_mode=ride.payment_collection_mode,
@@ -172,6 +174,21 @@ def _ride_to_summary(ride: ServiceRequest) -> RideSummaryResponse:
         scheduled_at=ride.scheduled_at,
         pickup_stop=_stop_to_resp(pickup) if pickup else None,
         dropoff_stop=_stop_to_resp(dropoff) if dropoff else None,
+    )
+
+
+def _ride_to_recent_destination(ride: ServiceRequest) -> RecentRideDestinationResponse | None:
+    dropoff = ride.dropoff_stop
+    if dropoff is None:
+        return None
+    return RecentRideDestinationResponse(
+        ride_id=ride.id,
+        service_type=ride.service_type,
+        category=ride.category,
+        pricing_mode=ride.pricing_mode,
+        created_at=ride.created_at,
+        pickup_stop=_stop_to_resp(ride.pickup_stop) if ride.pickup_stop else None,
+        dropoff_stop=_stop_to_resp(dropoff),
     )
 
 
@@ -428,6 +445,43 @@ class ListPassengerRidesUseCase:
             passenger_id, status_filter=status_filter, limit=limit, offset=offset
         )
         return [_ride_to_summary(r) for r in rides]
+
+
+class ListRecentRideDestinationsUseCase:
+    def __init__(self, repo: ServiceRequestRepositoryProtocol) -> None:
+        self._repo = repo
+
+    async def execute(
+        self,
+        passenger_id: UUID,
+        *,
+        limit: int = 5,
+    ) -> list[RecentRideDestinationResponse]:
+        rides = await self._repo.find_by_passenger(
+            passenger_id,
+            status_filter=[RideStatus.COMPLETED],
+            limit=max(limit * 4, limit),
+            offset=0,
+        )
+        destinations: list[RecentRideDestinationResponse] = []
+        seen: set[tuple[int, int, str]] = set()
+        for ride in rides:
+            item = _ride_to_recent_destination(ride)
+            if item is None:
+                continue
+            stop = item.dropoff_stop
+            key = (
+                round(stop.latitude * 100000),
+                round(stop.longitude * 100000),
+                (stop.place_name or stop.address_line_1 or "").strip().casefold(),
+            )
+            if key in seen:
+                continue
+            seen.add(key)
+            destinations.append(item)
+            if len(destinations) >= limit:
+                break
+        return destinations
 
 
 class ListDriverRequestsUseCase:
@@ -726,7 +780,11 @@ class StartRideUseCase:
         ride.start()
         await self._repo.update_status(ride.id, ride.status)
         await _cache_ride(self._cache, ride)
-        await _publish(self._pub, ServiceRequestStartedEvent(payload={"ride_id": str(ride.id)}))
+        await _publish(self._pub, ServiceRequestStartedEvent(payload={
+            "ride_id": str(ride.id),
+            "passenger_user_id": str(ride.passenger_id),
+            "driver_id": str(ride.assigned_driver_id) if ride.assigned_driver_id else None,
+        }))
         await self._ws.broadcast_to_passenger(
             ride.passenger_id, PassengerEvent.RIDE_STARTED, {"ride_id": str(ride.id)}
         )

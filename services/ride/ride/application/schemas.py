@@ -428,6 +428,7 @@ class RideSummaryResponse(BaseModel):
     assigned_driver_id: UUID | None
     service_type: ServiceType
     category: ServiceCategory
+    pricing_mode: PricingMode
     status: RideStatus
     passenger_payment_method: PassengerPaymentMethod
     payment_collection_mode: PaymentCollectionMode
@@ -435,6 +436,17 @@ class RideSummaryResponse(BaseModel):
     scheduled_at: datetime | None
     pickup_stop: StopResponse | None
     dropoff_stop: StopResponse | None
+
+
+class RecentRideDestinationResponse(BaseModel):
+    """Recent destination shortcut for passenger booking surfaces."""
+    ride_id: UUID
+    service_type: ServiceType
+    category: ServiceCategory
+    pricing_mode: PricingMode
+    created_at: datetime
+    pickup_stop: StopResponse | None
+    dropoff_stop: StopResponse
 
 
 class DriverCandidateResponse(BaseModel):

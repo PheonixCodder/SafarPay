@@ -201,8 +201,9 @@ class FakeRideWebSockets:
 
 
 class FakeRideRepo:
-    def __init__(self, ride: ServiceRequest | None = None) -> None:
+    def __init__(self, ride: ServiceRequest | None = None, rides: list[ServiceRequest] | None = None) -> None:
         self.ride = ride
+        self.rides = rides
         self.active_driver_ride: ServiceRequest | None = None
         self.created_detail: dict[str, Any] | None = None
         self.status_updates: list[tuple[UUID, RideStatus, dict[str, Any]]] = []
@@ -230,9 +231,11 @@ class FakeRideRepo:
         offset: int = 0,
     ) -> list[ServiceRequest]:
         self.find_by_passenger_calls.append((passenger_id, status_filter, limit, offset))
-        if self.ride and self.ride.passenger_id == passenger_id:
-            return [self.ride]
-        return []
+        rides = self.rides if self.rides is not None else ([self.ride] if self.ride else [])
+        matches = [ride for ride in rides if ride.passenger_id == passenger_id]
+        if status_filter:
+            matches = [ride for ride in matches if ride.status in status_filter]
+        return matches[offset: offset + limit]
 
     async def find_active_by_driver(self, driver_id: UUID) -> ServiceRequest | None:
         if self.active_driver_ride and self.active_driver_ride.assigned_driver_id == driver_id:

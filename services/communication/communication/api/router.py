@@ -34,6 +34,7 @@ from ..application.use_cases import (
     ConversationAccessUseCase,
     EndCallUseCase,
     GenerateMediaUploadUrlUseCase,
+    GetCallUseCase,
     GetConversationByRideUseCase,
     GetConversationUseCase,
     GetIceServersUseCase,
@@ -58,6 +59,7 @@ from ..domain.models import ConversationStatus
 from ..infrastructure.dependencies import (
     get_access_uc,
     get_end_call_uc,
+    get_get_call_uc,
     get_get_conversation_by_ride_uc,
     get_get_conversation_uc,
     get_ice_servers_uc,
@@ -221,6 +223,19 @@ async def start_call(
 ) -> CallResponse:
     try:
         return await uc.execute(conversation_id, current_user.user_id, driver_id, body.initial_offer)
+    except Exception as exc:
+        raise _handle_domain(exc) from None
+
+
+@router.get("/calls/{call_id}", response_model=CallResponse)
+async def get_call(
+    call_id: UUID,
+    current_user: CurrentUser,
+    driver_id: OptionalDriverId,
+    uc: Annotated[GetCallUseCase, Depends(get_get_call_uc)],
+) -> CallResponse:
+    try:
+        return await uc.execute(call_id, current_user.user_id, driver_id)
     except Exception as exc:
         raise _handle_domain(exc) from None
 

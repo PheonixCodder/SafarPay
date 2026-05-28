@@ -3,17 +3,18 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import Depends
+from fastapi import Depends, Request
 from sp.core.config import Settings, get_settings
 from sp.infrastructure.cache.manager import CacheManager
 from sp.infrastructure.db.session import get_async_session
-from starlette.requests import HTTPConnection
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.requests import HTTPConnection
 
 from ..application.use_cases import (
     ConversationAccessUseCase,
     EndCallUseCase,
     GenerateMediaUploadUrlUseCase,
+    GetCallUseCase,
     GetConversationByRideUseCase,
     GetConversationUseCase,
     GetIceServersUseCase,
@@ -101,6 +102,13 @@ def get_get_conversation_by_ride_uc(
     conversation_repo: Annotated[ConversationRepositoryProtocol, Depends(get_conversation_repo)],
 ) -> GetConversationByRideUseCase:
     return GetConversationByRideUseCase(conversation_repo)
+
+
+def get_get_call_uc(
+    access: Annotated[ConversationAccessUseCase, Depends(get_access_uc)],
+    call_repo: Annotated[CallRepositoryProtocol, Depends(get_call_repo)],
+) -> GetCallUseCase:
+    return GetCallUseCase(access, call_repo)
 
 
 def get_send_text_uc(

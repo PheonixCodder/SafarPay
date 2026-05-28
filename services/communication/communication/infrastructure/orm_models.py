@@ -362,7 +362,6 @@ class CommunicationEventORM(Base, TimestampMixin):
 class CommunicationInboxMessageORM(Base, TimestampMixin):
     __tablename__ = "inbox_messages"
     __table_args__ = (
-        Index("ix_communication_inbox_source_offset", "source_topic", "source_partition", "source_offset", unique=True),
         Index("ix_communication_inbox_pending", "processed_at", "received_at"),
         Index("ix_communication_inbox_type", "event_type"),
         Index("ix_communication_inbox_aggregate", "aggregate_id"),

@@ -248,10 +248,18 @@ class FakeMessageRepo:
     def __init__(self, messages: list[Message] | None = None) -> None:
         self.messages = messages or []
         self.created: list[Message] = []
+        self.event_payloads: list[dict[str, Any] | None] = []
 
-    async def create(self, message: Message) -> Message:
+    async def create(
+        self,
+        message: Message,
+        *,
+        emit_event: bool = True,
+        event_payload: dict[str, Any] | None = None,
+    ) -> Message:
         self.created.append(message)
         self.messages.append(message)
+        self.event_payloads.append(event_payload if emit_event else None)
         return message
 
     async def find_by_id(self, message_id: UUID) -> Message | None:
@@ -276,6 +284,7 @@ class FakeMediaRepo:
         self.media = media or []
         self.created: list[MessageMedia] = []
         self.attached: list[tuple[UUID, UUID]] = []
+        self.event_payloads: list[dict[str, Any] | None] = []
 
     async def create(self, media: MessageMedia) -> MessageMedia:
         self.created.append(media)
@@ -288,13 +297,20 @@ class FakeMediaRepo:
     async def find_by_message(self, message_id: UUID) -> MessageMedia | None:
         return next((media for media in self.media if media.message_id == message_id), None)
 
-    async def attach_to_message(self, media_id: UUID, message_id: UUID) -> MessageMedia:
+    async def attach_to_message(
+        self,
+        media_id: UUID,
+        message_id: UUID,
+        *,
+        event_payload: dict[str, Any] | None = None,
+    ) -> MessageMedia:
         media = await self.find_by_id(media_id)
         if media is None:
             raise ValueError("missing media")
         media.message_id = message_id
         media.upload_status = MediaUploadStatus.UPLOADED
         self.attached.append((media_id, message_id))
+        self.event_payloads.append(event_payload)
         return media
 
 
@@ -304,10 +320,13 @@ class FakeCallRepo:
         self.created: list[VoiceCall] = []
         self.updated: list[VoiceCall] = []
         self.signals: list[tuple[UUID, UUID, str, dict[str, Any]]] = []
+        self.create_event_payloads: list[dict[str, Any] | None] = []
+        self.offer_payloads: dict[UUID, dict[str, Any]] = {}
 
-    async def create(self, call: VoiceCall) -> VoiceCall:
+    async def create(self, call: VoiceCall, *, event_payload: dict[str, Any] | None = None) -> VoiceCall:
         self.created.append(call)
         self.calls.append(call)
+        self.create_event_payloads.append(event_payload)
         return call
 
     async def find_by_id(self, call_id: UUID) -> VoiceCall | None:
@@ -325,6 +344,11 @@ class FakeCallRepo:
         payload: dict[str, Any],
     ) -> None:
         self.signals.append((call_id, sender_participant_id, signal_type, payload))
+        if signal_type == "OFFER":
+            self.offer_payloads[call_id] = payload
+
+    async def find_latest_offer(self, call_id: UUID) -> dict[str, Any] | None:
+        return self.offer_payloads.get(call_id)
 
 
 class FakeDriverLookupSession:

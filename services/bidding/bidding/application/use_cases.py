@@ -348,6 +348,7 @@ class PlaceBidUseCase:
                     "bid_id": str(saved.id),
                     "session_id": str(session.id),
                     "driver_id": str(saved.driver_id),
+                    "passenger_user_id": str(session.passenger_user_id),
                     "amount": saved.bid_amount,
                     "bid": _bid_payload(saved),
                 }
