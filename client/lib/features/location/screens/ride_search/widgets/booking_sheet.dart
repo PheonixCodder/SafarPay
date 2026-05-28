@@ -1,3 +1,4 @@
+import 'package:client/common/widgets/ride/recent_ride_destinations.dart';
 import 'package:client/features/location/controllers/ride_search_controller.dart';
 import 'package:client/features/location/domain/ride_booking_models.dart';
 import 'package:client/features/location/screens/ride_search/widgets/booking_category_strip.dart';
@@ -153,6 +154,11 @@ class _ComposeContent extends StatelessWidget {
             onTap: () => controller.focusSearch(SBookingLocationTarget.dropoff),
             onPinTap: () =>
                 controller.startMapPinSelection(SBookingLocationTarget.dropoff),
+          ),
+          const SizedBox(height: SSizes.md),
+          SRecentRideDestinations(
+            origin: pickup?.coordinate,
+            onSelected: controller.selectRecentDropoff,
           ),
           const SizedBox(height: SSizes.md),
           SBookingCategoryStrip(
@@ -388,13 +394,21 @@ class _ReviewContent extends StatelessWidget {
           ),
           if (createdRideId.isNotEmpty && !isHybrid) ...[
             const SizedBox(height: SSizes.sm),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () =>
-                    onAcceptedRideTrackingRequested?.call(createdRideId),
-                icon: const Icon(Iconsax.routing),
-                label: const Text('Open tracking'),
+            DecoratedBox(
+              decoration: BoxDecoration(
+                color: SColors.white,
+                borderRadius: BorderRadius.circular(SSizes.cardRadiusMd),
+                border: Border.all(color: SColors.borderSecondary),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(SSizes.md),
+                child: Text(
+                  'Fixed ride request sent. We will open live tracking after a driver accepts.',
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: SColors.textSecondary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ),
             ),
           ],

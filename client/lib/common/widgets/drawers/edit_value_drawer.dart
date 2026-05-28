@@ -137,7 +137,7 @@ class _SEditValueDrawerState extends State<SEditValueDrawer> {
         ),
         ElevatedButton(
           onPressed: _save,
-          style: ElevatedButton.styleFrom(backgroundColor: SColors.primary),
+          style: ElevatedButton.styleFrom(backgroundColor: SColors.primary,textStyle: const TextStyle( fontSize: SSizes.md - 4)),
           child: Text(widget.saveLabel),
         ),
       ],

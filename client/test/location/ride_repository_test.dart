@@ -20,8 +20,41 @@ void main() {
 
     expect(result, isNotEmpty);
     expect(result.first.id, isNotEmpty);
+    expect(result.first.pricingMode, PricingMode.hybrid);
     expect(result.first.pickupStop, isNotNull);
     expect(result.first.dropoffStop, isNotNull);
+  });
+
+  test('parses recent destinations from demo contract', () async {
+    final repository = SRideRepository(useDemoData: true);
+
+    final result = await repository.listRecentDestinations();
+
+    expect(result, isNotEmpty);
+    expect(result.first.rideId, isNotEmpty);
+    expect(result.first.dropoffStop.stopType, StopType.dropoff);
+    expect(result.first.dropoffStop.latitude, isNonZero);
+  });
+
+  test('parses legacy passenger ride summaries without pricing mode', () {
+    final json = <String, dynamic>{
+      'id': 'legacy-ride-001',
+      'passenger_id': 'passenger-001',
+      'assigned_driver_id': null,
+      'service_type': 'CITY_RIDE',
+      'category': 'MINI',
+      'status': 'MATCHING',
+      'passenger_payment_method': 'CASH',
+      'payment_collection_mode': 'DRIVER_COLLECTED',
+      'created_at': DateTime.now().toIso8601String(),
+      'scheduled_at': null,
+      'pickup_stop': null,
+      'dropoff_stop': null,
+    };
+
+    final result = RideSummaryResponse.fromJson(json);
+
+    expect(result.pricingMode, PricingMode.fixed);
   });
 
   test('builds backend city ride create payload', () {

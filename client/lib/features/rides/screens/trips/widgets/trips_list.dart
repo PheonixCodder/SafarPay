@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 
 import '../../../../../common/navigation/right_slide_page_route.dart';
 import '../../../../../data/rides/ride_models.dart';
-import '../../../../../features/location/screens/ride_tracking/ride_tracking_screen.dart';
+import '../../../../../features/location/data/ride_repository.dart';
+import '../../../domain/ride_lifecycle.dart';
+import '../../../navigation/ride_navigation_destinations.dart';
+import '../../../navigation/ride_navigation_policy.dart';
 import '../../../../../utils/constants/colors.dart';
 import '../../../../../utils/constants/sizes.dart';
 import '../../../../../utils/constants/texts.dart';
 import '../../../controllers/trips_controller.dart';
-import '../screens/pending/pending_ride_matching_screen.dart';
 import '../screens/ride/ride.dart';
 import 'ride_card.dart';
 import 'ride_display_utils.dart';
@@ -18,10 +20,12 @@ class STripsList extends StatelessWidget {
     super.key,
     required this.filter,
     required this.rides,
+    this.repository = const SRideRepository(),
   });
 
   final STripsFilter filter;
   final List<RideSummaryResponse> rides;
+  final SRideRepository repository;
 
   @override
   Widget build(BuildContext context) {
@@ -96,43 +100,27 @@ class STripsList extends StatelessWidget {
 
   String _actionLabel(RideSummaryResponse ride) {
     if (filter != STripsFilter.ongoing) return STexts.tripsViewDetails;
-    return _shouldOpenTracking(ride) ? 'Track ride' : 'Finding driver';
+    final decision = sResolvePassengerRideEntry(
+      SRideLifecycleSnapshot.fromSummary(ride),
+    );
+    return decision.actionLabel;
   }
 
-  void _openRide(BuildContext context, RideSummaryResponse ride) {
+  Future<void> _openRide(BuildContext context, RideSummaryResponse ride) async {
     if (filter == STripsFilter.ongoing) {
-      if (!_shouldOpenTracking(ride)) {
-        Navigator.of(context).push(
-          SRightSlidePageRoute(
-            page: PendingRideMatchingScreen(rideId: ride.id),
-          ),
-        );
-        return;
-      }
-      Navigator.of(context).push(
-        SRightSlidePageRoute(page: RideTrackingScreen(rideId: ride.id)),
+      final snapshot = await sResolveLifecycleSnapshotForRouting(
+        ride: ride,
+        repository: repository,
+      );
+      if (!context.mounted) return;
+      sPushRideDestination(
+        context,
+        sPassengerRideDestination(ride: ride, snapshot: snapshot),
       );
       return;
     }
     Navigator.of(context).push(
       SRightSlidePageRoute(page: RideDetailsScreen(rideId: ride.id)),
     );
-  }
-
-  bool _shouldOpenTracking(RideSummaryResponse ride) {
-    if (ride.assignedDriverId == null || ride.assignedDriverId!.isEmpty) {
-      return false;
-    }
-    return switch (ride.status) {
-      RideStatus.accepted ||
-      RideStatus.arriving ||
-      RideStatus.inProgress =>
-        true,
-      RideStatus.created ||
-      RideStatus.matching ||
-      RideStatus.completed ||
-      RideStatus.cancelled =>
-        false,
-    };
   }
 }

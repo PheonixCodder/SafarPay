@@ -10,7 +10,7 @@ class SNotificationCounterIcon extends StatelessWidget {
     super.key,
     required this.onPressed,
     required this.iconColor,
-    this.count = 2,
+    this.count = 0,
   });
 
   final Color iconColor;
@@ -45,40 +45,41 @@ class SNotificationCounterIcon extends StatelessWidget {
                 size: SSizes.iconMd,
               ),
             ),
-            Positioned(
-              top: SSizes.notificationBadgeOffset,
-              right: SSizes.notificationBadgeOffset,
-              child: Container(
-                width: SSizes.notificationBadgeSize,
-                height: SSizes.notificationBadgeSize,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      SColors.error,
-                      SHelperFunctions.withOpacity(
+            if (count > 0)
+              Positioned(
+                top: SSizes.notificationBadgeOffset,
+                right: SSizes.notificationBadgeOffset,
+                child: Container(
+                  width: SSizes.notificationBadgeSize,
+                  height: SSizes.notificationBadgeSize,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
                         SColors.error,
-                        SOpacities.stronger,
-                      ),
-                    ],
-                  ),
-                  borderRadius: BorderRadius.circular(SSizes.radiusFull),
-                  border: Border.all(
-                    color: SColors.white,
-                    width: SSizes.notificationBadgeBorderWidth,
-                  ),
-                ),
-                child: Center(
-                  child: Text(
-                    count.toString(),
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: SColors.white,
-                          fontWeight: FontWeight.w800,
-                          fontSize: SSizes.notificationBadgeFontSize,
+                        SHelperFunctions.withOpacity(
+                          SColors.error,
+                          SOpacities.stronger,
                         ),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(SSizes.radiusFull),
+                    border: Border.all(
+                      color: SColors.white,
+                      width: SSizes.notificationBadgeBorderWidth,
+                    ),
+                  ),
+                  child: Center(
+                    child: Text(
+                      count > 99 ? '99+' : count.toString(),
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            color: SColors.white,
+                            fontWeight: FontWeight.w800,
+                            fontSize: SSizes.notificationBadgeFontSize,
+                          ),
+                    ),
                   ),
                 ),
               ),
-            ),
           ],
         ),
       ),

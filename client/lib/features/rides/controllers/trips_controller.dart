@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 
 import '../../../data/rides/ride_models.dart';
+import '../../../utils/logging/logger.dart';
 import '../../location/data/ride_repository.dart';
 
 enum STripsFilter {
@@ -43,7 +44,8 @@ class STripsController extends GetxController {
     errorMessage.value = '';
     try {
       rides.assignAll(await _repository.listPassengerRides(limit: 80));
-    } catch (_) {
+    } catch (error) {
+      SLoggerHelper.error('Unable to load passenger trips', error);
       errorMessage.value = 'Unable to load your trips right now.';
     } finally {
       isLoading.value = false;
@@ -56,7 +58,8 @@ class STripsController extends GetxController {
     errorMessage.value = '';
     try {
       rides.assignAll(await _repository.listPassengerRides(limit: 80));
-    } catch (_) {
+    } catch (error) {
+      SLoggerHelper.error('Unable to refresh passenger trips', error);
       errorMessage.value = 'Unable to refresh trips.';
     } finally {
       isRefreshing.value = false;
