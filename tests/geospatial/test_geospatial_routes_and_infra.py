@@ -177,13 +177,30 @@ async def test_location_client_maps_response_skips_bad_rows_and_handles_failures
 
 
 @pytest.mark.asyncio
-async def test_mapbox_client_mock_and_route_error_paths() -> None:
+async def test_mapbox_client_without_token_raises_instead_of_returning_fixed_mock() -> None:
     client = MapboxClient("")
-    route = await client.calculate_route(Coordinates(31.52, 74.35), Coordinates(31.6, 74.4))
+
+    with pytest.raises(RoutingError):
+        await client.calculate_route(Coordinates(31.52, 74.35), Coordinates(31.6, 74.4))
+
+
+@pytest.mark.asyncio
+async def test_mapbox_client_mock_route_is_dynamic_when_explicitly_enabled() -> None:
+    client = MapboxClient("", allow_mock_route=True)
+    first = await client.calculate_route(Coordinates(31.52, 74.35), Coordinates(31.6, 74.4))
+    second = await client.calculate_route(Coordinates(31.48, 74.25), Coordinates(31.7, 74.5))
+
+    assert first.polyline
+    assert second.polyline
+    assert first.polyline != second.polyline
+    assert first.polyline != "czc_E_cdeM{EbLgJjMgJrIgJrI"
+
+
+@pytest.mark.asyncio
+async def test_mapbox_client_eta_matrix_uses_mock_values_without_token() -> None:
+    client = MapboxClient("")
     matrix = await client.calculate_eta_matrix([Coordinates(31.52, 74.35)], [Coordinates(31.6, 74.4)])
 
-    assert route.polyline
-    assert route.polyline != "mock_polyline"
     assert matrix == [[120.0]]
 
 

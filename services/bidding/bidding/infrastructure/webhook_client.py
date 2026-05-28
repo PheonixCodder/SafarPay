@@ -9,13 +9,12 @@ from uuid import UUID
 import httpx
 from sp.infrastructure.messaging.publisher import EventPublisher
 
-from ..application.schemas import BiddingOpportunityPayload, BiddingRidePayload
+from ..application.schemas import BiddingRidePayload
 from ..domain.interfaces import WebhookClientProtocol
 
 logger = logging.getLogger("bidding.webhook")
 
 
-# ** TODO ** // Fix the internal routes **
 class WebhookClient(WebhookClientProtocol):
     """HTTP adapter for notifying driver apps of new bids and session updates."""
 
@@ -45,12 +44,17 @@ class WebhookClient(WebhookClientProtocol):
         *,
         idempotency_key: str,
     ) -> bool:
+        ride_id = ride_payload.get("ride_id") or ride_payload.get("id")
+        payload = {
+            **ride_payload,
+            "ride_id": str(ride_id or ""),
+            "session_id": str(session_id),
+            "pricing_mode": "hybrid",
+            "alert_type": "bidding_opportunity",
+        }
         return await self._post(
-            f"/internal/drivers/{driver_id}/bidding/opportunities",
-            payload=BiddingOpportunityPayload(
-                session_id=session_id,
-                ride=ride_payload,
-            ).model_dump(mode="json"),
+            f"/api/v1/notification/internal/ride-jobs/{driver_id}",
+            payload=payload,
             idempotency_key=idempotency_key,
         )
 
@@ -63,11 +67,16 @@ class WebhookClient(WebhookClientProtocol):
         idempotency_key: str,
     ) -> bool:
         return await self._post(
-            f"/internal/drivers/{driver_id}/bidding/accepted",
+            f"/api/v1/notification/internal/ride-jobs/{driver_id}",
             payload=BiddingRidePayload(
                 session_id=session_id,
                 ride_id=ride_id,
-            ).model_dump(mode="json"),
+            ).model_dump(mode="json")
+            | {
+                "alert_type": "bid_accepted",
+                "title": "Ride confirmed",
+                "message": "The passenger accepted your offer.",
+            },
             idempotency_key=idempotency_key,
         )
 
@@ -80,11 +89,16 @@ class WebhookClient(WebhookClientProtocol):
         idempotency_key: str,
     ) -> bool:
         return await self._post(
-            f"/internal/drivers/{driver_id}/bidding/cancelled",
+            f"/api/v1/notification/internal/ride-jobs/{driver_id}",
             payload=BiddingRidePayload(
                 session_id=session_id,
                 ride_id=ride_id,
-            ).model_dump(mode="json"),
+            ).model_dump(mode="json")
+            | {
+                "alert_type": "session_cancelled",
+                "title": "Ride request closed",
+                "message": "This bidding request is no longer available.",
+            },
             idempotency_key=idempotency_key,
         )
 

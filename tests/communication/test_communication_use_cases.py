@@ -12,6 +12,7 @@ from communication.application.use_cases import (
     ConversationAccessUseCase,
     EndCallUseCase,
     GenerateMediaUploadUrlUseCase,
+    GetCallUseCase,
     GetConversationByRideUseCase,
     GetIceServersUseCase,
     GetMediaUrlUseCase,
@@ -190,6 +191,16 @@ async def test_text_message_creation_requires_active_participant_and_broadcasts(
 
     assert response.body == "hello"
     assert message_repo.created[0].sender_participant_id == make_participants(conversation)[0].id
+    assert message_repo.event_payloads[0] == {
+        "conversation_id": str(conversation.id),
+        "ride_id": str(conversation.service_request_id),
+        "message_id": str(message_repo.created[0].id),
+        "message_type": "TEXT",
+        "sender_user_id": str(PASSENGER_ID),
+        "recipient_id": str(DRIVER_USER_ID),
+        "recipient_role": "driver",
+        "notification_kind": "communication_message",
+    }
     assert ws.broadcasts[0][1] == CommunicationEvent.MESSAGE_SENT
 
     conversation.close()
@@ -282,6 +293,17 @@ async def test_media_upload_validation_and_registration_for_image_and_voice_note
 
     assert registered.message.message_type == MessageType.IMAGE
     assert media_repo.attached[0][0] == image.media_id
+    assert media_repo.event_payloads[0] == {
+        "conversation_id": str(conversation.id),
+        "ride_id": str(conversation.service_request_id),
+        "message_id": str(registered.message.id),
+        "message_type": "IMAGE",
+        "media_id": str(image.media_id),
+        "sender_user_id": str(PASSENGER_ID),
+        "recipient_id": str(DRIVER_USER_ID),
+        "recipient_role": "driver",
+        "notification_kind": "communication_message",
+    }
     assert ws.broadcasts[0][1] == CommunicationEvent.MEDIA_MESSAGE_SENT
 
     with pytest.raises(MediaUploadError):
@@ -323,6 +345,17 @@ async def test_call_lifecycle_and_signaling_broadcasts() -> None:
     call = call_repo.calls[0]
 
     assert call_response.status == CallStatus.RINGING
+    assert call_repo.create_event_payloads[0] == {
+        "conversation_id": str(conversation.id),
+        "ride_id": str(conversation.service_request_id),
+        "call_id": str(call_response.id),
+        "status": "RINGING",
+        "sender_user_id": str(PASSENGER_ID),
+        "recipient_id": str(DRIVER_USER_ID),
+        "recipient_role": "driver",
+        "notification_kind": "communication_call",
+        "present_as_call": True,
+    }
     assert call_repo.signals[0][2] == "OFFER"
     assert ws.broadcasts[0][1] == CommunicationEvent.CALL_RINGING
 
@@ -347,6 +380,28 @@ async def test_call_lifecycle_and_signaling_broadcasts() -> None:
     )
     assert ended.status == CallStatus.ENDED
     assert ws.broadcasts[-1][1] == CommunicationEvent.CALL_ENDED
+
+
+@pytest.mark.asyncio
+async def test_get_call_recovers_initial_offer_for_notification_entry() -> None:
+    conversation = make_conversation()
+    passenger, driver = make_participants(conversation)
+    participant_repo = FakeParticipantRepo(conversation)
+    access = ConversationAccessUseCase(FakeConversationRepo(conversation), participant_repo)  # type: ignore[arg-type]
+    call_repo = FakeCallRepo()
+    call = VoiceCall.start(conversation.id, passenger.id, driver.id)
+    await call_repo.create(call)
+    await call_repo.save_signal(
+        call.id,
+        passenger.id,
+        "OFFER",
+        {"sdp": "offer", "type": "offer"},
+    )
+
+    response = await GetCallUseCase(access, call_repo).execute(call.id, DRIVER_USER_ID, DRIVER_ID)  # type: ignore[arg-type]
+
+    assert response.id == call.id
+    assert response.initial_offer == {"sdp": "offer", "type": "offer"}
 
 
 @pytest.mark.asyncio

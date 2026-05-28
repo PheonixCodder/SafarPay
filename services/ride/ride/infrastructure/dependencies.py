@@ -24,6 +24,7 @@ from ..application.use_cases import (
     GetRideUseCase,
     ListDriverRequestsUseCase,
     ListPassengerRidesUseCase,
+    ListRecentRideDestinationsUseCase,
     MarkStopArrivedUseCase,
     MarkStopCompletedUseCase,
     StartRideUseCase,
@@ -135,6 +136,12 @@ def get_get_ride_uc(repo: Annotated[ServiceRequestRepositoryProtocol, Depends(ge
 
 def get_list_rides_uc(repo: Annotated[ServiceRequestRepositoryProtocol, Depends(get_ride_repo)]) -> ListPassengerRidesUseCase:
     return ListPassengerRidesUseCase(repo=repo)
+
+
+def get_list_recent_destinations_uc(
+    repo: Annotated[ServiceRequestRepositoryProtocol, Depends(get_ride_repo)]
+) -> ListRecentRideDestinationsUseCase:
+    return ListRecentRideDestinationsUseCase(repo=repo)
 
 
 def get_list_driver_requests_uc(

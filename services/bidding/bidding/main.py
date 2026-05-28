@@ -88,7 +88,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         await app.state.outbox_worker.start()
 
     # Initialize Webhook Client with publisher for DLQ
-    webhook_url = settings.VERIFICATION_SERVICE_URL
+    webhook_url = settings.NOTIFICATION_SERVICE_URL
     webhook_client = WebhookClient(base_url=webhook_url, publisher=app.state.publisher)
     await webhook_client.start()
     app.state.webhook_client = webhook_client

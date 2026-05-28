@@ -25,6 +25,7 @@ from ..domain.interfaces import (
 from ..domain.models import (
     CallStatus,
     Conversation,
+    ConversationParticipant,
     ConversationStatus,
     MediaType,
     Message,
@@ -81,7 +82,11 @@ def _message_to_resp(m: Message) -> MessageResponse:
     )
 
 
-def _call_to_resp(c: VoiceCall) -> CallResponse:
+def _call_to_resp(
+    c: VoiceCall,
+    *,
+    initial_offer: dict[str, Any] | None = None,
+) -> CallResponse:
     return CallResponse(
         id=c.id,
         conversation_id=c.conversation_id,
@@ -92,7 +97,29 @@ def _call_to_resp(c: VoiceCall) -> CallResponse:
         accepted_at=c.accepted_at,
         ended_at=c.ended_at,
         end_reason=c.end_reason,
+        initial_offer=initial_offer,
     )
+
+
+def _notification_payload(
+    *,
+    conversation: Conversation,
+    sender_user_id: UUID,
+    recipient: ConversationParticipant,
+    notification_kind: str,
+    extra: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "conversation_id": str(conversation.id),
+        "ride_id": str(conversation.service_request_id),
+        "sender_user_id": str(sender_user_id),
+        "recipient_id": str(recipient.user_id),
+        "recipient_role": recipient.role.value.lower(),
+        "notification_kind": notification_kind,
+    }
+    if extra:
+        payload.update(extra)
+    return payload
 
 
 async def _load_conversation_or_404(
@@ -181,6 +208,12 @@ class ConversationAccessUseCase:
             raise UnauthorisedConversationAccessError("Caller is not a participant in this conversation.")
         return conversation, participant
 
+    async def find_other_participant(self, conversation_id: UUID, participant_id: UUID) -> ConversationParticipant:
+        participant = await self._participant_repo.find_other_participant(conversation_id, participant_id)
+        if not participant:
+            raise UnauthorisedConversationAccessError("No counterparty participant found.")
+        return participant
+
 
 class ListConversationsUseCase:
     def __init__(self, conversation_repo: ConversationRepositoryProtocol) -> None:
@@ -240,8 +273,21 @@ class SendTextMessageUseCase:
     ) -> MessageResponse:
         conversation, participant = await self._access.assert_participant(conversation_id, user_id, driver_id)
         conversation.ensure_active()
+        recipient = await self._access.find_other_participant(conversation.id, participant.id)
         message = Message.create_text(conversation.id, participant.id, cmd.body, cmd.reply_to_message_id)
-        message = await self._message_repo.create(message)
+        message = await self._message_repo.create(
+            message,
+            event_payload=_notification_payload(
+                conversation=conversation,
+                sender_user_id=user_id,
+                recipient=recipient,
+                notification_kind="communication_message",
+                extra={
+                    "message_id": str(message.id),
+                    "message_type": message.message_type.value,
+                },
+            ),
+        )
         payload = _message_to_resp(message).model_dump(mode="json")
         await self._ws.broadcast_to_conversation(conversation.id, CommunicationEvent.MESSAGE_SENT, payload)
         return _message_to_resp(message)
@@ -351,13 +397,28 @@ class RegisterMediaMessageUseCase:
     ) -> MediaMessageResponse:
         conversation, participant = await self._access.assert_participant(conversation_id, user_id, driver_id)
         conversation.ensure_active()
+        recipient = await self._access.find_other_participant(conversation.id, participant.id)
         media = await self._media_repo.find_by_id(media_id)
         if not media or media.conversation_id != conversation.id or media.uploader_participant_id != participant.id:
             raise MediaUploadError("Media upload record not found for this participant.")
         message_type = MessageType.IMAGE if media.media_type == MediaType.IMAGE else MessageType.VOICE_NOTE
         message = Message.create_media(conversation.id, participant.id, message_type, reply_to_message_id)
-        message = await self._message_repo.create(message)
-        media = await self._media_repo.attach_to_message(media.id, message.id)
+        message = await self._message_repo.create(message, emit_event=False)
+        media = await self._media_repo.attach_to_message(
+            media.id,
+            message.id,
+            event_payload=_notification_payload(
+                conversation=conversation,
+                sender_user_id=user_id,
+                recipient=recipient,
+                notification_kind="communication_message",
+                extra={
+                    "message_id": str(message.id),
+                    "message_type": message.message_type.value,
+                    "media_id": str(media.id),
+                },
+            ),
+        )
         payload = {"message": _message_to_resp(message).model_dump(mode="json"), "media_id": str(media.id)}
         await self._ws.broadcast_to_conversation(conversation.id, CommunicationEvent.MEDIA_MESSAGE_SENT, payload)
         return MediaMessageResponse(
@@ -425,13 +486,51 @@ class StartCallUseCase:
         if not callee:
             raise UnauthorisedConversationAccessError("No callee participant found.")
         call = VoiceCall.start(conversation.id, participant.id, callee.id)
-        call = await self._call_repo.create(call)
+        call = await self._call_repo.create(
+            call,
+            event_payload=_notification_payload(
+                conversation=conversation,
+                sender_user_id=user_id,
+                recipient=callee,
+                notification_kind="communication_call",
+                extra={
+                    "call_id": str(call.id),
+                    "status": call.status.value,
+                    "present_as_call": True,
+                },
+            ),
+        )
         payload = _call_to_resp(call).model_dump(mode="json")
         if initial_offer:
             await self._call_repo.save_signal(call.id, participant.id, "OFFER", initial_offer)
             payload["initial_offer"] = initial_offer
         await self._ws.broadcast_to_conversation(conversation.id, CommunicationEvent.CALL_RINGING, payload)
         return _call_to_resp(call)
+
+
+class GetCallUseCase:
+    def __init__(
+        self,
+        access: ConversationAccessUseCase,
+        call_repo: CallRepositoryProtocol,
+    ) -> None:
+        self._access = access
+        self._call_repo = call_repo
+
+    async def execute(
+        self,
+        call_id: UUID,
+        user_id: UUID,
+        driver_id: UUID | None,
+    ) -> CallResponse:
+        call = await self._call_repo.find_by_id(call_id)
+        if not call:
+            raise CallNotFoundError(f"Call {call_id} not found.")
+        await self._access.assert_participant(call.conversation_id, user_id, driver_id)
+        initial_offer = None
+        if call.status == CallStatus.RINGING:
+            initial_offer = await self._call_repo.find_latest_offer(call.id)
+        return _call_to_resp(call, initial_offer=initial_offer)
 
 
 class EndCallUseCase:

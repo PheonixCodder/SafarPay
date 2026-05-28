@@ -17,9 +17,16 @@ _DEFAULT_TIMEOUT = 10.0
 class MapboxClient(RoutingClientProtocol):
     """Adapter for Mapbox Directions and Matrix APIs."""
 
-    def __init__(self, access_token: str, *, timeout: float = _DEFAULT_TIMEOUT) -> None:
+    def __init__(
+        self,
+        access_token: str,
+        *,
+        timeout: float = _DEFAULT_TIMEOUT,
+        allow_mock_route: bool = False,
+    ) -> None:
         self._access_token = access_token
         self._timeout = timeout
+        self._allow_mock_route = allow_mock_route
         self._client: httpx.AsyncClient | None = None
         # Use OSRM or Mapbox. 
         # By default, use mapbox directions v5 if token is provided.
@@ -28,6 +35,12 @@ class MapboxClient(RoutingClientProtocol):
 
     async def start(self) -> None:
         self._client = httpx.AsyncClient(timeout=httpx.Timeout(self._timeout))
+        if self._access_token:
+            logger.info("Mapbox routing enabled.")
+        elif self._allow_mock_route:
+            logger.warning("Mapbox token missing. Explicit mock routing enabled.")
+        else:
+            logger.warning("Mapbox token missing. Route calculation will fail fast.")
 
     async def close(self) -> None:
         if self._client:
@@ -36,8 +49,10 @@ class MapboxClient(RoutingClientProtocol):
 
     async def calculate_route(self, origin: Coordinates, destination: Coordinates) -> Route:
         if not self._client or not self._access_token:
-            logger.warning("MapboxClient not started or no token. Using mock route.")
-            return self._mock_route(origin, destination)
+            if self._allow_mock_route:
+                logger.warning("MapboxClient not started or no token. Using dynamic mock route.")
+                return self._mock_route(origin, destination)
+            raise RoutingError("Mapbox routing is not configured")
 
         url = f"{self._base_url}/{origin.longitude},{origin.latitude};{destination.longitude},{destination.latitude}"
         params = {
@@ -117,9 +132,54 @@ class MapboxClient(RoutingClientProtocol):
             raise RoutingError("Failed to communicate with Mapbox matrix API") from exc
 
     def _mock_route(self, origin: Coordinates, destination: Coordinates) -> Route:
+        midpoint = Coordinates(
+            latitude=(origin.latitude + destination.latitude) / 2,
+            longitude=(origin.longitude + destination.longitude) / 2,
+        )
         return Route(
-            distance_km=5.0,
-            duration_minutes=15.0,
-            polyline="czc_E_cdeM{EbLgJjMgJrIgJrI",
+            distance_km=_haversine_km(origin, destination),
+            duration_minutes=max(1.0, (_haversine_km(origin, destination) / 30.0) * 60.0),
+            polyline=_encode_polyline([origin, midpoint, destination]),
             steps=[],
         )
+
+
+def _haversine_km(origin: Coordinates, destination: Coordinates) -> float:
+    from math import atan2, cos, radians, sin, sqrt
+
+    radius_km = 6371.0
+    lat1 = radians(origin.latitude)
+    lat2 = radians(destination.latitude)
+    delta_lat = radians(destination.latitude - origin.latitude)
+    delta_lng = radians(destination.longitude - origin.longitude)
+    value = (
+        sin(delta_lat / 2) * sin(delta_lat / 2)
+        + cos(lat1) * cos(lat2) * sin(delta_lng / 2) * sin(delta_lng / 2)
+    )
+    return radius_km * 2 * atan2(sqrt(value), sqrt(1 - value))
+
+
+def _encode_polyline(points: list[Coordinates]) -> str:
+    result: list[str] = []
+    previous_lat = 0
+    previous_lng = 0
+
+    for point in points:
+        lat = round(point.latitude * 1e5)
+        lng = round(point.longitude * 1e5)
+        result.append(_encode_value(lat - previous_lat))
+        result.append(_encode_value(lng - previous_lng))
+        previous_lat = lat
+        previous_lng = lng
+
+    return "".join(result)
+
+
+def _encode_value(value: int) -> str:
+    value = ~(value << 1) if value < 0 else value << 1
+    encoded = []
+    while value >= 0x20:
+        encoded.append(chr((0x20 | (value & 0x1F)) + 63))
+        value >>= 5
+    encoded.append(chr(value + 63))
+    return "".join(encoded)

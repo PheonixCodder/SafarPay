@@ -9,6 +9,7 @@ from fastapi import FastAPI
 from ride.application.use_cases import (
     _code_to_resp,
     _proof_to_resp,
+    _ride_to_recent_destination,
     _ride_to_resp,
     _ride_to_summary,
     _stop_to_resp,
@@ -33,6 +34,7 @@ from ride.infrastructure.dependencies import (
     get_gen_proof_url_uc,
     get_get_ride_uc,
     get_list_rides_uc,
+    get_list_recent_destinations_uc,
     get_mark_arrived_uc,
     get_mark_completed_uc,
     get_nearby_drivers_uc,
@@ -97,6 +99,7 @@ def test_all_ride_routes_success(ride_app: FastAPI, ride_client: Any) -> None:
 
     override(ride_app, get_create_ride_uc, _ride_to_resp(ride))
     override(ride_app, get_list_rides_uc, [_ride_to_summary(ride)])
+    override(ride_app, get_list_recent_destinations_uc, [_ride_to_recent_destination(ride)])
     override(ride_app, get_get_ride_uc, _ride_to_resp(ride))
     override(ride_app, get_cancel_ride_uc, _ride_to_resp(ride))
     override(ride_app, get_accept_ride_uc, _ride_to_resp(ride))
@@ -122,6 +125,7 @@ def test_all_ride_routes_success(ride_app: FastAPI, ride_client: Any) -> None:
 
     assert ride_client.post("/api/v1/rides", json=ride_payload()).status_code == 201
     assert ride_client.get("/api/v1/rides").status_code == 200
+    assert ride_client.get("/api/v1/rides/recent-destinations").status_code == 200
     assert ride_client.get(f"/api/v1/rides/{ride.id}").status_code == 200
     assert ride_client.post(f"/api/v1/rides/{ride.id}/cancel", json={"reason": "x"}).status_code == 200
     assert ride_client.post(f"/api/v1/rides/{ride.id}/accept", json={}).status_code == 200
@@ -296,6 +300,7 @@ def test_response_serializers_include_expected_datetime_and_identity_fields() ->
     )
 
     assert _ride_to_resp(ride).assigned_driver_id == DRIVER_ID
+    assert _ride_to_summary(ride).pricing_mode == ride.pricing_mode
     assert _proof_to_resp(proof).uploaded_by_driver_id == DRIVER_ID
     assert candidate.driver_id == DRIVER_ID
     assert isinstance(datetime.now(timezone.utc), datetime)

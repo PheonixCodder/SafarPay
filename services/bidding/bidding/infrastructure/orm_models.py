@@ -417,7 +417,6 @@ class BiddingInboxMessageORM(Base, TimestampMixin):
     last_error: Mapped[str | None] = mapped_column(Text)
 
     __table_args__ = (
-        Index("ix_bidding_inbox_source_offset", "source_topic", "source_partition", "source_offset", unique=True),
         Index("ix_bidding_inbox_pending", "processed_at", "received_at"),
         {"schema": "bidding"},
     )

@@ -60,7 +60,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     )
     await location_client.start()
 
-    routing_client = MapboxClient(settings.MAPBOX_ACCESS_TOKEN)
+    routing_client = MapboxClient(
+        settings.MAPBOX_ACCESS_TOKEN,
+        allow_mock_route=settings.GEOSPATIAL_ALLOW_MOCK_ROUTING,
+    )
     await routing_client.start()
 
     # 3. H3 spatial indexing (in-process, no startup needed)

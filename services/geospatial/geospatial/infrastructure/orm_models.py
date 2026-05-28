@@ -83,7 +83,6 @@ class GeospatialOutboxEventORM(Base, TimestampMixin):
 class GeospatialInboxMessageORM(Base, TimestampMixin):
     __tablename__ = "inbox_messages"
     __table_args__ = (
-        Index("ix_geospatial_inbox_source_offset", "source_topic", "source_partition", "source_offset", unique=True),
         Index("ix_geospatial_inbox_pending", "processed_at", "received_at"),
         {"schema": "geospatial"},
     )

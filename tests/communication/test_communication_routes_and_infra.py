@@ -27,6 +27,7 @@ from communication.infrastructure import storage as storage_module
 from communication.infrastructure.dependencies import (
     get_access_uc,
     get_end_call_uc,
+    get_get_call_uc,
     get_get_conversation_uc,
     get_list_conversations_uc,
     get_list_messages_uc,
@@ -113,6 +114,7 @@ def test_all_communication_http_routes_success_and_identity_parameters(
         get_media_url_uc,
         StubUseCase({"message_id": message.id, "media_id": media.id, "view_url": "https://s3.test/get", "expires_in_seconds": 3600}),
     )
+    get_call = override(communication_app, get_get_call_uc, StubUseCase(_call_to_resp(call)))
     start_call = override(communication_app, get_start_call_uc, StubUseCase(_call_to_resp(call)))
     end_call = override(communication_app, get_end_call_uc, StubUseCase(_call_to_resp(call)))
 
@@ -132,6 +134,7 @@ def test_all_communication_http_routes_success_and_identity_parameters(
         json={"media_id": str(media.id)},
     ).status_code == 201
     assert communication_client.get(f"/api/v1/communication/messages/{message.id}/media-url").status_code == 200
+    assert communication_client.get(f"/api/v1/communication/calls/{call.id}").status_code == 200
     assert communication_client.post(
         f"/api/v1/communication/conversations/{conversation.id}/calls",
         json={"initial_offer": {"sdp": "offer"}},
@@ -148,6 +151,7 @@ def test_all_communication_http_routes_success_and_identity_parameters(
     assert upload.calls[0][2:4] == (PASSENGER_ID, None)
     assert register.calls[0][2:4] == (PASSENGER_ID, None)
     assert get_url.calls[0][1:3] == (PASSENGER_ID, None)
+    assert get_call.calls[0][1:3] == (PASSENGER_ID, None)
     assert start_call.calls[0][1:3] == (PASSENGER_ID, None)
     assert end_call.calls[0][1:3] == (PASSENGER_ID, None)
 

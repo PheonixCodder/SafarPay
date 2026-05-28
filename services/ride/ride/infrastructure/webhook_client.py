@@ -152,7 +152,7 @@ class WebhookClient:
         }
         body = RideJobPayload.model_validate(body).model_dump(mode="json")
         return await self._post_with_retry(
-            f"/internal/ride-jobs/{driver_id}",
+            f"/api/v1/notification/internal/ride-jobs/{driver_id}",
             body,
             idempotency_key,
         )
@@ -173,7 +173,7 @@ class WebhookClient:
         }
         body = RideCancellationPayload.model_validate(body).model_dump(mode="json")
         return await self._post_with_retry(
-            f"/internal/ride-cancellations/{driver_id}",
+            f"/api/v1/notification/internal/ride-cancellations/{driver_id}",
             body,
             idempotency_key,
         )
