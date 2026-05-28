@@ -28,6 +28,7 @@ from payment.infrastructure import orm_models as payment_orm_models  # noqa: F40
 from ride.infrastructure import orm_models as ride_orm_models  # noqa: F401
 from verification.infrastructure import orm_models as verification_orm_models  # noqa: F401
 from communication.infrastructure import orm_models as communication_orm_models  # noqa: F401
+from notification.infrastructure import orm_models as notification_orm_models  # noqa: F401
 
 # ── Settings ───────────────────────────────────────────────────────────────
 from sp.core.config import get_settings
