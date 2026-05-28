@@ -1,9 +1,12 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:flutter/widgets.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
 
+import '../../../common/runtime/app_lifecycle_controller.dart';
+import '../../../common/runtime/runtime_diagnostics_controller.dart';
 import '../../../common/widgets/maps/map_models.dart';
 import '../../../utils/helpers/helpers.dart';
 import '../../../utils/http/client.dart';
@@ -16,7 +19,14 @@ import '../../location/data/ride_repository.dart';
 import '../../location/data/ride_socket_event.dart';
 import '../../location/data/ride_socket_repository.dart';
 import '../../location/domain/location_models.dart';
+import '../../personalization/screens/notifications/controllers/push_notification_controller.dart';
+import '../../rides/controllers/ride_lifecycle_coordinator.dart';
+import '../../rides/domain/ride_lifecycle.dart';
+import '../../rides/orchestration/ride_realtime_orchestrator.dart';
+import '../data/active_ride_foreground_service.dart';
+import '../data/active_ride_runtime_controller.dart';
 import '../data/driver_location_socket_repository.dart';
+import '../data/driver_ride_overlay_service.dart';
 import '../data/driver_requests_repository.dart';
 import '../domain/driver_request_models.dart';
 
@@ -31,6 +41,11 @@ class SDriverRequestsController extends GetxController {
     SRideSocketRepository? rideSocketRepository,
     SBiddingSocketRepository? biddingSocketRepository,
     SDriverLocationSocketRepository? locationSocketRepository,
+    SActiveRideRuntimeController? activeRideRuntimeController,
+    SAppLifecycleController? appLifecycleController,
+    SRideRealtimeOrchestrator? realtimeOrchestrator,
+    SDriverRideOverlayService driverRideOverlayService =
+        const SDriverRideOverlayService(),
   })  : _requestsRepository = requestsRepository,
         _deviceLocationService = deviceLocationService,
         _rideRepository = rideRepository,
@@ -39,7 +54,17 @@ class SDriverRequestsController extends GetxController {
         _biddingSocketRepository =
             biddingSocketRepository ?? SBiddingSocketRepository(),
         _locationSocketRepository =
-            locationSocketRepository ?? SDriverLocationSocketRepository();
+            locationSocketRepository ?? SDriverLocationSocketRepository(),
+        _activeRideRuntimeController = activeRideRuntimeController ??
+            SActiveRideRuntimeController(
+              service: const SActiveRideForegroundService(),
+              diagnosticsController: SRuntimeDiagnosticsController.instance,
+            ),
+        _appLifecycleController =
+            appLifecycleController ?? SAppLifecycleController.instance,
+        _realtimeOrchestrator =
+            realtimeOrchestrator ?? SRideRealtimeOrchestrator.instance,
+        _driverRideOverlayService = driverRideOverlayService;
 
   static const SCoordinate fallbackCenter = SCoordinate(
     latitude: 31.5204,
@@ -53,6 +78,10 @@ class SDriverRequestsController extends GetxController {
   final SRideSocketRepository _rideSocketRepository;
   final SBiddingSocketRepository _biddingSocketRepository;
   final SDriverLocationSocketRepository _locationSocketRepository;
+  final SActiveRideRuntimeController _activeRideRuntimeController;
+  final SAppLifecycleController _appLifecycleController;
+  final SRideRealtimeOrchestrator _realtimeOrchestrator;
+  final SDriverRideOverlayService _driverRideOverlayService;
 
   final SMapController mapController = SMapController();
   final RxBool isOnline = false.obs;
@@ -72,6 +101,7 @@ class SDriverRequestsController extends GetxController {
   Timer? _refreshTimer;
   Timer? _rideReconnectTimer;
   Timer? _locationHeartbeatTimer;
+  Worker? _appLifecycleWorker;
 
   SCoordinate get mapCenter {
     return currentLocation.value ??
@@ -106,6 +136,14 @@ class SDriverRequestsController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    _appLifecycleWorker = ever<AppLifecycleState>(
+      _appLifecycleController.state,
+      (state) {
+        if (state == AppLifecycleState.resumed) {
+          unawaited(recoverRealtimeState());
+        }
+      },
+    );
     _bootstrap();
   }
 
@@ -120,6 +158,20 @@ class SDriverRequestsController extends GetxController {
     _rideSocketRepository.close();
     _biddingSocketRepository.close();
     _locationSocketRepository.close();
+    SRuntimeDiagnosticsController.instance.updateRealtimeChannel(
+      SRuntimeRealtimeChannel.driverRide,
+      isConnected: false,
+    );
+    SRuntimeDiagnosticsController.instance.updateRealtimeChannel(
+      SRuntimeRealtimeChannel.driverBidding,
+      isConnected: false,
+    );
+    SRuntimeDiagnosticsController.instance.updateRealtimeChannel(
+      SRuntimeRealtimeChannel.driverLocation,
+      isConnected: false,
+    );
+    _appLifecycleWorker?.dispose();
+    _activeRideRuntimeController.stop();
     super.onClose();
   }
 
@@ -156,6 +208,8 @@ class SDriverRequestsController extends GetxController {
         driverId: driverId.value,
         isOnline: true,
       );
+      await SPushNotificationController.instance.ensurePermissionAndRegister();
+      unawaited(_driverRideOverlayService.requestPermissionIfNeeded());
       final coordinate = currentLocation.value;
       if (coordinate != null) {
         await _requestsRepository.updateDriverLocation(
@@ -164,11 +218,7 @@ class SDriverRequestsController extends GetxController {
         );
       }
       isOnline.value = true;
-      await _locationSocketRepository.connect();
-      _sendCurrentLocationSnapshot();
-      _startLocationHeartbeat();
-      _startPositionStream();
-      _connectRideSocket();
+      await _connectOnlineRealtime();
       await refreshAll();
       _refreshTimer?.cancel();
       _refreshTimer = Timer.periodic(
@@ -194,6 +244,19 @@ class SDriverRequestsController extends GetxController {
     await _rideSocketRepository.close();
     await _biddingSocketRepository.close();
     await _locationSocketRepository.close();
+    SRuntimeDiagnosticsController.instance.updateRealtimeChannel(
+      SRuntimeRealtimeChannel.driverRide,
+      isConnected: false,
+    );
+    SRuntimeDiagnosticsController.instance.updateRealtimeChannel(
+      SRuntimeRealtimeChannel.driverBidding,
+      isConnected: false,
+    );
+    SRuntimeDiagnosticsController.instance.updateRealtimeChannel(
+      SRuntimeRealtimeChannel.driverLocation,
+      isConnected: false,
+    );
+    await _activeRideRuntimeController.stop();
     requests.clear();
     incomingRequest.value = null;
     if (driverId.value.isNotEmpty) {
@@ -206,7 +269,10 @@ class SDriverRequestsController extends GetxController {
 
   Future<void> refreshAll() async {
     await refreshActiveRide();
-    if (activeRide.value == null && isOnline.value) {
+    if (_realtimeOrchestrator.shouldRefreshDriverMarketplace(
+      isOnline: isOnline.value,
+      activeDriverRide: _activeDriverSnapshot,
+    )) {
       await refreshRequests();
     }
   }
@@ -230,9 +296,14 @@ class SDriverRequestsController extends GetxController {
         coordinate: currentLocation.value,
       );
       if (activeRide.value != null) {
+        _syncDriverLifecycleSnapshot(activeRide.value!);
         requests.clear();
         incomingRequest.value = null;
         _sendCurrentLocationSnapshot();
+        unawaited(_syncActiveRideRuntime());
+      } else {
+        SRideLifecycleCoordinator.instance.clearDriverRide();
+        unawaited(_activeRideRuntimeController.stop());
       }
     } catch (_) {}
   }
@@ -258,9 +329,11 @@ class SDriverRequestsController extends GetxController {
     try {
       final data = await _rideRepository.acceptFixedRide(request.id);
       activeRide.value = SDriverActiveRide.fromJson(data);
+      _syncDriverLifecycleSnapshot(activeRide.value!);
       incomingRequest.value = null;
       requests.clear();
       _sendCurrentLocationSnapshot();
+      unawaited(_syncActiveRideRuntime());
     } catch (_) {
       SHelperFunctions.showSnackBar('Unable to accept this ride.');
     } finally {
@@ -328,7 +401,9 @@ class SDriverRequestsController extends GetxController {
         verificationCode: verificationCode,
       );
       activeRide.value = SDriverActiveRide.fromJson(data);
+      _syncDriverLifecycleSnapshot(activeRide.value!);
       _sendCurrentLocationSnapshot();
+      unawaited(_syncActiveRideRuntime());
     } catch (_) {
       SHelperFunctions.showSnackBar('Unable to start trip.');
     } finally {
@@ -355,6 +430,8 @@ class SDriverRequestsController extends GetxController {
         accuracyMeters: 25,
       );
       activeRide.value = null;
+      SRideLifecycleCoordinator.instance.clearDriverRide(ride.id);
+      unawaited(_activeRideRuntimeController.stop());
       await refreshRequests();
     } catch (_) {
       SHelperFunctions.showSnackBar('Unable to complete trip.');
@@ -384,6 +461,31 @@ class SDriverRequestsController extends GetxController {
         rideId: activeRide.value?.id,
       );
     });
+  }
+
+  Future<void> recoverRealtimeState() async {
+    if (!isOnline.value || driverId.value.isEmpty) return;
+    await refreshActiveRide();
+    await _connectOnlineRealtime();
+    if (_realtimeOrchestrator.shouldRefreshDriverMarketplace(
+      isOnline: isOnline.value,
+      activeDriverRide: _activeDriverSnapshot,
+    )) {
+      await refreshRequests();
+    }
+  }
+
+  Future<void> _connectOnlineRealtime() async {
+    await _locationSocketRepository.close();
+    await _locationSocketRepository.connect();
+    SRuntimeDiagnosticsController.instance.updateRealtimeChannel(
+      SRuntimeRealtimeChannel.driverLocation,
+      isConnected: true,
+    );
+    _sendCurrentLocationSnapshot();
+    _startLocationHeartbeat();
+    _startPositionStream();
+    _connectRideSocket();
   }
 
   void _sendCurrentLocationSnapshot() {
@@ -428,13 +530,27 @@ class SDriverRequestsController extends GetxController {
   void _connectRideSocket() {
     _rideReconnectTimer?.cancel();
     _rideSocketSub?.cancel();
+    SRuntimeDiagnosticsController.instance.updateRealtimeChannel(
+      SRuntimeRealtimeChannel.driverRide,
+      isConnected: true,
+    );
     _rideSocketSub = _rideSocketRepository.connectDriver().listen(
       (event) => unawaited(handleRideSocketEvent(event)),
       onError: (Object error) {
+        SRuntimeDiagnosticsController.instance.updateRealtimeChannel(
+          SRuntimeRealtimeChannel.driverRide,
+          isConnected: false,
+        );
         SLoggerHelper.warning('Driver ride socket error: $error');
         _scheduleRideSocketReconnect();
       },
-      onDone: _scheduleRideSocketReconnect,
+      onDone: () {
+        SRuntimeDiagnosticsController.instance.updateRealtimeChannel(
+          SRuntimeRealtimeChannel.driverRide,
+          isConnected: false,
+        );
+        _scheduleRideSocketReconnect();
+      },
     );
   }
 
@@ -476,14 +592,71 @@ class SDriverRequestsController extends GetxController {
           data['session_id']?.toString() ?? data['id']?.toString();
       if (sessionId == null || sessionId.isEmpty) return;
       await _biddingSocketSub?.cancel();
+      SRuntimeDiagnosticsController.instance.updateRealtimeChannel(
+        SRuntimeRealtimeChannel.driverBidding,
+        isConnected: true,
+      );
       _biddingSocketSub = _biddingSocketRepository
           .connectDriver(sessionId: sessionId)
           .listen((event) {
         if (event.type == SBiddingSocketEventType.bidAccepted) {
           refreshActiveRide();
         }
+      }, onError: (_) {
+        SRuntimeDiagnosticsController.instance.updateRealtimeChannel(
+          SRuntimeRealtimeChannel.driverBidding,
+          isConnected: false,
+        );
+      }, onDone: () {
+        SRuntimeDiagnosticsController.instance.updateRealtimeChannel(
+          SRuntimeRealtimeChannel.driverBidding,
+          isConnected: false,
+        );
       });
     } catch (_) {}
+  }
+
+  Future<void> _syncActiveRideRuntime() async {
+    final ride = activeRide.value;
+    if (ride == null) {
+      await _activeRideRuntimeController.stop();
+      return;
+    }
+    final snapshot = _activeDriverSnapshot;
+    if (snapshot == null ||
+        !_realtimeOrchestrator.shouldRunDriverForegroundRuntime(snapshot)) {
+      await _activeRideRuntimeController.stop();
+      return;
+    }
+    await _activeRideRuntimeController.syncActiveRide(
+      driverId: driverId.value,
+      rideId: ride.id,
+      status: ride.status,
+    );
+  }
+
+  SRideLifecycleSnapshot? get _activeDriverSnapshot {
+    final ride = activeRide.value;
+    if (ride == null) return null;
+    return SRideLifecycleSnapshot.fromDriverState(
+      rideId: ride.id,
+      pricingMode: ride.pricingMode,
+      status: ride.status,
+      pickupArrivedAt: ride.pickup?.arrivedAt,
+      assignedDriverId: driverId.value,
+    );
+  }
+
+  void _syncDriverLifecycleSnapshot(SDriverActiveRide ride) {
+    SRideLifecycleCoordinator.instance.syncDriverSnapshot(
+      SRideLifecycleSnapshot.fromDriverState(
+        rideId: ride.id,
+        pricingMode: ride.pricingMode,
+        status: ride.status,
+        pickupArrivedAt: ride.pickup?.arrivedAt,
+        assignedDriverId: driverId.value,
+      ),
+    );
   }
 }
 

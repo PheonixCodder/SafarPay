@@ -1,4 +1,5 @@
 import 'package:client/utils/constants/colors.dart';
+import 'package:client/utils/constants/sizes.dart';
 import 'package:flutter/material.dart';
 
 class SRideStepperTile extends StatelessWidget {
@@ -18,12 +19,29 @@ class SRideStepperTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      contentPadding: EdgeInsets.zero,
-      title: Text(label),
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: SSizes.sm,
+        vertical: SSizes.xs,
+      ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(SSizes.cardRadiusSm),
+        side: const BorderSide(color: SColors.borderSecondary),
+      ),
+      tileColor: SColors.lightContainer,
+      title: Text(
+        label,
+        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: SColors.textPrimary,
+              fontWeight: FontWeight.w700,
+            ),
+      ),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          IconButton(onPressed: onMinus, icon: const Icon(Icons.remove)),
+          IconButton.filledTonal(
+            onPressed: onMinus,
+            icon: const Icon(Icons.remove),
+          ),
           SizedBox(
             width: 36,
             child: Center(
@@ -36,7 +54,10 @@ class SRideStepperTile extends StatelessWidget {
               ),
             ),
           ),
-          IconButton(onPressed: onPlus, icon: const Icon(Icons.add)),
+          IconButton.filledTonal(
+            onPressed: onPlus,
+            icon: const Icon(Icons.add),
+          ),
         ],
       ),
     );

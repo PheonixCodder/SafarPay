@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import '../../../../../../common/navigation/right_slide_page_route.dart';
 import '../../../../../../common/widgets/appbar/appbar.dart';
 import '../../../../../../features/location/controllers/ride_search_controller.dart';
 import '../../../../../../features/location/screens/ride_search/widgets/matching_ride_offers_content.dart';
-import '../../../../../../features/location/screens/ride_tracking/ride_tracking_screen.dart';
+import '../../../../../../features/rides/navigation/ride_navigation_destinations.dart';
 import '../../../../../../utils/constants/colors.dart';
 import '../../../../../../utils/constants/sizes.dart';
 
@@ -92,8 +91,9 @@ class _PendingRideMatchingScreenState extends State<PendingRideMatchingScreen> {
   }
 
   void _openTracking(String rideId) {
-    Navigator.of(context).pushReplacement(
-      SRightSlidePageRoute(page: RideTrackingScreen(rideId: rideId)),
+    sReplaceWithRideDestination(
+      context,
+      sRideTrackingDestination(rideId),
     );
   }
 }
