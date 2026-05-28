@@ -132,6 +132,15 @@ class SCommunicationRepository {
     return SCommunicationCall.fromJson(data);
   }
 
+  Future<SCommunicationCall> callById(String callId) async {
+    final data = await SHttpClient.get(
+      '/calls/$callId',
+      service: SApiService.communication,
+      requiresAuth: true,
+    );
+    return SCommunicationCall.fromJson(data);
+  }
+
   Future<SCommunicationCall> endCall({
     required String callId,
     required SCommunicationCallStatus status,

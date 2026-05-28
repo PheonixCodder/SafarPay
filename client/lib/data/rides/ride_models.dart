@@ -189,7 +189,7 @@ class RideResponse {
       assignedDriverId: json['assigned_driver_id'] as String?,
       serviceType: ServiceType.fromJson(json['service_type'] as String),
       category: ServiceCategory.fromJson(json['category'] as String),
-      pricingMode: PricingMode.fromJson(json['pricing_mode'] as String),
+      pricingMode: _pricingModeFromJson(json['pricing_mode']),
       status: RideStatus.fromJson(json['status'] as String),
       baselineMinPrice: _toDouble(json['baseline_min_price']),
       baselineMaxPrice: _toDouble(json['baseline_max_price']),
@@ -263,6 +263,8 @@ class RideSummaryResponse {
     required this.assignedDriverId,
     required this.serviceType,
     required this.category,
+    required this.pricingMode,
+    this.hasExplicitPricingMode = true,
     required this.status,
     required this.passengerPaymentMethod,
     required this.paymentCollectionMode,
@@ -277,6 +279,8 @@ class RideSummaryResponse {
   final String? assignedDriverId;
   final ServiceType serviceType;
   final ServiceCategory category;
+  final PricingMode pricingMode;
+  final bool hasExplicitPricingMode;
   final RideStatus status;
   final PassengerPaymentMethod passengerPaymentMethod;
   final PaymentCollectionMode paymentCollectionMode;
@@ -306,6 +310,8 @@ class RideSummaryResponse {
       assignedDriverId: json['assigned_driver_id'] as String?,
       serviceType: ServiceType.fromJson(json['service_type'] as String),
       category: ServiceCategory.fromJson(json['category'] as String),
+      pricingMode: _pricingModeFromJson(json['pricing_mode']),
+      hasExplicitPricingMode: _hasPricingMode(json['pricing_mode']),
       status: RideStatus.fromJson(json['status'] as String),
       passengerPaymentMethod: PassengerPaymentMethod.fromJson(
         json['passenger_payment_method'] as String,
@@ -318,6 +324,40 @@ class RideSummaryResponse {
       pickupStop: _toNullableModel(json['pickup_stop'], StopResponse.fromJson),
       dropoffStop:
           _toNullableModel(json['dropoff_stop'], StopResponse.fromJson),
+    );
+  }
+}
+
+class RecentRideDestinationResponse {
+  const RecentRideDestinationResponse({
+    required this.rideId,
+    required this.serviceType,
+    required this.category,
+    required this.pricingMode,
+    required this.createdAt,
+    required this.pickupStop,
+    required this.dropoffStop,
+  });
+
+  final String rideId;
+  final ServiceType serviceType;
+  final ServiceCategory category;
+  final PricingMode pricingMode;
+  final DateTime createdAt;
+  final StopResponse? pickupStop;
+  final StopResponse dropoffStop;
+
+  factory RecentRideDestinationResponse.fromJson(Map<String, dynamic> json) {
+    return RecentRideDestinationResponse(
+      rideId: json['ride_id'] as String,
+      serviceType: ServiceType.fromJson(json['service_type'] as String),
+      category: ServiceCategory.fromJson(json['category'] as String),
+      pricingMode: _pricingModeFromJson(json['pricing_mode']),
+      createdAt: DateTime.parse(json['created_at'] as String),
+      pickupStop: _toNullableModel(json['pickup_stop'], StopResponse.fromJson),
+      dropoffStop: StopResponse.fromJson(
+        json['dropoff_stop'] as Map<String, dynamic>,
+      ),
     );
   }
 }
@@ -670,4 +710,15 @@ T? _toNullableModel<T>(
 ) {
   if (value == null) return null;
   return fromJson(value as Map<String, dynamic>);
+}
+
+PricingMode _pricingModeFromJson(Object? value) {
+  if (value is String && value.isNotEmpty) {
+    return PricingMode.fromJson(value);
+  }
+  return PricingMode.fixed;
+}
+
+bool _hasPricingMode(Object? value) {
+  return value is String && value.isNotEmpty;
 }

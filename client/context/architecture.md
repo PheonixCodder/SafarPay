@@ -84,6 +84,27 @@
 - Driver registration status reads from Verification service `GET /api/v1/verification/me`; CNIC, license, selfie, and vehicle steps POST metadata to Verification endpoints, receive presigned upload URLs, and PUT image bytes directly to those URLs.
 - Driver vehicle service reuse must be explicit: if an existing vehicle is attached to a new service, the client asks for confirmation before calling the attach-service endpoint.
 
+## Lifecycle Platform
+
+- Ride lifecycle state is being extracted into a shared platform layer under `lib/features/rides/` instead of staying embedded in Trips widgets or push handlers.
+- Passenger ride-entry rules should be derived from one lifecycle policy:
+  - hybrid matching -> offers flow
+  - fixed unassigned -> fixed waiting
+  - assigned active ride -> live tracking
+  - terminal or non-ongoing -> ride details
+- Push notification deeplink parsing should resolve into route intents first, then screen navigation should follow that intent.
+- Driver active-ride state and passenger active-ride state should be published into an app-level coordinator so background runtime, push routing, and screen recovery can consume the same lifecycle view.
+- Shared ride destinations should own screen construction and route transitions for ride details, fixed waiting, hybrid matching, ride tracking, ride communication, and driver requests.
+- Realtime and runtime decisions should go through `SRideRealtimeOrchestrator`: HTTP snapshots remain authoritative, WebSockets attach only after lifecycle policy allows them, push only wakes/routes, and the driver foreground runtime runs only for assigned/active driver rides.
+- Online driver marketplace alerts use FCM as the background wake path. WebSocket bottom sheets are foreground UI only; background driver ride requests use `driver_ride_request` push payloads and the Android `ride_alerts` urgent notification channel.
+- Android driver marketplace overlays are allowed only for `driver_ride_request` notifications after the driver grants Display over other apps. The overlay is an entry point to Driver Requests; it must not accept rides or submit bids outside the hydrated Flutter flow.
+- Ride communication calls use the `ride_calls` channel with full-screen intent and Accept/Reject notification actions. Accept routes to ride communication, while Reject ends the call through the Communication service when a valid user session is available.
+- Communication message pushes route to the ride communication screen, but they remain normal notifications rather than overlays. Android inline reply may send through the Communication service when `conversation_id` is present.
+- App resume recovery should refresh the authoritative HTTP snapshot before reconnecting live ride, bidding, location, or communication sockets.
+- Runtime mode selection starts at `SRuntimeModeConfig`; feature repositories should depend on that boundary instead of reading compile-time flags directly.
+- Runtime diagnostics are exposed through `SRuntimeDiagnosticsController` for lifecycle state, runtime mode, realtime channel state, and active driver foreground runtime state.
+- Location, Geospatial, Ride, Bidding, and live socket repositories use public facades with demo/real delegates selected once from `SRuntimeModeConfig`.
+
 ## Storage Model
 
 - **Secure token storage**: access token and refresh token only.
@@ -134,6 +155,14 @@
 34. Vehicle verification belongs to the physical vehicle; adding that vehicle to another driver service requires explicit user consent in the client before creating the service capability.
 35. Passenger Ride, Bidding, Location, and Geospatial repositories must keep demo behavior behind `SAFARPAY_USE_LOCATION_DEMO_DATA` and use real backend paths when that flag is false.
 36. Driver earnings must remain Payment-backed. Flutter should not calculate authoritative earnings from Ride or Bidding responses.
+37. HTTP ride snapshots are authoritative; WebSocket augments them for open-app live updates, and push notifications only wake or route users.
+38. Passenger ride-entry and ride-notification routing must use shared lifecycle/navigation policy code instead of duplicating screen-specific conditionals.
+39. Shared ride destinations must own route construction for lifecycle-owned surfaces instead of letting feature widgets push those screens directly.
+40. WebSocket and active-runtime start/stop decisions must use `SRideRealtimeOrchestrator`; feature controllers may own connection mechanics, but not lifecycle eligibility rules.
+41. Runtime diagnostics must remain developer/internal tooling and must not become a user-facing production surface.
+42. Demo-vs-real repository extraction should happen behind `SRuntimeModeConfig` and preserve existing constructor injection hooks.
+43. Location runtime repositories should remain thin public facades over demo/real delegates; controllers must not branch on demo mode or call compile-time flags directly.
+44. Driver ride-request background alerts must use push notification delivery; controllers must not assume WebSockets remain connected while the app is backgrounded.
 ## Driver Requests Integration
 
 - Driver Requests uses Ride for request list and active ride state, Bidding for HYBRID offers, Location for online/GPS state, and Geospatial for road-route summaries.

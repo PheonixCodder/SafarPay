@@ -3,8 +3,8 @@ import 'package:client/common/widgets/maps/map_models.dart';
 import 'package:client/common/widgets/maps/map_view.dart';
 import 'package:client/features/location/controllers/ride_preview_controller.dart';
 import 'package:client/features/location/domain/location_models.dart';
+import 'package:client/features/rides/navigation/ride_navigation_destinations.dart';
 import 'package:client/features/location/screens/ride_preview/widgets/route_summary.dart';
-import 'package:client/features/location/screens/ride_tracking/ride_tracking_screen.dart';
 import 'package:client/utils/constants/colors.dart';
 import 'package:client/utils/constants/sizes.dart';
 import 'package:client/utils/constants/texts.dart';
@@ -83,7 +83,9 @@ class RidePreviewScreen extends StatelessWidget {
                     ? () async {
                         final rideId = await controller.createRide();
                         if (rideId == null) return;
-                        Get.to(() => RideTrackingScreen(rideId: rideId));
+                        await sOpenDestinationWithGet(
+                          sRideTrackingDestination(rideId),
+                        );
                       }
                     : null,
                 icon: const Icon(Iconsax.car),

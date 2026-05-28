@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:web_socket_channel/web_socket_channel.dart';
 
+import '../../../common/runtime/runtime_mode.dart';
 import '../../../utils/constants/api_constants.dart';
 import '../../../utils/http/client.dart';
 import 'bidding_socket_event.dart';
@@ -10,22 +11,85 @@ import 'demo/location_demo_data.dart';
 
 class SBiddingSocketRepository {
   SBiddingSocketRepository({bool? useDemoData})
-      : _useDemoData = useDemoData ?? SApiConstants.useLocationDemoData;
+      : _delegate = (useDemoData ?? SRuntimeModeConfig.useLocationDemoData)
+            ? _DemoBiddingSocketDelegate()
+            : _WebBiddingSocketDelegate();
 
-  final bool _useDemoData;
-  WebSocketChannel? _channel;
+  final _BiddingSocketDelegate _delegate;
+
+  SRuntimeDataSource get runtimeDataSource => _delegate.runtimeDataSource;
 
   Stream<SBiddingSocketEvent> connectPassenger({
     required String sessionId,
   }) async* {
-    if (_useDemoData) {
-      for (final event in SLocationDemoData.demoBiddingSocketEvents(sessionId)) {
-        await Future<void>.delayed(const Duration(milliseconds: 350));
-        yield SBiddingSocketEvent.fromJson(event);
-      }
-      return;
-    }
+    yield* _delegate.connectPassenger(sessionId: sessionId);
+  }
 
+  Stream<SBiddingSocketEvent> connectDriver({
+    required String sessionId,
+  }) async* {
+    yield* _delegate.connectDriver(sessionId: sessionId);
+  }
+
+  Future<void> subscribe(String sessionId) => _delegate.subscribe(sessionId);
+
+  Future<void> close() => _delegate.close();
+}
+
+abstract class _BiddingSocketDelegate {
+  SRuntimeDataSource get runtimeDataSource;
+
+  Stream<SBiddingSocketEvent> connectPassenger({required String sessionId});
+
+  Stream<SBiddingSocketEvent> connectDriver({required String sessionId});
+
+  Future<void> subscribe(String sessionId);
+
+  Future<void> close();
+}
+
+class _DemoBiddingSocketDelegate implements _BiddingSocketDelegate {
+  @override
+  SRuntimeDataSource get runtimeDataSource => SRuntimeDataSource.demo;
+
+  @override
+  Stream<SBiddingSocketEvent> connectPassenger({
+    required String sessionId,
+  }) async* {
+    yield* _demoEvents(sessionId);
+  }
+
+  @override
+  Stream<SBiddingSocketEvent> connectDriver({
+    required String sessionId,
+  }) async* {
+    yield* _demoEvents(sessionId);
+  }
+
+  @override
+  Future<void> subscribe(String sessionId) async {}
+
+  @override
+  Future<void> close() async {}
+
+  Stream<SBiddingSocketEvent> _demoEvents(String sessionId) async* {
+    for (final event in SLocationDemoData.demoBiddingSocketEvents(sessionId)) {
+      await Future<void>.delayed(const Duration(milliseconds: 350));
+      yield SBiddingSocketEvent.fromJson(event);
+    }
+  }
+}
+
+class _WebBiddingSocketDelegate implements _BiddingSocketDelegate {
+  WebSocketChannel? _channel;
+
+  @override
+  SRuntimeDataSource get runtimeDataSource => SRuntimeDataSource.real;
+
+  @override
+  Stream<SBiddingSocketEvent> connectPassenger({
+    required String sessionId,
+  }) async* {
     final channel = await _connect(SApiService.bidding, '/ws/passengers');
     channel.sink.add(jsonEncode({
       'action': 'subscribe',
@@ -41,17 +105,10 @@ class SBiddingSocketRepository {
     }
   }
 
+  @override
   Stream<SBiddingSocketEvent> connectDriver({
     required String sessionId,
   }) async* {
-    if (_useDemoData) {
-      for (final event in SLocationDemoData.demoBiddingSocketEvents(sessionId)) {
-        await Future<void>.delayed(const Duration(milliseconds: 350));
-        yield SBiddingSocketEvent.fromJson(event);
-      }
-      return;
-    }
-
     final channel = await _connect(SApiService.bidding, '/ws/drivers');
     channel.sink.add(jsonEncode({
       'action': 'subscribe',
@@ -67,6 +124,7 @@ class SBiddingSocketRepository {
     }
   }
 
+  @override
   Future<void> subscribe(String sessionId) async {
     _channel?.sink.add(jsonEncode({
       'action': 'subscribe',
@@ -74,6 +132,7 @@ class SBiddingSocketRepository {
     }));
   }
 
+  @override
   Future<void> close() async {
     await _channel?.sink.close();
     _channel = null;

@@ -1,11 +1,17 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 
+import '../../../common/runtime/app_lifecycle_controller.dart';
+import '../../../common/runtime/runtime_diagnostics_controller.dart';
 import '../../../common/widgets/maps/map_models.dart';
 import '../../../data/rides/ride_models.dart';
 import '../../../utils/helpers/helpers.dart';
+import '../../rides/controllers/ride_lifecycle_coordinator.dart';
+import '../../rides/domain/ride_lifecycle.dart';
+import '../../rides/orchestration/ride_realtime_orchestrator.dart';
 import '../data/bidding_repository.dart';
 import '../data/bidding_socket_event.dart';
 import '../data/bidding_socket_repository.dart';
@@ -29,6 +35,9 @@ class SRideSearchController extends GetxController {
     SBiddingSocketRepository? biddingSocketRepository,
     SPassengerServiceCategory initialCategory =
         SPassengerServiceCategory.cityRides,
+    SAddressResult? initialDropoff,
+    SAppLifecycleController? appLifecycleController,
+    SRideRealtimeOrchestrator? realtimeOrchestrator,
   })  : _locationRepository = locationRepository,
         _deviceLocationService = deviceLocationService,
         _geospatialRepository = geospatialRepository,
@@ -36,7 +45,12 @@ class SRideSearchController extends GetxController {
         _biddingRepository = biddingRepository,
         _biddingSocketRepository =
             biddingSocketRepository ?? SBiddingSocketRepository(),
-        _initialCategory = initialCategory;
+        _initialCategory = initialCategory,
+        _initialDropoff = initialDropoff,
+        _appLifecycleController =
+            appLifecycleController ?? SAppLifecycleController.instance,
+        _realtimeOrchestrator =
+            realtimeOrchestrator ?? SRideRealtimeOrchestrator.instance;
 
   static const SCoordinate fallbackCenter = SCoordinate(
     latitude: 31.5204,
@@ -50,6 +64,9 @@ class SRideSearchController extends GetxController {
   final SBiddingRepository _biddingRepository;
   final SBiddingSocketRepository _biddingSocketRepository;
   final SPassengerServiceCategory _initialCategory;
+  final SAddressResult? _initialDropoff;
+  final SAppLifecycleController _appLifecycleController;
+  final SRideRealtimeOrchestrator _realtimeOrchestrator;
 
   final SMapController mapController = SMapController();
   final TextEditingController pickupSearchController = TextEditingController();
@@ -126,6 +143,7 @@ class SRideSearchController extends GetxController {
 
   Timer? _debounce;
   StreamSubscription<SBiddingSocketEvent>? _biddingSocketSub;
+  Worker? _appLifecycleWorker;
 
   List<SRideVehicleOffer> get availableVehicles {
     return SRideBookingCatalog.vehiclesFor(selectedCategory.value);
@@ -144,7 +162,20 @@ class SRideSearchController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    _appLifecycleWorker = ever<AppLifecycleState>(
+      _appLifecycleController.state,
+      (state) {
+        if (state == AppLifecycleState.resumed) {
+          unawaited(recoverRealtimeState());
+        }
+      },
+    );
     selectCategory(_initialCategory);
+    final initialDropoff = _initialDropoff;
+    if (initialDropoff != null) {
+      selectedDropoff.value = initialDropoff;
+      dropoffSearchController.text = initialDropoff.formatted;
+    }
     loadCurrentPickup();
   }
 
@@ -152,7 +183,12 @@ class SRideSearchController extends GetxController {
   void onClose() {
     _debounce?.cancel();
     _biddingSocketSub?.cancel();
+    _appLifecycleWorker?.dispose();
     _biddingSocketRepository.close();
+    SRuntimeDiagnosticsController.instance.updateRealtimeChannel(
+      SRuntimeRealtimeChannel.passengerBidding,
+      isConnected: false,
+    );
     pickupSearchController.dispose();
     dropoffSearchController.dispose();
     courierItemController.dispose();
@@ -171,11 +207,19 @@ class SRideSearchController extends GetxController {
       if (isClosed) return;
       pickup.value = address;
       pickupSearchController.text = address.formatted;
+      if (hasPickupAndDropoff) {
+        sheetMode.value = SBookingSheetMode.route;
+        await loadRoutePreview();
+      }
     } catch (_) {
       if (isClosed) return;
       pickup.value = SLocationDemoData.pickup;
       pickupSearchController.text = SLocationDemoData.pickup.formatted;
       errorMessage.value = '';
+      if (hasPickupAndDropoff) {
+        sheetMode.value = SBookingSheetMode.route;
+        await loadRoutePreview();
+      }
     }
   }
 
@@ -262,6 +306,18 @@ class SRideSearchController extends GetxController {
     if (hasPickupAndDropoff) loadRoutePreview();
   }
 
+  void selectRecentDropoff(SAddressResult result) {
+    activeTarget.value = SBookingLocationTarget.dropoff;
+    selectedDropoff.value = result;
+    dropoffSearchController.text = result.formatted;
+    results.clear();
+    errorMessage.value = '';
+    sheetMode.value = hasPickupAndDropoff
+        ? SBookingSheetMode.route
+        : SBookingSheetMode.compose;
+    if (hasPickupAndDropoff) loadRoutePreview();
+  }
+
   void selectCategory(SPassengerServiceCategory category) {
     selectedCategory.value = category;
     final vehicles = SRideBookingCatalog.vehiclesFor(category);
@@ -324,6 +380,7 @@ class SRideSearchController extends GetxController {
 
     isRouteLoading.value = true;
     errorMessage.value = '';
+    route.value = null;
     try {
       route.value = await _geospatialRepository.calculateRoute(
         origin: origin.coordinate,
@@ -367,7 +424,8 @@ class SRideSearchController extends GetxController {
           : await _loadBiddingSessionForRide(rideId);
       createdRideId.value = rideId;
       biddingSessionId.value = sessionId;
-      if (shouldOpenBidding && sessionId.isNotEmpty) {
+      if (rideId.isNotEmpty) _syncMatchingSnapshot(rideId);
+      if (_shouldConnectBiddingSocket && sessionId.isNotEmpty) {
         _connectBiddingSocket(sessionId);
       }
       sheetMode.value = shouldOpenBidding
@@ -500,6 +558,8 @@ class SRideSearchController extends GetxController {
     isLoading.value = true;
     errorMessage.value = '';
     createdRideId.value = rideId;
+    pricingMode.value = PricingMode.hybrid;
+    _syncMatchingSnapshot(rideId);
     sheetMode.value = SBookingSheetMode.matching;
     try {
       final sessionId = await _loadBiddingSessionForRide(rideId);
@@ -508,13 +568,32 @@ class SRideSearchController extends GetxController {
         errorMessage.value = 'Waiting for driver matching setup.';
         return;
       }
-      _connectBiddingSocket(sessionId, refreshImmediately: false);
+      if (_shouldConnectBiddingSocket) {
+        _connectBiddingSocket(sessionId, refreshImmediately: false);
+      }
       await refreshBiddingSession(sessionId);
     } catch (_) {
       errorMessage.value = 'Unable to reopen driver offers.';
     } finally {
       isLoading.value = false;
     }
+  }
+
+  Future<void> recoverRealtimeState() async {
+    if (isClosed ||
+        sheetMode.value != SBookingSheetMode.matching ||
+        createdRideId.value.isEmpty) {
+      return;
+    }
+    final sessionId = biddingSessionId.value.isNotEmpty
+        ? biddingSessionId.value
+        : await _loadBiddingSessionForRide(createdRideId.value);
+    if (sessionId.isEmpty) return;
+    biddingSessionId.value = sessionId;
+    if (_shouldConnectBiddingSocket) {
+      _connectBiddingSocket(sessionId, refreshImmediately: false);
+    }
+    await refreshBiddingSession(sessionId);
   }
 
   Future<bool> acceptDriverBid(SBid bid) async {
@@ -556,14 +635,50 @@ class SRideSearchController extends GetxController {
     String sessionId, {
     bool refreshImmediately = true,
   }) {
+    if (!_shouldConnectBiddingSocket) return;
     _biddingSocketSub?.cancel();
+    SRuntimeDiagnosticsController.instance.updateRealtimeChannel(
+      SRuntimeRealtimeChannel.passengerBidding,
+      isConnected: true,
+    );
 
     _biddingSocketSub = _biddingSocketRepository
         .connectPassenger(sessionId: sessionId)
         .listen((event) => unawaited(handleBiddingEvent(event)), onError: (_) {
+      SRuntimeDiagnosticsController.instance.updateRealtimeChannel(
+        SRuntimeRealtimeChannel.passengerBidding,
+        isConnected: false,
+      );
       errorMessage.value = 'Live offers disconnected. Retrying soon.';
+    }, onDone: () {
+      SRuntimeDiagnosticsController.instance.updateRealtimeChannel(
+        SRuntimeRealtimeChannel.passengerBidding,
+        isConnected: false,
+      );
     });
     if (refreshImmediately) unawaited(refreshBiddingSession(sessionId));
+  }
+
+  bool get _shouldConnectBiddingSocket {
+    final rideId = createdRideId.value;
+    if (rideId.isEmpty) return false;
+    return _realtimeOrchestrator.shouldConnectBiddingSocket(
+      SRideLifecycleSnapshot(
+        rideId: rideId,
+        pricingMode: pricingMode.value,
+        status: RideStatus.matching,
+      ),
+    );
+  }
+
+  void _syncMatchingSnapshot(String rideId) {
+    SRideLifecycleCoordinator.instance.syncPassengerSnapshot(
+      SRideLifecycleSnapshot(
+        rideId: rideId,
+        pricingMode: pricingMode.value,
+        status: RideStatus.matching,
+      ),
+    );
   }
 
   Future<void> handleBiddingEvent(SBiddingSocketEvent event) async {

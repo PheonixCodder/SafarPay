@@ -1,8 +1,15 @@
 import 'dart:async';
 
+import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 
+import '../../../common/runtime/app_lifecycle_controller.dart';
+import '../../../common/runtime/runtime_diagnostics_controller.dart';
 import '../../../common/widgets/maps/map_models.dart';
+import '../../../data/rides/ride_models.dart';
+import '../../rides/controllers/ride_lifecycle_coordinator.dart';
+import '../../rides/domain/ride_lifecycle.dart';
+import '../../rides/orchestration/ride_realtime_orchestrator.dart';
 import '../data/device_location_service.dart';
 import '../data/geospatial_repository.dart';
 import '../data/live_ride_socket_event.dart';
@@ -23,12 +30,18 @@ class SRideTrackingController extends GetxController {
     SRideSocketRepository? rideSocketRepository,
     SDeviceLocationService deviceLocationService =
         const SDeviceLocationService(),
+    SAppLifecycleController? appLifecycleController,
+    SRideRealtimeOrchestrator? realtimeOrchestrator,
   })  : _locationRepository = locationRepository,
         _rideRepository = rideRepository,
         _geospatialRepository = geospatialRepository,
         _socketRepository = socketRepository ?? SLiveRideSocketRepository(),
         _rideSocketRepository = rideSocketRepository ?? SRideSocketRepository(),
-        _deviceLocationService = deviceLocationService;
+        _deviceLocationService = deviceLocationService,
+        _appLifecycleController =
+            appLifecycleController ?? SAppLifecycleController.instance,
+        _realtimeOrchestrator =
+            realtimeOrchestrator ?? SRideRealtimeOrchestrator.instance;
 
   final String rideId;
   final SLocationRepository _locationRepository;
@@ -37,10 +50,13 @@ class SRideTrackingController extends GetxController {
   final SLiveRideSocketRepository _socketRepository;
   final SRideSocketRepository _rideSocketRepository;
   final SDeviceLocationService _deviceLocationService;
+  final SAppLifecycleController _appLifecycleController;
+  final SRideRealtimeOrchestrator _realtimeOrchestrator;
 
   final RxBool isConnecting = false.obs;
   final RxString statusMessage = 'Connecting to ride tracking...'.obs;
   final RxString rideStatus = ''.obs;
+  final RxString assignedDriverId = ''.obs;
   final RxString startVerificationCode = ''.obs;
   final RxString endVerificationCode = ''.obs;
   final RxBool requiresOtpStart = false.obs;
@@ -56,6 +72,7 @@ class SRideTrackingController extends GetxController {
   StreamSubscription<SRideSocketEvent>? _rideSocketSubscription;
   StreamSubscription<SCoordinate>? _passengerSubscription;
   Timer? _locationReconnectTimer;
+  Worker? _appLifecycleWorker;
   DateTime? _lastRouteRefreshAt;
   bool _isClosed = false;
 
@@ -91,6 +108,14 @@ class SRideTrackingController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    _appLifecycleWorker = ever<AppLifecycleState>(
+      _appLifecycleController.state,
+      (state) {
+        if (state == AppLifecycleState.resumed) {
+          unawaited(recoverRealtimeState());
+        }
+      },
+    );
     connect();
   }
 
@@ -101,8 +126,17 @@ class SRideTrackingController extends GetxController {
     _socketSubscription?.cancel();
     _rideSocketSubscription?.cancel();
     _passengerSubscription?.cancel();
+    _appLifecycleWorker?.dispose();
     _socketRepository.close();
     _rideSocketRepository.close();
+    SRuntimeDiagnosticsController.instance.updateRealtimeChannel(
+      SRuntimeRealtimeChannel.passengerRide,
+      isConnected: false,
+    );
+    SRuntimeDiagnosticsController.instance.updateRealtimeChannel(
+      SRuntimeRealtimeChannel.passengerLocation,
+      isConnected: false,
+    );
     super.onClose();
   }
 
@@ -111,22 +145,49 @@ class SRideTrackingController extends GetxController {
     unawaited(_seedPassengerLocation());
     try {
       await _refreshRideDetails();
-      final snapshot = await _locationRepository.getRideLocations(rideId);
-      driverLocation.value = snapshot.driver;
-      passengerLocation.value = snapshot.passenger;
-      unawaited(_refreshTrackingRoute(force: true));
+      if (_canTrackLiveLocation) {
+        final snapshot = await _locationRepository.getRideLocations(rideId);
+        driverLocation.value = snapshot.driver;
+        passengerLocation.value = snapshot.passenger;
+        unawaited(_refreshTrackingRoute(force: true));
+      } else {
+        statusMessage.value = 'Waiting for a driver to accept.';
+      }
     } catch (_) {
       statusMessage.value = 'Waiting for live ride location...';
     }
 
-    _connectLocationSocket();
+    if (_canTrackLiveLocation) _connectLocationSocket();
 
-    _rideSocketSubscription = _rideSocketRepository
-        .connectPassenger(rideId: rideId)
-        .listen(_handleRideSocketEvent, onError: (_) {
-      statusMessage.value = 'Ride status updates are reconnecting...';
-    });
+    if (_shouldConnectRideLifecycleSocket) _connectRideLifecycleSocket();
 
+    _startPassengerLocationStream();
+
+    isConnecting.value = false;
+  }
+
+  Future<void> recoverRealtimeState() async {
+    if (_isClosed) return;
+    await _refreshRideDetails();
+    if (_canTrackLiveLocation) {
+      try {
+        final snapshot = await _locationRepository.getRideLocations(rideId);
+        driverLocation.value = snapshot.driver;
+        passengerLocation.value = snapshot.passenger;
+        unawaited(_refreshTrackingRoute(force: true));
+      } catch (_) {}
+      if (_socketSubscription == null) _connectLocationSocket();
+    } else {
+      await _disconnectLocationSocket();
+    }
+    if (_shouldConnectRideLifecycleSocket && _rideSocketSubscription == null) {
+      _connectRideLifecycleSocket();
+    }
+    _startPassengerLocationStream();
+  }
+
+  void _startPassengerLocationStream() {
+    if (_passengerSubscription != null) return;
     _passengerSubscription =
         _deviceLocationService.positionStream().listen((coordinate) {
       passengerLocation.value = SPassengerLiveLocation(
@@ -136,8 +197,6 @@ class SRideTrackingController extends GetxController {
       );
       if (routeDestination.value == null) unawaited(_refreshTrackingRoute());
     }, onError: (_) {});
-
-    isConnecting.value = false;
   }
 
   Future<void> _seedPassengerLocation() async {
@@ -167,27 +226,76 @@ class SRideTrackingController extends GetxController {
     if (event.type == SRideSocketEventType.rideUpdated) {
       rideStatus.value = event.status ?? rideStatus.value;
       statusMessage.value = 'Ride status updated.';
-      unawaited(_refreshRideDetails());
-      if (_socketSubscription == null) _scheduleLocationReconnect();
+      unawaited(_handleRideUpdated());
     } else if (event.type == SRideSocketEventType.error) {
       statusMessage.value = event.detail ?? 'Ride status error.';
     }
   }
 
+  Future<void> _handleRideUpdated() async {
+    await _refreshRideDetails();
+    if (_canTrackLiveLocation && _socketSubscription == null) {
+      _scheduleLocationReconnect();
+    } else if (!_canTrackLiveLocation) {
+      await _disconnectLocationSocket();
+    }
+    if (!_shouldConnectRideLifecycleSocket) {
+      await _rideSocketSubscription?.cancel();
+      _rideSocketSubscription = null;
+    }
+  }
+
+  void _connectRideLifecycleSocket() {
+    if (_isClosed || !_shouldConnectRideLifecycleSocket) return;
+    _rideSocketSubscription?.cancel();
+    SRuntimeDiagnosticsController.instance.updateRealtimeChannel(
+      SRuntimeRealtimeChannel.passengerRide,
+      isConnected: true,
+    );
+    _rideSocketSubscription = _rideSocketRepository
+        .connectPassenger(rideId: rideId)
+        .listen(_handleRideSocketEvent, onError: (_) {
+      _rideSocketSubscription = null;
+      SRuntimeDiagnosticsController.instance.updateRealtimeChannel(
+        SRuntimeRealtimeChannel.passengerRide,
+        isConnected: false,
+      );
+      statusMessage.value = 'Ride status updates are reconnecting...';
+    }, onDone: () {
+      _rideSocketSubscription = null;
+      SRuntimeDiagnosticsController.instance.updateRealtimeChannel(
+        SRuntimeRealtimeChannel.passengerRide,
+        isConnected: false,
+      );
+    });
+  }
+
   void _connectLocationSocket() {
-    if (_isClosed) return;
+    if (_isClosed || !_canTrackLiveLocation) return;
     _locationReconnectTimer?.cancel();
     _socketSubscription?.cancel();
+    SRuntimeDiagnosticsController.instance.updateRealtimeChannel(
+      SRuntimeRealtimeChannel.passengerLocation,
+      isConnected: true,
+    );
     _socketSubscription = _socketRepository.connect(rideId).listen(
       _handleSocketEvent,
       onError: (_) {
         _socketSubscription = null;
+        SRuntimeDiagnosticsController.instance.updateRealtimeChannel(
+          SRuntimeRealtimeChannel.passengerLocation,
+          isConnected: false,
+        );
         statusMessage.value = 'Ride tracking is reconnecting...';
         isConnecting.value = false;
         _scheduleLocationReconnect();
       },
       onDone: () {
         _socketSubscription = null;
+        SRuntimeDiagnosticsController.instance.updateRealtimeChannel(
+          SRuntimeRealtimeChannel.passengerLocation,
+          isConnected: false,
+        );
         if (_isClosed) return;
         statusMessage.value = 'Ride tracking disconnected.';
         isConnecting.value = false;
@@ -197,9 +305,13 @@ class SRideTrackingController extends GetxController {
   }
 
   void _scheduleLocationReconnect() {
-    if (_isClosed || _locationReconnectTimer?.isActive == true) return;
+    if (_isClosed ||
+        !_canTrackLiveLocation ||
+        _locationReconnectTimer?.isActive == true) {
+      return;
+    }
     _locationReconnectTimer = Timer(const Duration(seconds: 2), () async {
-      if (_isClosed) return;
+      if (_isClosed || !_canTrackLiveLocation) return;
       try {
         final snapshot = await _locationRepository.getRideLocations(rideId);
         driverLocation.value = snapshot.driver;
@@ -210,15 +322,31 @@ class SRideTrackingController extends GetxController {
     });
   }
 
+  Future<void> _disconnectLocationSocket() async {
+    _locationReconnectTimer?.cancel();
+    await _socketSubscription?.cancel();
+    _socketSubscription = null;
+    await _socketRepository.close();
+    SRuntimeDiagnosticsController.instance.updateRealtimeChannel(
+      SRuntimeRealtimeChannel.passengerLocation,
+      isConnected: false,
+    );
+  }
+
   Future<void> _refreshRideDetails() async {
     try {
-      final ride = await _rideRepository.fetchRide(rideId);
-      final status = ride['status']?.toString() ?? rideStatus.value;
+      final rideData = await _rideRepository.fetchRide(rideId);
+      final ride = RideResponse.fromJson(rideData);
+      SRideLifecycleCoordinator.instance.syncPassengerSnapshot(
+        SRideLifecycleSnapshot.fromRide(ride),
+      );
+      final status = ride.status.value;
       rideStatus.value = status;
+      assignedDriverId.value = ride.assignedDriverId ?? '';
       _applyRouteDestination(ride, status);
-      requiresOtpStart.value = ride['requires_otp_start'] == true;
-      requiresOtpEnd.value = ride['requires_otp_end'] == true;
-      _applyExistingVerificationCode(ride);
+      requiresOtpStart.value = rideData['requires_otp_start'] == true;
+      requiresOtpEnd.value = rideData['requires_otp_end'] == true;
+      _applyExistingVerificationCode(rideData);
       await _ensureVerificationCodeFor(status);
       unawaited(_refreshTrackingRoute(force: true));
     } catch (_) {
@@ -226,22 +354,40 @@ class SRideTrackingController extends GetxController {
     }
   }
 
-  void _applyRouteDestination(Map<String, dynamic> ride, String status) {
-    final preferredKey =
-        status == 'IN_PROGRESS' ? 'dropoff_stop' : 'pickup_stop';
-    final preferred = ride[preferredKey];
-    if (preferred is Map<String, dynamic>) {
-      routeDestination.value = SCoordinate.fromJson(preferred);
+  bool get _canTrackLiveLocation {
+    final snapshot = SRideLifecycleCoordinator.instance.snapshotForRide(rideId);
+    if (snapshot == null) return false;
+    return _realtimeOrchestrator.shouldConnectPassengerLiveLocationSocket(
+      snapshot,
+    );
+  }
+
+  bool get _shouldConnectRideLifecycleSocket {
+    final snapshot = SRideLifecycleCoordinator.instance.snapshotForRide(rideId);
+    if (snapshot == null) return true;
+    return _realtimeOrchestrator.shouldConnectPassengerRideLifecycleSocket(
+      snapshot,
+    );
+  }
+
+  void _applyRouteDestination(RideResponse ride, String status) {
+    final preferredStop =
+        status == 'IN_PROGRESS' ? ride.dropoffStop : ride.pickupStop;
+    if (preferredStop != null) {
+      routeDestination.value = SCoordinate(
+        latitude: preferredStop.latitude,
+        longitude: preferredStop.longitude,
+      );
       return;
     }
 
-    final stops = ride['stops'];
-    if (stops is! List) return;
-    final preferredType = status == 'IN_PROGRESS' ? 'DROPOFF' : 'PICKUP';
-    for (final value in stops) {
-      if (value is! Map<String, dynamic>) continue;
-      if (value['stop_type']?.toString() != preferredType) continue;
-      routeDestination.value = SCoordinate.fromJson(value);
+    final preferredType = status == 'IN_PROGRESS' ? StopType.dropoff : StopType.pickup;
+    for (final stop in ride.stops) {
+      if (stop.stopType != preferredType) continue;
+      routeDestination.value = SCoordinate(
+        latitude: stop.latitude,
+        longitude: stop.longitude,
+      );
       return;
     }
   }

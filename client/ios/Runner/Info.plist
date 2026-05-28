@@ -28,10 +28,18 @@
 		<true/>
 		<key>NSLocationWhenInUseUsageDescription</key>
 		<string>SafarPay uses your location to suggest nearby services and improve ride matching.</string>
+		<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+		<string>SafarPay uses background location only during active driver trips so passengers can track their ride.</string>
+		<key>NSLocationAlwaysUsageDescription</key>
+		<string>SafarPay uses background location only during active driver trips so passengers can track their ride.</string>
 		<key>NSCameraUsageDescription</key>
 		<string>SafarPay uses the camera to capture verification documents and your selfie with license for driver registration.</string>
 		<key>NSPhotoLibraryUsageDescription</key>
 		<string>SafarPay lets you choose document and vehicle photos from your library for driver registration.</string>
+		<key>BGTaskSchedulerPermittedIdentifiers</key>
+		<array>
+			<string>com.pravera.flutter_foreground_task.refresh</string>
+		</array>
 		<key>UIApplicationSceneManifest</key>
 		<dict>
 			<key>UIApplicationSupportsMultipleScenes</key>
@@ -55,6 +63,12 @@
 		</dict>
 		<key>UIApplicationSupportsIndirectInputEvents</key>
 		<true/>
+		<key>UIBackgroundModes</key>
+		<array>
+			<string>remote-notification</string>
+			<string>location</string>
+			<string>fetch</string>
+		</array>
 		<key>UILaunchStoryboardName</key>
 		<string>LaunchScreen</string>
 		<key>UIMainStoryboardFile</key>

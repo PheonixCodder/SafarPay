@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 
+import '../../rides/navigation/ride_navigation_destinations.dart';
 import '../../../utils/constants/colors.dart';
-import '../screens/ride_communication_screen.dart';
 
 class SRideCommunicationButton extends StatelessWidget {
   const SRideCommunicationButton({
@@ -18,8 +17,8 @@ class SRideCommunicationButton extends StatelessWidget {
       heroTag: 'ride-communication-$rideId',
       backgroundColor: SColors.primary,
       foregroundColor: SColors.white,
-      onPressed: () => Get.to(
-        () => SRideCommunicationScreen(rideId: rideId),
+      onPressed: () => sOpenDestinationWithGet(
+        sRideCommunicationDestination(rideId: rideId),
       ),
       child: const Icon(Icons.chat_bubble_outline),
     );

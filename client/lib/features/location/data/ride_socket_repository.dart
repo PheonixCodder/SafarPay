@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:web_socket_channel/web_socket_channel.dart';
 
+import '../../../common/runtime/runtime_mode.dart';
 import '../../../utils/constants/api_constants.dart';
 import '../../../utils/http/client.dart';
 import 'demo/location_demo_data.dart';
@@ -10,70 +11,79 @@ import 'ride_socket_event.dart';
 
 class SRideSocketRepository {
   SRideSocketRepository({bool? useDemoData})
-      : _useDemoData = useDemoData ?? SApiConstants.useLocationDemoData;
+      : _delegate = (useDemoData ?? SRuntimeModeConfig.useLocationDemoData)
+            ? _DemoRideSocketDelegate()
+            : _WebRideSocketDelegate();
 
-  final bool _useDemoData;
-  WebSocketChannel? _channel;
+  final _RideSocketDelegate _delegate;
+
+  SRuntimeDataSource get runtimeDataSource => _delegate.runtimeDataSource;
 
   Stream<SRideSocketEvent> connectPassenger({String? rideId}) async* {
-    if (_useDemoData) {
-      final demoRideId = rideId ?? 'demo-ride-001';
-      for (final event in SLocationDemoData.demoRideSocketEvents(demoRideId)) {
-        await Future<void>.delayed(const Duration(milliseconds: 350));
-        yield SRideSocketEvent.fromJson(event);
-      }
-      return;
-    }
-
-    final token = await SHttpClient.accessTokenForSocket();
-    if (token == null || token.isEmpty) {
-      throw const SRideSocketException('Missing access token.');
-    }
-
-    final uri = SApiConstants.websocketUri(
-      SApiService.ride,
-      '/ws/passengers',
-      queryParameters: {
-        'token': token,
-        if (rideId != null) 'ride_id': rideId,
-      },
-    );
-
-    final channel = WebSocketChannel.connect(uri);
-    _channel = channel;
-    await for (final message in channel.stream) {
-      final body = _decodeMessage(message);
-      if (body['event'] == 'ping') {
-        channel.sink.add('pong');
-      }
-      yield SRideSocketEvent.fromJson(body);
-    }
+    yield* _delegate.connectPassenger(rideId: rideId);
   }
 
   Stream<SRideSocketEvent> connectDriver() async* {
-    if (_useDemoData) {
-      for (final event in SLocationDemoData.demoRideSocketEvents(
-        'demo-driver-ride-001',
-      )) {
-        await Future<void>.delayed(const Duration(milliseconds: 350));
-        yield SRideSocketEvent.fromJson(event);
-      }
-      return;
+    yield* _delegate.connectDriver();
+  }
+
+  Future<void> ping() => _delegate.ping();
+
+  Future<void> close() => _delegate.close();
+}
+
+abstract class _RideSocketDelegate {
+  SRuntimeDataSource get runtimeDataSource;
+
+  Stream<SRideSocketEvent> connectPassenger({String? rideId});
+
+  Stream<SRideSocketEvent> connectDriver();
+
+  Future<void> ping();
+
+  Future<void> close();
+}
+
+class _DemoRideSocketDelegate implements _RideSocketDelegate {
+  @override
+  SRuntimeDataSource get runtimeDataSource => SRuntimeDataSource.demo;
+
+  @override
+  Stream<SRideSocketEvent> connectPassenger({String? rideId}) async* {
+    final demoRideId = rideId ?? 'demo-ride-001';
+    yield* _demoEvents(demoRideId);
+  }
+
+  @override
+  Stream<SRideSocketEvent> connectDriver() async* {
+    yield* _demoEvents('demo-driver-ride-001');
+  }
+
+  @override
+  Future<void> ping() async {}
+
+  @override
+  Future<void> close() async {}
+
+  Stream<SRideSocketEvent> _demoEvents(String rideId) async* {
+    for (final event in SLocationDemoData.demoRideSocketEvents(rideId)) {
+      await Future<void>.delayed(const Duration(milliseconds: 350));
+      yield SRideSocketEvent.fromJson(event);
     }
+  }
+}
 
-    final token = await SHttpClient.accessTokenForSocket();
-    if (token == null || token.isEmpty) {
-      throw const SRideSocketException('Missing access token.');
-    }
+class _WebRideSocketDelegate implements _RideSocketDelegate {
+  WebSocketChannel? _channel;
 
-    final uri = SApiConstants.websocketUri(
-      SApiService.ride,
-      '/ws/drivers',
-      queryParameters: {'token': token},
-    );
+  @override
+  SRuntimeDataSource get runtimeDataSource => SRuntimeDataSource.real;
 
-    final channel = WebSocketChannel.connect(uri);
-    _channel = channel;
+  @override
+  Stream<SRideSocketEvent> connectPassenger({String? rideId}) async* {
+    final channel = await _connect('/ws/passengers', {
+      if (rideId != null) 'ride_id': rideId,
+    });
     await for (final message in channel.stream) {
       final body = _decodeMessage(message);
       if (body['event'] == 'ping') {
@@ -83,13 +93,49 @@ class SRideSocketRepository {
     }
   }
 
+  @override
+  Stream<SRideSocketEvent> connectDriver() async* {
+    final channel = await _connect('/ws/drivers');
+    await for (final message in channel.stream) {
+      final body = _decodeMessage(message);
+      if (body['event'] == 'ping') {
+        channel.sink.add('pong');
+      }
+      yield SRideSocketEvent.fromJson(body);
+    }
+  }
+
+  @override
   Future<void> ping() async {
     _channel?.sink.add('ping');
   }
 
+  @override
   Future<void> close() async {
     await _channel?.sink.close();
     _channel = null;
+  }
+
+  Future<WebSocketChannel> _connect(
+    String endpoint, [
+    Map<String, String> queryParameters = const {},
+  ]) async {
+    final token = await SHttpClient.accessTokenForSocket();
+    if (token == null || token.isEmpty) {
+      throw const SRideSocketException('Missing access token.');
+    }
+
+    final uri = SApiConstants.websocketUri(
+      SApiService.ride,
+      endpoint,
+      queryParameters: {
+        'token': token,
+        ...queryParameters,
+      },
+    );
+    final channel = WebSocketChannel.connect(uri);
+    _channel = channel;
+    return channel;
   }
 }
 
