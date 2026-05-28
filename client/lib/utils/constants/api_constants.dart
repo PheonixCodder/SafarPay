@@ -8,6 +8,7 @@ enum SApiService {
   verification,
   payment,
   communication,
+  notification,
 }
 
 class SApiConstants {
@@ -49,6 +50,10 @@ class SApiConstants {
     'SAFARPAY_COMMUNICATION_BASE_URL',
     defaultValue: 'http://192.168.100.3:8007/api/v1/communication',
   );
+  static const String notificationBaseUrl = String.fromEnvironment(
+    'SAFARPAY_NOTIFICATION_BASE_URL',
+    defaultValue: 'http://192.168.100.3:8004/api/v1/notification',
+  );
   static const String mapboxAccessToken = String.fromEnvironment(
     'MAPBOX_ACCESS_TOKEN',
     defaultValue:
@@ -72,6 +77,7 @@ class SApiConstants {
       SApiService.verification => verificationBaseUrl,
       SApiService.payment => paymentBaseUrl,
       SApiService.communication => communicationBaseUrl,
+      SApiService.notification => notificationBaseUrl,
     };
   }
 

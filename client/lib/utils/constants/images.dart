@@ -17,11 +17,11 @@ class SImages {
   static const String banner2 = "assets/images/banners/banner2.png";
 
   // -- Categories
-  static const String groceries = "assets/images/categories/groceries.png";
-  static const String cityRides = "assets/images/categories/city-rides.png";
-  static const String freight = "assets/images/categories/freight.png";
-  static const String courier = "assets/images/categories/courier.png";
-  static const String cityToCity = "assets/images/categories/city-to-city.png";
+  static const String groceries = "assets/images/categories/groceries2.png";
+  static const String cityRides = "assets/images/categories/city-rides2.png";
+  static const String freight = "assets/images/categories/freight2.png";
+  static const String courier = "assets/images/categories/courier2.png";
+  static const String cityToCity = "assets/images/categories/city-to-city2.png";
 
   // -- Driver Registration
   static const String driverRegistrationHeader =
