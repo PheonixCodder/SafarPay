@@ -4,11 +4,18 @@ from typing import Any
 from uuid import uuid4
 
 import pytest
+from sqlalchemy import BigInteger, Integer, String
+from sqlalchemy.dialects import postgresql
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import UUID as PgUUID
+from sqlalchemy.orm import Mapped, mapped_column
+from sp.infrastructure.db.base import Base
 from sp.infrastructure.messaging.events import (
     EventPayloadValidationError,
     ServiceRequestAcceptedEvent,
     ServiceRequestCreatedEvent,
 )
+from sp.infrastructure.messaging.inbox import reserve_inbox_message
 from sp.infrastructure.messaging.publisher import EventPublisher
 from sp.infrastructure.messaging.subscriber import EventSubscriber
 
@@ -46,6 +53,33 @@ class CapturingConsumer:
 
     def close(self) -> None:
         pass
+
+
+class FakeInboxResult:
+    def scalar_one_or_none(self):
+        return None
+
+
+class FakeInboxSession:
+    def __init__(self) -> None:
+        self.statements: list[Any] = []
+
+    async def execute(self, statement):
+        self.statements.append(statement)
+        return FakeInboxResult()
+
+
+class FakeInboxModel(Base):
+    __tablename__ = "fake_inbox_messages_for_contract_test"
+
+    event_id: Mapped[Any] = mapped_column(PgUUID(as_uuid=True), primary_key=True)
+    event_type: Mapped[str] = mapped_column(String(160), nullable=False)
+    source_topic: Mapped[str | None] = mapped_column(String(160))
+    source_partition: Mapped[int | None] = mapped_column(Integer)
+    source_offset: Mapped[int | None] = mapped_column(BigInteger)
+    aggregate_id: Mapped[str | None] = mapped_column(String(120))
+    payload: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    error_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
 
 @pytest.mark.asyncio
@@ -139,3 +173,26 @@ async def test_subscriber_can_pass_raw_broker_message_to_handler() -> None:
     await subscriber._dispatch(raw_msg)
 
     assert observed == [raw_msg]
+
+
+@pytest.mark.asyncio
+async def test_inbox_reservation_ignores_duplicate_event_or_source_offset() -> None:
+    session = FakeInboxSession()
+
+    reserved = await reserve_inbox_message(
+        session,  # type: ignore[arg-type]
+        FakeInboxModel,
+        {
+            "topic": "ride-events",
+            "partition": 0,
+            "offset": 1,
+            "value": {
+                "event_type": "service.request.created",
+                "payload": {"ride_id": "ride-1"},
+            },
+        },
+    )
+
+    compiled = str(session.statements[0].compile(dialect=postgresql.dialect()))
+    assert reserved is False
+    assert "ON CONFLICT DO NOTHING" in compiled
