@@ -18,6 +18,8 @@ logger = logging.getLogger("platform.messaging.kafka")
 try:
     from kafka import KafkaConsumer
     from kafka import KafkaProducer as _KafkaProducer
+    from kafka.admin import KafkaAdminClient, NewTopic
+    from kafka.errors import TopicAlreadyExistsError
 
     KAFKA_AVAILABLE = True
 except ImportError:
@@ -25,6 +27,57 @@ except ImportError:
     logger.warning(
         "kafka-python not installed. Messaging will fall back to warning logs."
     )
+
+
+async def ensure_kafka_topics(
+    bootstrap_servers: str,
+    topics: list[str],
+    *,
+    client_id: str = "safarpay-topic-admin",
+    num_partitions: int = 3,
+    replication_factor: int = 1,
+) -> bool:
+    """Create Kafka topics before consumers subscribe to them."""
+    if not topics:
+        return True
+    if not KAFKA_AVAILABLE:
+        logger.warning("Kafka unavailable. Cannot ensure topics=%s", topics)
+        return False
+
+    def _create_topics_sync() -> bool:
+        admin = KafkaAdminClient(
+            bootstrap_servers=bootstrap_servers,
+            client_id=client_id,
+        )
+        try:
+            ok = True
+            for topic in dict.fromkeys(topics):
+                try:
+                    admin.create_topics(
+                        [
+                            NewTopic(
+                                name=topic,
+                                num_partitions=num_partitions,
+                                replication_factor=replication_factor,
+                            )
+                        ],
+                        validate_only=False,
+                    )
+                    logger.info("Kafka topic ensured topic=%s", topic)
+                except TopicAlreadyExistsError:
+                    logger.debug("Kafka topic already exists topic=%s", topic)
+                except Exception as exc:
+                    ok = False
+                    logger.warning("Failed to ensure Kafka topic=%s: %s", topic, exc)
+            return ok
+        finally:
+            admin.close()
+
+    try:
+        return await asyncio.to_thread(_create_topics_sync)
+    except Exception as exc:
+        logger.warning("Kafka topic bootstrap failed: %s", exc)
+        return False
 
 
 class KafkaProducerWrapper:

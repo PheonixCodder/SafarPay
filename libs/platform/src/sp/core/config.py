@@ -102,6 +102,12 @@ class Settings(BaseSettings):
     BIDDING_SERVICE_URL: str = "http://bidding:8002"
     LOCATION_SERVICE_URL: str = "http://location:8003"
     NOTIFICATION_SERVICE_URL: str = "http://notification:8004"
+    FCM_SERVER_KEY: str = ""
+    FCM_SEND_URL: str = "https://fcm.googleapis.com/fcm/send"
+    FCM_SERVICE_ACCOUNT_JSON: str = ""
+    FCM_SERVICE_ACCOUNT_JSON_BASE64: str = ""
+    FCM_SERVICE_ACCOUNT_FILE: str = ""
+    FCM_PROJECT_ID: str = ""
     VERIFICATION_SERVICE_URL: str = "http://verification:8005"
     GEOSPATIAL_SERVICE_URL: str = "http://geospatial:8006"
     COMMUNICATION_SERVICE_URL: str = "http://communication:8007"
@@ -119,6 +125,7 @@ class Settings(BaseSettings):
     GEOSPATIAL_MAX_RADIUS_KM: float = 20.0
     GEOSPATIAL_H3_RESOLUTION: int = 9
     GEOSPATIAL_MAX_DRIVER_CANDIDATES: int = 20
+    GEOSPATIAL_ALLOW_MOCK_ROUTING: bool = False
 
 
 @lru_cache

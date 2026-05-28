@@ -80,7 +80,7 @@ async def reserve_inbox_message(
     stmt = (
         insert(inbox_model)
         .values(**message_metadata(raw_msg))
-        .on_conflict_do_nothing(index_elements=["event_id"])
+        .on_conflict_do_nothing()
         .returning(inbox_model.event_id)
     )
     result = await session.execute(stmt)
