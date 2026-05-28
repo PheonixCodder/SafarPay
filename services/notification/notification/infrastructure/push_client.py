@@ -253,11 +253,7 @@ def _is_communication_message(notification: Notification) -> bool:
 
 
 def _is_actionable_notification(notification: Notification) -> bool:
-    return (
-        _is_driver_ride_request(notification)
-        or _is_communication_call(notification)
-        or _is_communication_message(notification)
-    )
+    return _is_driver_ride_request(notification)
 
 
 def _fcm_error_code(response_text: str) -> str:
