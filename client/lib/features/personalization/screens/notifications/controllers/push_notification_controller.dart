@@ -10,6 +10,7 @@ import 'package:get/get.dart';
 import '../../../../../app_mode_controller.dart';
 import '../../../../../firebase_options.dart';
 import '../../../../../features/communication/controllers/ride_communication_controller.dart';
+import '../../../../../features/drivers/controllers/driver_requests_controller.dart';
 import '../../../../../features/drivers/data/driver_ride_overlay_service.dart';
 import '../../../../../features/drivers/data/driver_requests_repository.dart';
 import '../../../../../features/rides/navigation/ride_navigation_destinations.dart';
@@ -196,6 +197,9 @@ class SPushNotificationController extends GetxController
   Future<void> _showForegroundNotification(RemoteMessage message) async {
     if (sNotificationRouteIntentFromData(message.data)?.kind ==
         SNotificationRouteKind.driverRequests) {
+      if (Get.isRegistered<SDriverRequestsController>()) {
+        return;
+      }
       final displayedOverlay = await _showDriverRideOverlay(message);
       if (displayedOverlay) return;
       await _showDriverRideAlert(_localNotifications, message);
