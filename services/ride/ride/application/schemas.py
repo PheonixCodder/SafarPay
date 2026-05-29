@@ -49,6 +49,13 @@ class StopInput(BaseModel):
     instructions: str | None = None
 
 
+class UpdateStopRequest(BaseModel):
+    latitude: float = Field(..., ge=-90, le=90)
+    longitude: float = Field(..., ge=-180, le=180)
+    place_name: str = Field(..., max_length=255)
+    address_line_1: str = Field(..., max_length=255)
+
+
 class StopResponse(BaseModel):
     id: UUID
     service_request_id: UUID

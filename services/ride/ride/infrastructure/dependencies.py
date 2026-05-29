@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..application.use_cases import (
     AcceptRideUseCase,
     AddStopUseCase,
+    UpdateStopUseCase,
     BroadcastRideToDriversUseCase,
     CancelRideUseCase,
     CompleteRideUseCase,
@@ -176,6 +177,10 @@ def get_complete_ride_uc(request: Request, repo: Annotated[ServiceRequestReposit
 
 def get_add_stop_uc(request: Request, repo: Annotated[ServiceRequestRepositoryProtocol, Depends(get_ride_repo)], stop_repo: Annotated[StopRepositoryProtocol, Depends(get_stop_repo)]) -> AddStopUseCase:
     return AddStopUseCase(repo=repo, stop_repo=stop_repo, ws=get_ws_manager(request), publisher=get_outbox_publisher(repo))
+
+
+def get_update_stop_uc(request: Request, repo: Annotated[ServiceRequestRepositoryProtocol, Depends(get_ride_repo)], stop_repo: Annotated[StopRepositoryProtocol, Depends(get_stop_repo)]) -> UpdateStopUseCase:
+    return UpdateStopUseCase(repo=repo, stop_repo=stop_repo, ws=get_ws_manager(request), publisher=get_outbox_publisher(repo))
 
 
 def get_mark_arrived_uc(request: Request, repo: Annotated[ServiceRequestRepositoryProtocol, Depends(get_ride_repo)], stop_repo: Annotated[StopRepositoryProtocol, Depends(get_stop_repo)]) -> MarkStopArrivedUseCase:

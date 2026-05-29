@@ -10,6 +10,9 @@ import 'package:client/utils/constants/texts.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import 'package:iconsax/iconsax.dart';
+
+import 'ride_destination_edit_screen.dart';
 import 'widgets/ride_verification_code_card.dart';
 
 class RideTrackingScreen extends StatelessWidget {
@@ -92,15 +95,83 @@ class RideTrackingScreen extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: SColors.white,
                     borderRadius: BorderRadius.circular(SSizes.rideSheetRadius),
+                    boxShadow: [
+                      BoxShadow(
+                        color: SColors.borderPrimary,
+                        blurRadius: 8,
+                        spreadRadius: 1,
+                      ),
+                    ],
                   ),
                   child: Padding(
                     padding: const EdgeInsets.all(SSizes.lg),
-                    child: Text(
-                      controller.statusMessage.value,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            color: SColors.textPrimary,
-                            fontWeight: FontWeight.w700,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          controller.statusMessage.value,
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                color: SColors.textPrimary,
+                                fontWeight: FontWeight.w800,
+                              ),
+                        ),
+                        const Divider(height: SSizes.spaceBtwSections),
+                        Row(
+                          children: [
+                            const Icon(Iconsax.flag, color: SColors.primary),
+                            const SizedBox(width: SSizes.md),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Destination',
+                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                          color: SColors.textSecondary,
+                                        ),
+                                  ),
+                                  Text(
+                                    controller.dropoffStop.value?.placeName ??
+                                        controller.dropoffStop.value?.addressLine1 ??
+                                        'Loading destination...',
+                                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                          color: SColors.textPrimary,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (controller.rideStatus.value != 'COMPLETED' &&
+                                controller.rideStatus.value != 'CANCELLED')
+                              IconButton(
+                                icon: const Icon(Iconsax.edit, color: SColors.primary, size: 20),
+                                onPressed: () => Get.to(
+                                  () => RideDestinationEditScreen(
+                                    trackingController: controller,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                        if (controller.rideStatus.value != 'COMPLETED' &&
+                            controller.rideStatus.value != 'CANCELLED') ...[
+                          const SizedBox(height: SSizes.lg),
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton(
+                              onPressed: () => _showCancelConfirmation(context, controller),
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: SColors.error),
+                                foregroundColor: SColors.error,
+                              ),
+                              child: const Text('Cancel Ride'),
+                            ),
                           ),
+                        ],
+                      ],
                     ),
                   ),
                 ),
@@ -108,6 +179,32 @@ class RideTrackingScreen extends StatelessWidget {
             );
           },
         ),
+      ),
+    );
+  }
+
+  void _showCancelConfirmation(BuildContext context, SRideTrackingController controller) {
+    Get.dialog(
+      AlertDialog(
+        title: const Text('Cancel Ride'),
+        content: const Text('Are you sure you want to cancel your ride?'),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: const Text('No, keep'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Get.back();
+              controller.cancelCurrentRide('Passenger requested cancellation');
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: SColors.error,
+              foregroundColor: SColors.white,
+            ),
+            child: const Text('Yes, Cancel'),
+          ),
+        ],
       ),
     );
   }

@@ -19,6 +19,7 @@ from sqlalchemy import text
 from ..application.schemas import (
     AcceptRideRequest,
     AddStopRequest,
+    UpdateStopRequest,
     CancelRideRequest,
     CreateRideRequest,
     DriverActiveRideResponse,
@@ -41,6 +42,7 @@ from ..application.schemas import (
 from ..application.use_cases import (
     AcceptRideUseCase,
     AddStopUseCase,
+    UpdateStopUseCase,
     CancelRideUseCase,
     CompleteRideUseCase,
     CreateRideUseCase,
@@ -87,6 +89,7 @@ from ..domain.models import RideStatus
 from ..infrastructure.dependencies import (
     get_accept_ride_uc,
     get_add_stop_uc,
+    get_update_stop_uc,
     get_cancel_ride_uc,
     get_complete_ride_uc,
     get_create_ride_uc,
@@ -311,6 +314,20 @@ async def add_stop(
     try:
         stop = await uc.execute(ride_id, body, current_user.user_id)
         return stop.model_dump()
+    except Exception as exc:
+        raise _handle_domain(exc) from None
+
+
+@router.patch("/stops/{stop_id}", response_model=StopResponse)
+async def update_stop(
+    stop_id: UUID,
+    body: UpdateStopRequest,
+    current_user: CurrentUser,
+    uc: Annotated[UpdateStopUseCase, Depends(get_update_stop_uc)],
+) -> StopResponse:
+    """Update stop coordinates and address details. Only the ride creator (passenger) can call this."""
+    try:
+        return await uc.execute(stop_id, body, current_user.user_id)
     except Exception as exc:
         raise _handle_domain(exc) from None
 

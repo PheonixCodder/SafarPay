@@ -179,6 +179,22 @@ class SRideRepository {
     return _delegate.addStop(rideId: rideId, stop: stop);
   }
 
+  Future<Map<String, dynamic>> updateStop({
+    required String stopId,
+    required double latitude,
+    required double longitude,
+    required String placeName,
+    required String addressLine1,
+  }) {
+    return _delegate.updateStop(
+      stopId: stopId,
+      latitude: latitude,
+      longitude: longitude,
+      placeName: placeName,
+      addressLine1: addressLine1,
+    );
+  }
+
   Future<Map<String, dynamic>> markStopArrived(String stopId) {
     return _delegate.markStopArrived(stopId);
   }
@@ -335,6 +351,14 @@ abstract class _RideRepositoryDelegate {
     required Map<String, dynamic> stop,
   });
 
+  Future<Map<String, dynamic>> updateStop({
+    required String stopId,
+    required double latitude,
+    required double longitude,
+    required String placeName,
+    required String addressLine1,
+  });
+
   Future<Map<String, dynamic>> markStopArrived(String stopId);
 
   Future<Map<String, dynamic>> markStopCompleted(String stopId);
@@ -479,6 +503,24 @@ class _DemoRideRepositoryDelegate extends _RideRepositoryDelegate {
     required Map<String, dynamic> stop,
   }) {
     return Future.value(SLocationDemoData.addedStop(rideId: rideId, stop: stop));
+  }
+
+  @override
+  Future<Map<String, dynamic>> updateStop({
+    required String stopId,
+    required double latitude,
+    required double longitude,
+    required String placeName,
+    required String addressLine1,
+  }) {
+    return Future.value({
+      'id': stopId,
+      'latitude': latitude,
+      'longitude': longitude,
+      'place_name': placeName,
+      'address_line_1': addressLine1,
+      'stop_type': 'DROPOFF',
+    });
   }
 
   @override
@@ -745,6 +787,27 @@ class _HttpRideRepositoryDelegate extends _RideRepositoryDelegate {
       service: SApiService.ride,
       requiresAuth: true,
       body: stop,
+    );
+  }
+
+  @override
+  Future<Map<String, dynamic>> updateStop({
+    required String stopId,
+    required double latitude,
+    required double longitude,
+    required String placeName,
+    required String addressLine1,
+  }) {
+    return SHttpClient.patch(
+      '/stops/$stopId',
+      service: SApiService.ride,
+      requiresAuth: true,
+      body: {
+        'latitude': latitude,
+        'longitude': longitude,
+        'place_name': placeName,
+        'address_line_1': addressLine1,
+      },
     );
   }
 

@@ -19,6 +19,7 @@ import '../data/ride_repository.dart';
 import '../data/ride_socket_event.dart';
 import '../data/ride_socket_repository.dart';
 import '../domain/location_models.dart';
+import '../domain/ride_booking_models.dart';
 
 class SRideTrackingController extends GetxController {
   SRideTrackingController({
@@ -67,6 +68,7 @@ class SRideTrackingController extends GetxController {
       Rxn<SPassengerLiveLocation>();
   final Rxn<SCoordinate> routeDestination = Rxn<SCoordinate>();
   final Rxn<SRoutePreview> route = Rxn<SRoutePreview>();
+  final Rxn<StopResponse> dropoffStop = Rxn<StopResponse>();
 
   StreamSubscription<SLiveRideSocketEvent>? _socketSubscription;
   StreamSubscription<SRideSocketEvent>? _rideSocketSubscription;
@@ -343,6 +345,7 @@ class SRideTrackingController extends GetxController {
       final status = ride.status.value;
       rideStatus.value = status;
       assignedDriverId.value = ride.assignedDriverId ?? '';
+      dropoffStop.value = ride.dropoffStop;
       _applyRouteDestination(ride, status);
       requiresOtpStart.value = rideData['requires_otp_start'] == true;
       requiresOtpEnd.value = rideData['requires_otp_end'] == true;
@@ -458,6 +461,67 @@ class SRideTrackingController extends GetxController {
       statusMessage.value = 'Unable to prepare trip verification code.';
     } finally {
       isGeneratingVerificationCode.value = false;
+    }
+  }
+
+  Future<void> cancelCurrentRide(String reason) async {
+    isConnecting.value = true;
+    try {
+      await _rideRepository.cancelRide(rideId: rideId, reason: reason);
+      statusMessage.value = 'Ride cancelled successfully.';
+      Get.back();
+    } catch (_) {
+      statusMessage.value = 'Failed to cancel the ride. Try again.';
+    } finally {
+      isConnecting.value = false;
+    }
+  }
+
+  Future<void> updateRideDestination(SAddressResult newDestination) async {
+    final stop = dropoffStop.value;
+    if (stop == null) {
+      statusMessage.value = 'No active dropoff stop found to update.';
+      return;
+    }
+    isConnecting.value = true;
+    try {
+      await _rideRepository.updateStop(
+        stopId: stop.id,
+        latitude: newDestination.coordinate.latitude,
+        longitude: newDestination.coordinate.longitude,
+        placeName: newDestination.formatted,
+        addressLine1: newDestination.formatted,
+      );
+      
+      routeDestination.value = newDestination.coordinate;
+      final updatedStop = StopResponse(
+        id: stop.id,
+        serviceRequestId: stop.serviceRequestId,
+        sequenceOrder: stop.sequenceOrder,
+        stopType: stop.stopType,
+        latitude: newDestination.coordinate.latitude,
+        longitude: newDestination.coordinate.longitude,
+        placeName: newDestination.formatted,
+        addressLine1: newDestination.formatted,
+        addressLine2: stop.addressLine2,
+        city: stop.city,
+        state: stop.state,
+        country: stop.country,
+        postalCode: stop.postalCode,
+        contactName: stop.contactName,
+        contactPhone: stop.contactPhone,
+        instructions: stop.instructions,
+        arrivedAt: stop.arrivedAt,
+        completedAt: stop.completedAt,
+      );
+      dropoffStop.value = updatedStop;
+      
+      unawaited(_refreshTrackingRoute(force: true));
+      statusMessage.value = 'Destination updated successfully.';
+    } catch (_) {
+      statusMessage.value = 'Failed to update destination. Try again.';
+    } finally {
+      isConnecting.value = false;
     }
   }
 }

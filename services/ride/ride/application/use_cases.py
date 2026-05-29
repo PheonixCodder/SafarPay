@@ -64,6 +64,7 @@ from ..infrastructure.websocket_manager import DriverEvent, PassengerEvent, WebS
 from .schemas import (
     AcceptRideRequest,
     AddStopRequest,
+    UpdateStopRequest,
     CancelRideRequest,
     CreateRideRequest,
     DriverActiveRideResponse,
@@ -932,6 +933,61 @@ class AddStopUseCase:
             ride.passenger_id, PassengerEvent.STOP_UPDATED,
             {"ride_id": str(ride_id), "stop_id": str(stop.id), "action": "added"},
         )
+        return _stop_to_resp(stop)
+
+
+class UpdateStopUseCase:
+    def __init__(
+        self,
+        repo: ServiceRequestRepositoryProtocol,
+        stop_repo: StopRepositoryProtocol,
+        ws: WebSocketManager,
+        publisher: EventPublisher | None = None,
+    ) -> None:
+        self._repo = repo
+        self._stop_repo = stop_repo
+        self._ws = ws
+        self._pub = publisher
+
+    async def execute(self, stop_id: UUID, cmd: UpdateStopRequest, passenger_id: UUID) -> StopResponse:
+        stop = await self._stop_repo.find_by_id(stop_id)
+        if not stop:
+            raise StopNotFoundError(f"Stop {stop_id} not found.")
+        ride = await _load_ride_or_404(self._repo, stop.service_request_id)
+        if ride.passenger_id != passenger_id:
+            raise UnauthorisedRideAccessError(
+                "Only the passenger who created this ride may edit stops."
+            )
+        if not ride.is_active:
+            raise RideNotFoundError("Cannot edit stops of an inactive ride.")
+
+        # Perform update
+        await self._stop_repo.update_location(
+            stop_id=stop_id,
+            latitude=cmd.latitude,
+            longitude=cmd.longitude,
+            place_name=cmd.place_name,
+            address_line_1=cmd.address_line_1,
+        )
+
+        # Update the local domain entity to return correct response
+        stop.latitude = cmd.latitude
+        stop.longitude = cmd.longitude
+        stop.place_name = cmd.place_name
+        stop.address_line_1 = cmd.address_line_1
+
+        # Broadcast the event to passenger
+        await self._ws.broadcast_to_passenger(
+            ride.passenger_id, PassengerEvent.STOP_UPDATED,
+            {"ride_id": str(ride.id), "stop_id": str(stop_id), "action": "updated"},
+        )
+        # Broadcast the event to driver if assigned
+        if ride.assigned_driver_id:
+            await self._ws.broadcast_to_driver(
+                ride.assigned_driver_id, DriverEvent.JOB_UPDATED,
+                {"ride_id": str(ride.id), "stop_id": str(stop_id), "action": "updated"},
+            )
+
         return _stop_to_resp(stop)
 
 

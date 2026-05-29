@@ -109,6 +109,16 @@ class StopRepositoryProtocol(Protocol):
     ) -> None:
         ...
 
+    async def update_location(
+        self,
+        stop_id: UUID,
+        latitude: float,
+        longitude: float,
+        place_name: str,
+        address_line_1: str,
+    ) -> None:
+        ...
+
 
 class ProofImageRepositoryProtocol(Protocol):
     """Persistence contract for ServiceProofImage entities."""

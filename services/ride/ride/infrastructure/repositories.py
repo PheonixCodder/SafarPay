@@ -564,6 +564,25 @@ class StopRepository:
             .values(completed_at=completed_at)
         )
 
+    async def update_location(
+        self,
+        stop_id: UUID,
+        latitude: float,
+        longitude: float,
+        place_name: str,
+        address_line_1: str,
+    ) -> None:
+        await self._session.execute(
+            update(ServiceStopORM)
+            .where(ServiceStopORM.id == stop_id)
+            .values(
+                latitude=latitude,
+                longitude=longitude,
+                place_name=place_name,
+                address_line_1=address_line_1,
+            )
+        )
+
 
 # ---------------------------------------------------------------------------
 # ProofImage repository
