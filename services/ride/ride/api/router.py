@@ -33,6 +33,7 @@ from ..application.schemas import (
     RecentRideDestinationResponse,
     RideResponse,
     RideSummaryResponse,
+    StopResponse,
     UploadProofRequest,
     VerificationCodeResponse,
     VerifyAndCompleteRequest,
