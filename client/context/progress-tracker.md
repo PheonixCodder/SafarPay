@@ -62,6 +62,8 @@ Update this file after every meaningful implementation change.
 - Driver Requests tab is being implemented with real Ride driver request/active ride endpoints, Bidding HYBRID offer support, Location online/GPS streaming, Geospatial route summaries, and an active-trip map state.
 - Closed-app ride communication notification recovery is being added so message and voice-call pushes can reopen ride communication with enough call context to survive a cold start.
 - Client lifecycle-platform hardening is underway so passenger ride entry, push routing, and active ride state share one lifecycle model instead of scattered conditionals.
+- Actionable notification delivery fix (080) resolved closed-app calls and messages FCM payload delivery issues.
+- Full-screen native driver requests overlay (081) replaced the top partial floating dialog with a space-optimized full-screen layout.
 
 ## In Progress
 
@@ -184,6 +186,8 @@ Update this file after every meaningful implementation change.
 - Runtime repository extraction Phase 073 completed for Location, Geospatial, Bidding, Ride, and socket repository families; Phase 074 completed the dedicated `SRideRepository` method extraction into demo and HTTP delegates while preserving static booking payload builders.
 - Android driver urgent ride alerts were added in `075-android-driver-urgent-ride-alerts`: driver ride-job notifications now carry `driver_ride_request`, FCM Android payloads use urgent ride-alert settings, Flutter foreground/background handlers show urgent local ride notifications, and driver online mode refreshes push token registration with `driver_id`.
 - Enterprise notification delivery matrix work was added in `076-enterprise-notification-delivery-matrix`: driver marketplace ride requests now have Android overlay support gated by Display over other apps, communication calls use call-channel notification actions, data-only communication payloads route correctly, and FCM marks communication calls as urgent `ride_calls` notifications.
+- Actionable notification delivery fix work was completed in `080-actionable-notification-delivery-fix` to restore standard background/closed visual alerts for calls and chat messages.
+- Full-screen native driver overlay work was completed in `081-full-screen-overlay` to convert the native request alerts to full-screen layouts.
 # 2026-05-25 - Ride Communication Chat And Calls
 
 - Added ride-scoped communication prompt and plan for accepted-before-start rides.
@@ -207,3 +211,9 @@ Update this file after every meaningful implementation change.
 - Planned real backend-backed Trips, fresh ride details, improved booking details, and improved ride communication/call UI.
 - Scope is tracked in `client/context/feature-specs/061-passenger-ride-ux-and-trips-real-data.md`.
 - Implementation plan is tracked in `client/plans/061-passenger-ride-ux-and-trips-real-data-plan.md`.
+
+# 2026-05-28 - Actionable Notifications, Driver Overlay, Edit Destination & Cancel Ride
+
+- Actionable notification delivery fix work added `client/context/feature-specs/080-actionable-notification-delivery-fix.md` and `client/plans/080-actionable-notification-delivery-fix-plan.md`.
+- Full-screen native overlay work added `client/context/feature-specs/081-full-screen-overlay.md` and `client/plans/081-full-screen-overlay-plan.md`.
+- Edit Destination and Cancel Ride work added `client/context/feature-specs/082-edit-destination-and-cancel-ride.md` and `client/plans/082-edit-destination-and-cancel-ride-plan.md`.
