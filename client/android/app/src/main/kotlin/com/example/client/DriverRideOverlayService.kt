@@ -47,15 +47,14 @@ class DriverRideOverlayService : Service() {
 
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
-            WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.MATCH_PARENT,
             layoutType,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                 WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
                 WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             PixelFormat.TRANSLUCENT
         ).apply {
-            gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-            y = 56
+            gravity = Gravity.FILL
         }
 
         windowManager?.addView(overlayView, params)
@@ -73,41 +72,80 @@ class DriverRideOverlayService : Service() {
 
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(18), dp(16), dp(18), dp(16))
-            background = GradientDrawable().apply {
-                setColor(Color.WHITE)
-                cornerRadius = dp(18).toFloat()
-                setStroke(dp(1), Color.rgb(224, 229, 232))
-            }
-            elevation = dp(12).toFloat()
+            setPadding(dp(24), dp(80), dp(24), dp(36))
+            setBackgroundColor(Color.WHITE)
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.MATCH_PARENT
+            )
         }
 
         val titleView = TextView(this).apply {
             text = title
-            textSize = 18f
+            textSize = 24f
             setTextColor(Color.rgb(17, 24, 39))
             setTypeface(typeface, Typeface.BOLD)
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                bottomMargin = dp(16)
+            }
         }
         val bodyView = TextView(this).apply {
             text = body
-            textSize = 14f
+            textSize = 16f
             setTextColor(Color.rgb(75, 85, 99))
-            setPadding(0, dp(6), 0, dp(14))
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+        }
+        val spacer = View(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                0,
+                1.0f
+            )
         }
         val actions = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.END
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
         }
         val dismiss = Button(this).apply {
             text = "Dismiss"
+            textSize = 16f
+            setTextColor(Color.rgb(75, 85, 99))
+            background = GradientDrawable().apply {
+                setColor(Color.rgb(243, 244, 246))
+                cornerRadius = dp(12).toFloat()
+            }
+            layoutParams = LinearLayout.LayoutParams(
+                0,
+                dp(50),
+                1.0f
+            ).apply {
+                rightMargin = dp(8)
+            }
             setOnClickListener { stopSelf() }
         }
         val open = Button(this).apply {
             text = "Open"
+            textSize = 16f
             setTextColor(Color.WHITE)
             background = GradientDrawable().apply {
                 setColor(Color.rgb(0, 121, 131))
-                cornerRadius = dp(10).toFloat()
+                cornerRadius = dp(12).toFloat()
+            }
+            layoutParams = LinearLayout.LayoutParams(
+                0,
+                dp(50),
+                1.0f
+            ).apply {
+                leftMargin = dp(8)
             }
             setOnClickListener {
                 val launchIntent = Intent(this@DriverRideOverlayService, MainActivity::class.java).apply {
@@ -127,12 +165,10 @@ class DriverRideOverlayService : Service() {
         actions.addView(open)
         root.addView(titleView)
         root.addView(bodyView)
+        root.addView(spacer)
         root.addView(actions)
 
-        return LinearLayout(this).apply {
-            setPadding(dp(14), 0, dp(14), 0)
-            addView(root)
-        }
+        return root
     }
 
     private fun hideOverlay() {
