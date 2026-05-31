@@ -13,12 +13,21 @@ class SHomeCategories extends StatelessWidget {
   const SHomeCategories({super.key});
 
   void _openCategory(
-    BuildContext context,
-    SPassengerServiceCategory category,
-  ) {
+      BuildContext context,
+      SPassengerServiceCategory category,
+      ) {
     Navigator.of(context).push(
       SRightSlidePageRoute(
         page: RideSearchScreen(initialCategory: category),
+      ),
+    );
+  }
+
+  // Define the explore action here
+  void _onExplorePressed(BuildContext context) {
+    Navigator.of(context).push(
+      SRightSlidePageRoute(
+        page: RideSearchScreen(),
       ),
     );
   }
@@ -45,23 +54,31 @@ class SHomeCategories extends StatelessWidget {
                   ),
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: SSizes.md,
-                  vertical: SSizes.sm,
-                ),
-                decoration: BoxDecoration(
-                  color: SHelperFunctions.withOpacity(
-                    SColors.primary,
-                    SOpacities.tinted,
-                  ),
+              // Added Material and InkWell for tap functionality with splash effect
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () => _onExplorePressed(context),
                   borderRadius: BorderRadius.circular(SSizes.cardRadiusLg),
-                ),
-                child: Text(
-                  STexts.categoriesExplore,
-                  style: textTheme.labelMedium?.copyWith(
-                    color: SColors.primary,
-                    fontWeight: FontWeight.w700,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: SSizes.md,
+                      vertical: SSizes.sm,
+                    ),
+                    decoration: BoxDecoration(
+                      color: SHelperFunctions.withOpacity(
+                        SColors.primary,
+                        SOpacities.tinted,
+                      ),
+                      borderRadius: BorderRadius.circular(SSizes.cardRadiusLg),
+                    ),
+                    child: Text(
+                      STexts.categoriesExplore,
+                      style: textTheme.labelMedium?.copyWith(
+                        color: SColors.primary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
                 ),
               ),

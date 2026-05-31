@@ -50,7 +50,6 @@ class SRideServiceOptions extends StatelessWidget {
               ),
           },
           const SizedBox(height: SSizes.sm),
-          SRideFuelChips(controller: controller),
         ],
       );
     });

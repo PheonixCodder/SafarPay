@@ -24,36 +24,8 @@ class OnBoardingNavigationButtons extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          SizedBox(
-            width: double.infinity,
-            height: SSizes.appBarHeight + SSizes.xs / 2,
-            child: ElevatedButton(
-              onPressed: controller.nextPage,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: SColors.buttonPrimary,
-                foregroundColor: SColors.textWhite,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(
-                    SSizes.borderRadiusLg + SSizes.xs / 2,
-                  ),
-                ),
-              ),
-              child: Obx(
-                () => Text(
-                  controller.isLastPage
-                      ? STexts.onBoardingGetStarted
-                      : STexts.onBoardingNext,
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: SColors.textWhite,
-                        fontSize: SSizes.fontSizeLg,
-                      ),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: SSizes.spaceBtnItems),
           Obx(
-            () => Visibility(
+                () => Visibility(
               visible: !controller.isLastPage,
               maintainSize: true,
               maintainAnimation: true,
@@ -79,12 +51,40 @@ class OnBoardingNavigationButtons extends StatelessWidget {
                   child: Text(
                     STexts.onBoardingSkip,
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontSize: SSizes.fontSizeLg,
-                          color: SHelperFunctions.withOpacity(
-                            SColors.textWhite,
-                            SOpacities.onboardingButtonText,
-                          ),
-                        ),
+                      fontSize: SSizes.fontSizeLg,
+                      color: SHelperFunctions.withOpacity(
+                        SColors.textWhite,
+                        SOpacities.onboardingButtonText,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: SSizes.spaceBtnItems),
+          SizedBox(
+            width: double.infinity,
+            height: SSizes.appBarHeight + SSizes.xs / 2,
+            child: ElevatedButton(
+              onPressed: controller.nextPage,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: SColors.buttonPrimary,
+                foregroundColor: SColors.textWhite,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(
+                    SSizes.borderRadiusLg + SSizes.xs / 2,
+                  ),
+                ),
+              ),
+              child: Obx(
+                    () => Text(
+                  controller.isLastPage
+                      ? STexts.onBoardingGetStarted
+                      : STexts.onBoardingNext,
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    color: SColors.textWhite,
+                    fontSize: SSizes.fontSizeLg,
                   ),
                 ),
               ),

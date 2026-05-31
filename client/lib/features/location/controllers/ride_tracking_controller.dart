@@ -19,7 +19,6 @@ import '../data/ride_repository.dart';
 import '../data/ride_socket_event.dart';
 import '../data/ride_socket_repository.dart';
 import '../domain/location_models.dart';
-import '../domain/ride_booking_models.dart';
 
 class SRideTrackingController extends GetxController {
   SRideTrackingController({

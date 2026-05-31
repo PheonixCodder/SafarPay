@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import '../../../../utils/constants/colors.dart';
-import '../../../../utils/constants/sizes.dart';
+import '../../../../common/widgets/appbar/appbar.dart';
 import '../../controllers/otp.dart';
 import '../../models/auth_models.dart';
 import 'widgets/otp_actions.dart';
@@ -39,45 +38,30 @@ class OtpScreen extends StatelessWidget {
     );
 
     return Scaffold(
-      backgroundColor: SColors.primaryBackground,
-      body: Stack(
-        children: [
-          Positioned(
-            top: -96,
-            left: -56,
-            right: -56,
-            child: Container(
-              height: 230,
-              decoration: BoxDecoration(
-                borderRadius: const BorderRadius.only(
-                  bottomLeft: Radius.circular(120),
-                  bottomRight: Radius.circular(120),
-                ),
+      appBar: const SAppBar(
+        showCircularBack: true,
+        centerTitle: true,
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 420),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 32.0),
+                  SOtpHeader(controller: controller),
+                  const SizedBox(height: 32.0),
+                  SOtpInput(controller: controller),
+                  const SizedBox(height: 32.0),
+                  SOtpActions(controller: controller),
+                ],
               ),
             ),
           ),
-          SafeArea(
-            child: SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.all(SSizes.defaultSpace),
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 420),
-                    child: Column(
-                      children: [
-                        SOtpHeader(controller: controller),
-                        const SizedBox(height: SSizes.spaceBtwSections),
-                        SOtpInput(controller: controller),
-                        const SizedBox(height: SSizes.spaceBtwSections),
-                        SOtpActions(controller: controller),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

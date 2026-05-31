@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../../../common/widgets/appbar/appbar.dart';
 import '../../../../common/widgets/divider.dart';
-import '../../../../common/styles/spacing_styles.dart';
+import '../../../../utils/constants/colors.dart';
+import '../../../../utils/constants/images.dart';
 import '../../../../utils/constants/sizes.dart';
 import '../../../../utils/constants/texts.dart';
 import '../../controllers/login.dart';
@@ -18,46 +20,34 @@ class LoginScreen extends StatelessWidget {
     final controller = Get.put(SLoginController());
 
     return Scaffold(
-      body: Stack(
-        children: [
-          Positioned(
-            top: -96,
-            left: -56,
-            right: -56,
-            child: Container(
-              height: 230,
-              decoration: BoxDecoration(
-                borderRadius: const BorderRadius.only(
-                  bottomLeft: Radius.circular(120),
-                  bottomRight: Radius.circular(120),
+      appBar: SAppBar(
+        showCircularBack: true,
+        leadingOnPressed: () => Navigator.of(context).pop(),
+        centerTitle: true,
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: SSizes.defaultSpace),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 420),
+                child: Column(
+                  children: [
+                    const SizedBox(height: SSizes.spaceBtwSections),
+                    const SLoginHeader(),
+                    const SizedBox(height: SSizes.spaceBtwSections),
+                    SLoginForm(controller: controller),
+                    const SizedBox(height: SSizes.spaceBtwSections),
+                    const SFormDivider(dividerText: STexts.orContinueWith),
+                    const SizedBox(height: SSizes.spaceBtnItems),
+                    SSocialButtons(controller: controller),
+                  ],
                 ),
               ),
             ),
           ),
-          SafeArea(
-            child: SingleChildScrollView(
-              child: Padding(
-                padding: SSpacingStyle.paddingWithAppBarHeight,
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 420),
-                    child: Column(
-                      children: [
-                        const SLoginHeader(),
-                        const SizedBox(height: SSizes.spaceBtwSections),
-                        SLoginForm(controller: controller),
-                        const SizedBox(height: SSizes.spaceBtwSections),
-                        const SFormDivider(dividerText: STexts.orContinueWith),
-                        const SizedBox(height: SSizes.spaceBtnItems),
-                        SSocialButtons(controller: controller),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

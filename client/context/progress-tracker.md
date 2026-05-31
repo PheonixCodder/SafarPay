@@ -217,3 +217,7 @@ Update this file after every meaningful implementation change.
 - Actionable notification delivery fix work added `client/context/feature-specs/080-actionable-notification-delivery-fix.md` and `client/plans/080-actionable-notification-delivery-fix-plan.md`.
 - Full-screen native overlay work added `client/context/feature-specs/081-full-screen-overlay.md` and `client/plans/081-full-screen-overlay-plan.md`.
 - Edit Destination and Cancel Ride work added `client/context/feature-specs/082-edit-destination-and-cancel-ride.md` and `client/plans/082-edit-destination-and-cancel-ride-plan.md`.
+
+# 2026-05-29 - Login Page UI Refactoring
+
+- Login Page UI Refactoring work added `client/context/feature-specs/083-login-ui-refactoring.md` and `client/plans/083-login-ui-refactoring-plan.md`.

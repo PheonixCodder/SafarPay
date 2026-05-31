@@ -4,7 +4,6 @@ import 'package:client/common/widgets/maps/map_view.dart';
 import 'package:client/features/location/controllers/ride_tracking_controller.dart';
 import 'package:client/features/location/data/location_repository.dart';
 import 'package:client/features/location/domain/location_models.dart';
-import 'package:client/features/location/domain/ride_booking_models.dart';
 import 'package:client/features/location/screens/ride_search/widgets/booking_search_results.dart';
 import 'package:client/utils/constants/colors.dart';
 import 'package:client/utils/constants/sizes.dart';
