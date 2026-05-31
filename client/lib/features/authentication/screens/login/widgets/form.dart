@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:iconsax/iconsax.dart';
 
+import '../../../../../utils/constants/colors.dart';
 import '../../../../../utils/constants/sizes.dart';
 import '../../../../../utils/constants/texts.dart';
 import '../../../../../utils/device/utility.dart';
@@ -43,18 +43,74 @@ class _SLoginFormState extends State<SLoginForm> {
     return Form(
       key: _formKey,
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          TextFormField(
-            controller: _phoneController,
-            keyboardType: TextInputType.phone,
-            textInputAction: TextInputAction.done,
-            onFieldSubmitted: (_) => _sendOtp(),
-            validator: SValidator.validatePhoneNumber,
-            decoration: const InputDecoration(
-              labelText: STexts.phoneNo,
-              helperText: STexts.phoneHelperText,
-              prefixIcon: Icon(Iconsax.call),
-            ),
+          Text(
+            "Enter Your Phone number",
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: SColors.textPrimary,
+                ),
+          ),
+          const SizedBox(height: SSizes.sm),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                height: 56,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                decoration: BoxDecoration(
+                  color: SColors.light,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: SColors.borderPrimary),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      '🇵🇰',
+                      style: TextStyle(fontSize: 24),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '+92',
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: SColors.textPrimary,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: TextFormField(
+                  controller: _phoneController,
+                  keyboardType: TextInputType.phone,
+                  textInputAction: TextInputAction.done,
+                  onFieldSubmitted: (_) => _sendOtp(),
+                  validator: SValidator.validatePhoneNumber,
+                  decoration: InputDecoration(
+                    hintText: '300 1234567',
+                    fillColor: SColors.light,
+                    filled: true,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: SColors.borderPrimary),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: SColors.borderPrimary),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: SColors.primary, width: 1.5),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: SSizes.spaceBtwSections),
           SizedBox(
@@ -63,7 +119,15 @@ class _SLoginFormState extends State<SLoginForm> {
               () => ElevatedButton(
                 onPressed:
                     widget.controller.isSendingOtp.value ? null : _sendOtp,
-                child: const Text(STexts.sendOtp),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: SColors.black,
+                  foregroundColor: SColors.white,
+                  disabledBackgroundColor: SColors.buttonDisabled,
+                  disabledForegroundColor: SColors.textSecondary,
+                  padding: const EdgeInsets.symmetric(vertical: 18),
+                  shape: const StadiumBorder(),
+                ),
+                child: const Text(STexts.continueText),
               ),
             ),
           ),

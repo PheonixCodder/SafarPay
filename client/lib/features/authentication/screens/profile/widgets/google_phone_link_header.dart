@@ -22,26 +22,10 @@ class SGooglePhoneLinkHeader extends StatelessWidget {
 
     return Column(
       children: [
-        Container(
-          width: SSizes.googlePhoneLinkIconBoxSize,
-          height: SSizes.googlePhoneLinkIconBoxSize,
-          decoration: BoxDecoration(
-            color: SHelperFunctions.withOpacity(
-              SColors.primary,
-              SOpacities.placeholder,
-            ),
-            borderRadius: BorderRadius.circular(SSizes.cardRadiusLg),
-          ),
-          child: const Icon(
-            Iconsax.user_edit,
-            color: SColors.primary,
-            size: SSizes.iconLg,
-          ),
-        ),
         const SizedBox(height: SSizes.defaultSpace),
         Text(
           STexts.googlePhoneLinkTitle,
-          textAlign: TextAlign.center,
+          textAlign: TextAlign.start,
           style: Theme.of(context).textTheme.headlineLarge?.copyWith(
                 color: SColors.textPrimary,
               ),
@@ -51,7 +35,7 @@ class SGooglePhoneLinkHeader extends StatelessWidget {
           widthFactor: SSizes.googlePhoneLinkSubtitleWidthFactor,
           child: Text(
             STexts.googlePhoneLinkSubTitle,
-            textAlign: TextAlign.center,
+            textAlign: TextAlign.start,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: SColors.textSecondary,
                 ),

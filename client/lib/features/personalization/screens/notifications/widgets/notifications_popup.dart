@@ -83,7 +83,6 @@ class SNotificationsPopup extends StatelessWidget {
                   (item) => Padding(
                     padding: const EdgeInsets.only(bottom: SSizes.sm),
                     child: GestureDetector(
-                      onTap: () => controller.markRead(item),
                       child: SNotificationTimelineItem(item: item),
                     ),
                   ),
