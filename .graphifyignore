@@ -1,0 +1,32 @@
+# Ignore venv and heavy caches for graphify
+.uv-cache/
+.agents/
+.antigravitycli/
+.claude/
+.superpowers/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.import_linter_cache/
+.idea/
+.vscode/
+venv/
+.venv/
+node_modules/
+dist/
+build/
+*.pyc
+__pycache__/
+
+client/.dart_tool/
+client/build/
+client/.flutter-plugins
+client/.flutter-plugins-dependencies
+client/assets/images/screenshots/
+client/.agents/
+*.lock
+graphify-out/
+web/node_modules/
+
+# Unrelated WIP / generated (not part of ride-search work)
+services/payment/payment/gateway/
