@@ -138,7 +138,7 @@ class _ComposeContent extends StatelessWidget {
           const SizedBox(height: SSizes.md),
           SLocationInputBar(
             label: 'Pickup',
-            value: pickup?.formatted ?? 'Search or use the map pin',
+            value: pickup?.displayLabel ?? 'Search or use the map pin',
             target: SBookingLocationTarget.pickup,
             isActive: activeTarget == SBookingLocationTarget.pickup,
             onTap: () => controller.focusSearch(SBookingLocationTarget.pickup),
@@ -148,7 +148,7 @@ class _ComposeContent extends StatelessWidget {
           const SizedBox(height: SSizes.sm),
           SLocationInputBar(
             label: 'Dropoff',
-            value: dropoff?.formatted ?? 'Where to?',
+            value: dropoff?.displayLabel ?? 'Where to?',
             target: SBookingLocationTarget.dropoff,
             isActive: activeTarget == SBookingLocationTarget.dropoff,
             onTap: () => controller.focusSearch(SBookingLocationTarget.dropoff),
@@ -233,11 +233,13 @@ class _SearchContent extends StatelessWidget {
           ),
         ),
         const SizedBox(height: SSizes.md),
-        SBookingSearchResults(
-          isLoading: controller.isLoading.value,
-          errorMessage: controller.errorMessage.value,
-          results: controller.results,
-          onSelected: controller.selectAddress,
+        Obx(
+          () => SBookingSearchResults(
+            isLoading: controller.isLoading.value,
+            errorMessage: controller.errorMessage.value,
+            results: controller.results,
+            onSelected: controller.selectAddress,
+          ),
         ),
       ],
     );

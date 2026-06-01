@@ -47,7 +47,7 @@ class SBookingSearchResults extends StatelessWidget {
         for (final result in results)
           SSearchResult(
             icon: Iconsax.location,
-            title: result.formatted,
+            title: result.displayLabel,
             address: [
               if (result.city != null) result.city,
               if (result.country != null) result.country,

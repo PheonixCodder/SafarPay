@@ -98,10 +98,7 @@ class _RideSearchScreenState extends State<RideSearchScreen> {
                   ],
                 ),
               ),
-              Positioned(
-                left: 0,
-                right: 0,
-                top: 0,
+              Positioned.fill(
                 child: SBookingMapControls(controller: _controller),
               ),
               SBookingSheet(

@@ -2,17 +2,27 @@ import '../../../features/location/domain/location_models.dart';
 
 class SMapController {
   SMapboxCameraReader? _cameraReader;
+  SMapboxFlyToCallback? _flyTo;
 
   void attachCameraReader(SMapboxCameraReader cameraReader) {
     _cameraReader = cameraReader;
   }
 
+  void attachFlyTo(SMapboxFlyToCallback flyTo) {
+    _flyTo = flyTo;
+  }
+
   Future<SCoordinate?> centerCoordinate() {
     return _cameraReader?.call() ?? Future.value();
+  }
+
+  Future<void> flyToCoordinate(SCoordinate coordinate) {
+    return _flyTo?.call(coordinate) ?? Future.value();
   }
 }
 
 typedef SMapboxCameraReader = Future<SCoordinate?> Function();
+typedef SMapboxFlyToCallback = Future<void> Function(SCoordinate coordinate);
 
 enum SMapMarkerType {
   pickup,

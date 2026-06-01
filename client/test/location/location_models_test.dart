@@ -43,9 +43,32 @@ void main() {
       });
 
       expect(result.formatted, 'Model Town, Lahore, Pakistan');
+      expect(result.displayLabel, 'Model Town, Lahore, Pakistan');
       expect(result.city, 'Lahore');
       expect(result.coordinate.latitude, 31.4801);
       expect(result.coordinate.longitude, 74.3239);
+    });
+
+    test('displayLabel hides coordinate-only formatted text', () {
+      const result = SAddressResult(
+        formatted: '31.53723, 74.42631',
+        coordinate: SCoordinate(latitude: 31.53723, longitude: 74.42631),
+        street: 'Main Boulevard',
+        city: 'Lahore',
+        country: 'Pakistan',
+      );
+
+      expect(result.isCoordinateLikeFormatted, isTrue);
+      expect(result.displayLabel, 'Main Boulevard, Lahore, Pakistan');
+    });
+
+    test('tryParseCoordinateQuery parses lat lng pairs', () {
+      final coordinate =
+          SAddressResult.tryParseCoordinateQuery('31.53723, 74.42631');
+
+      expect(coordinate?.latitude, 31.53723);
+      expect(coordinate?.longitude, 74.42631);
+      expect(SAddressResult.isCoordinateLikeQuery('Gulberg'), isFalse);
     });
   });
 
