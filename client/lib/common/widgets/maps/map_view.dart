@@ -184,6 +184,15 @@ class _SMapViewState extends State<SMapView> {
       ),
     );
     widget.controller?.attachCameraReader(_centerCoordinate);
+    widget.controller?.attachFlyTo(
+      (coordinate) => _moveCamera(
+        CameraOptions(
+          center: _pointFor(coordinate),
+          zoom: widget.zoom,
+        ),
+        animated: true,
+      ),
+    );
     await _syncMapAnnotations();
     await _syncCamera(animated: false);
     widget.onMapCreated?.call(mapboxMap);

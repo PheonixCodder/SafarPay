@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
 
+/// Map chrome for ride search: back (top-left), pin-confirm and my-location (right).
 class SBookingMapControls extends StatelessWidget {
   const SBookingMapControls({
     super.key,
@@ -14,29 +15,50 @@ class SBookingMapControls extends StatelessWidget {
 
   final SRideSearchController controller;
 
+  static const double _actionButtonsBottom = 380;
+
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      bottom: false,
-      child: Padding(
-        padding: const EdgeInsets.all(SSizes.md),
-        child: Row(
-          children: [
-            _MapButton(
-              icon: Iconsax.arrow_left,
-              onPressed: Get.back,
-            ),
-            const Spacer(),
-            Obx(
-              () => _MapButton(
-                icon: Iconsax.gps,
-                isBusy: controller.isResolvingPin.value,
-                onPressed: controller.confirmMapPin,
+    return Stack(
+      children: [
+        SafeArea(
+          bottom: false,
+          child: Padding(
+            padding: const EdgeInsets.all(SSizes.md),
+            child: Align(
+              alignment: Alignment.topLeft,
+              child: _MapButton(
+                icon: Iconsax.arrow_left,
+                onPressed: Get.back,
               ),
             ),
-          ],
+          ),
         ),
-      ),
+        Positioned(
+          right: SSizes.md,
+          bottom: _actionButtonsBottom,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Obx(
+                () => _MapButton(
+                  icon: Iconsax.gps,
+                  isBusy: controller.isResolvingPin.value,
+                  onPressed: controller.confirmMapPin,
+                ),
+              ),
+              const SizedBox(height: SSizes.sm),
+              Obx(
+                () => _MapButton(
+                  icon: Icons.my_location,
+                  isBusy: controller.isLocating.value,
+                  onPressed: controller.goToMyLocation,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
@@ -70,7 +92,7 @@ class _MapButton extends StatelessWidget {
         ],
       ),
       child: IconButton(
-        tooltip: isBusy ? 'Resolving location' : null,
+        tooltip: isBusy ? 'Please wait' : null,
         onPressed: isBusy ? null : onPressed,
         icon: isBusy
             ? const SizedBox(

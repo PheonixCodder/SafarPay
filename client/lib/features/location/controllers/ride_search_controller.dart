@@ -99,6 +99,26 @@ class SRideSearchController extends GetxController {
   final RxInt cityPassengerCount = 1.obs;
   final Rx<SDriverGenderPreference> driverGenderPreference =
       SDriverGenderPreference.noPreference.obs;
+
+  /// Last resolved device GPS position (used before pickup is set).
+  SCoordinate? _lastDeviceCoordinate;
+
+  final RxBool isLocating = false.obs;
+
+  SCoordinate get mapCenter {
+    return pickup.value?.coordinate ??
+        selectedDropoff.value?.coordinate ??
+        _lastDeviceCoordinate ??
+        fallbackCenter;
+  }
+
+  /// Proximity for place search — never the hardcoded Lahore fallback.
+  SCoordinate? get searchProximity {
+    return pickup.value?.coordinate ??
+        selectedDropoff.value?.coordinate ??
+        _lastDeviceCoordinate;
+  }
+
   final RxBool isPetAllowed = false.obs;
   final RxBool isSmokingAllowed = false.obs;
   final RxBool requiresWheelchairAccess = false.obs;
@@ -153,12 +173,6 @@ class SRideSearchController extends GetxController {
     return pickup.value != null && selectedDropoff.value != null;
   }
 
-  SCoordinate get mapCenter {
-    return pickup.value?.coordinate ??
-        selectedDropoff.value?.coordinate ??
-        fallbackCenter;
-  }
-
   @override
   void onInit() {
     super.onInit();
@@ -200,13 +214,29 @@ class SRideSearchController extends GetxController {
     super.onClose();
   }
 
+  Future<void> goToMyLocation() async {
+    isLocating.value = true;
+    errorMessage.value = '';
+    try {
+      final coordinate = await _deviceLocationService.currentCoordinate();
+      _lastDeviceCoordinate = coordinate;
+      await mapController.flyToCoordinate(coordinate);
+    } catch (_) {
+      errorMessage.value = 'Unable to get your location.';
+    } finally {
+      isLocating.value = false;
+    }
+  }
+
   Future<void> loadCurrentPickup() async {
     try {
       final coordinate = await _deviceLocationService.currentCoordinate();
+      _lastDeviceCoordinate = coordinate;
+      await mapController.flyToCoordinate(coordinate);
       final address = await _locationRepository.reverseGeocode(coordinate);
       if (isClosed) return;
       pickup.value = address;
-      pickupSearchController.text = address.formatted;
+      pickupSearchController.text = address.displayLabel;
       if (hasPickupAndDropoff) {
         sheetMode.value = SBookingSheetMode.route;
         await loadRoutePreview();
@@ -253,6 +283,12 @@ class SRideSearchController extends GetxController {
     if (trimmed.isEmpty) {
       results.clear();
       errorMessage.value = '';
+      isLoading.value = false;
+      return;
+    }
+
+    if (SAddressResult.isCoordinateLikeQuery(trimmed)) {
+      await _searchByCoordinateQuery(trimmed);
       return;
     }
 
@@ -261,10 +297,31 @@ class SRideSearchController extends GetxController {
     try {
       final matches = await _locationRepository.searchPlaces(
         trimmed,
-        proximity: mapCenter,
+        proximity: searchProximity,
       );
       results.assignAll(matches);
       if (results.isEmpty) errorMessage.value = 'No matching places found.';
+    } catch (_) {
+      errorMessage.value = 'Search is unavailable. Try again.';
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  Future<void> _searchByCoordinateQuery(String query) async {
+    final coordinate = SAddressResult.tryParseCoordinateQuery(query);
+    if (coordinate == null) return;
+
+    isLoading.value = true;
+    errorMessage.value = '';
+    try {
+      final address = await _locationRepository.reverseGeocode(coordinate);
+      if (address.isCoordinateLikeFormatted) {
+        results.clear();
+        errorMessage.value = 'No address found for these coordinates.';
+      } else {
+        results.assignAll([address]);
+      }
     } catch (_) {
       errorMessage.value = 'Search is unavailable. Try again.';
     } finally {
@@ -282,6 +339,11 @@ class SRideSearchController extends GetxController {
         return;
       }
       final address = await _locationRepository.reverseGeocode(coordinate);
+      if (address.isCoordinateLikeFormatted) {
+        errorMessage.value =
+            'Unable to resolve this location. Try moving the map slightly.';
+        return;
+      }
       selectAddress(address);
     } catch (_) {
       errorMessage.value = 'Unable to read this map location.';
@@ -291,12 +353,13 @@ class SRideSearchController extends GetxController {
   }
 
   void selectAddress(SAddressResult result) {
+    final label = result.displayLabel;
     if (activeTarget.value == SBookingLocationTarget.pickup) {
       pickup.value = result;
-      pickupSearchController.text = result.formatted;
+      pickupSearchController.text = label;
     } else {
       selectedDropoff.value = result;
-      dropoffSearchController.text = result.formatted;
+      dropoffSearchController.text = label;
     }
 
     results.clear();
@@ -309,7 +372,7 @@ class SRideSearchController extends GetxController {
   void selectRecentDropoff(SAddressResult result) {
     activeTarget.value = SBookingLocationTarget.dropoff;
     selectedDropoff.value = result;
-    dropoffSearchController.text = result.formatted;
+    dropoffSearchController.text = result.displayLabel;
     results.clear();
     errorMessage.value = '';
     sheetMode.value = hasPickupAndDropoff

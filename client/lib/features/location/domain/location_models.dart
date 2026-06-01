@@ -32,12 +32,54 @@ class SAddressResult {
     this.postalCode,
   });
 
+  static final RegExp _coordinatePairPattern = RegExp(
+    r'^\s*(-?\d+(?:\.\d+)?)\s*[,;\s]\s*(-?\d+(?:\.\d+)?)\s*$',
+  );
+
   final String formatted;
   final SCoordinate coordinate;
   final String? street;
   final String? city;
   final String? country;
   final String? postalCode;
+
+  /// True when [formatted] is only a lat/lng pair (e.g. Mapbox fallback text).
+  bool get isCoordinateLikeFormatted => isCoordinateLikeQuery(formatted);
+
+  /// User-visible label — never raw coordinates when structured fields exist.
+  String get displayLabel {
+    if (!isCoordinateLikeFormatted) return formatted;
+    final parts = [street, city, country]
+        .whereType<String>()
+        .where((part) => part.trim().isNotEmpty);
+    if (parts.isNotEmpty) return parts.join(', ');
+    return 'Selected location';
+  }
+
+  static bool isCoordinateLikeQuery(String text) {
+    return tryParseCoordinateQuery(text) != null;
+  }
+
+  static SCoordinate? tryParseCoordinateQuery(String text) {
+    final match = _coordinatePairPattern.firstMatch(text.trim());
+    if (match == null) return null;
+
+    final first = double.tryParse(match.group(1)!);
+    final second = double.tryParse(match.group(2)!);
+    if (first == null || second == null) return null;
+
+    if (_isValidLatitude(first) && _isValidLongitude(second)) {
+      return SCoordinate(latitude: first, longitude: second);
+    }
+    if (_isValidLatitude(second) && _isValidLongitude(first)) {
+      return SCoordinate(latitude: second, longitude: first);
+    }
+    return null;
+  }
+
+  static bool _isValidLatitude(double value) => value >= -90 && value <= 90;
+
+  static bool _isValidLongitude(double value) => value >= -180 && value <= 180;
 
   factory SAddressResult.fromJson(Map<String, dynamic> json) {
     final coordinates = json['coordinates'];
