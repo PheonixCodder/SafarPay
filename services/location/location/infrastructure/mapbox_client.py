@@ -90,6 +90,94 @@ class MapboxClient:
             return []
 
     # ------------------------------------------------------------------
+    # Search places rich: address text → full Address list (with names)
+    # ------------------------------------------------------------------
+
+    async def search_places_rich(
+        self,
+        query: str,
+        *,
+        limit: int = 5,
+        country: str = "pk",
+        proximity: tuple[float, float] | None = None,
+    ) -> list[Address]:
+        """Forward geocode returning full Address objects with place names.
+
+        Unlike ``geocode()`` which returns bare Coordinates, this method
+        extracts place_name, street, city, and country from the Mapbox
+        response so results can be displayed and saved to the local DB.
+        """
+        proximity_key = ""
+        if proximity is not None:
+            proximity_key = f":{proximity[0]:.5f},{proximity[1]:.5f}"
+        cache_key = (
+            f"rich:{hashlib.sha256((query.lower().strip() + proximity_key).encode()).hexdigest()}"
+        )
+        cached = await self._cache.get("mapbox_geocode_rich", cache_key)
+        if cached:
+            return [_dict_to_address(c) for c in cached]
+
+        params: dict[str, Any] = {
+            "access_token": self._token,
+            "limit": limit,
+            "types": "address,place,poi,locality,neighborhood",
+            "country": country,
+        }
+        if proximity is not None:
+            params["proximity"] = f"{proximity[0]},{proximity[1]}"
+
+        try:
+            resp = await self._http.get(
+                f"{_BASE_URL}/{quote(query.strip(), safe='')}.json",
+                params=params,
+            )
+            resp.raise_for_status()
+            features: list[dict] = resp.json().get("features", [])
+            results: list[Address] = []
+            for feat in features:
+                context: list[dict] = feat.get("context", [])
+
+                def _ctx(id_prefix: str) -> str | None:
+                    return next(
+                        (c["text"] for c in context if c.get("id", "").startswith(id_prefix)),
+                        None,
+                    )
+
+                results.append(Address(
+                    formatted=feat.get("place_name", query),
+                    coordinates=Coordinates(
+                        latitude=feat["center"][1],
+                        longitude=feat["center"][0],
+                    ),
+                    street=feat.get("text"),
+                    city=_ctx("place"),
+                    country=_ctx("country"),
+                    postal_code=_ctx("postcode"),
+                ))
+            await self._cache.set(
+                "mapbox_geocode_rich",
+                cache_key,
+                [_address_to_dict(a) for a in results],
+                ttl=_GEOCODE_CACHE_TTL,
+            )
+            return results
+        except httpx.HTTPStatusError as exc:
+            addr_token = hashlib.sha256(query.encode()).hexdigest()[:12]
+            body = exc.response.text[:500] if exc.response is not None else ""
+            logger.warning(
+                "Mapbox search_places_rich HTTP %s addr_token=%s body=%s",
+                exc.response.status_code if exc.response is not None else "?",
+                addr_token,
+                body,
+            )
+            return []
+        except Exception as exc:  # noqa: BLE001
+            addr_token = hashlib.sha256(query.encode()).hexdigest()[:12]
+            logger.exception("Mapbox search_places_rich failed addr_token=%s: %s", addr_token, exc)
+            return []
+
+
+    # ------------------------------------------------------------------
     # Reverse geocode: coordinates → Address
     # ------------------------------------------------------------------
 
@@ -114,7 +202,7 @@ class MapboxClient:
                 params={
                     "access_token": self._token,
                     "limit": 1,
-                    "types": "address",
+                    "types": "address,place,poi,locality,neighborhood",
                 },
             )
             resp.raise_for_status()

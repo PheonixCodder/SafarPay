@@ -4,7 +4,7 @@ from typing import Any, cast
 
 import pytest
 from location.application.use_cases import GeocodeUseCase, SearchPlacesUseCase
-from location.domain.models import Coordinates, Place, PlaceSearchResult
+from location.domain.models import Address, Coordinates, Place, PlaceSearchResult
 from location.maps.normalization import normalise_search_query, stable_source_key
 from location.infrastructure.place_repository import build_place_search_sql
 
@@ -52,14 +52,48 @@ class FakePlaceRepository:
             }
         )
 
+    async def save_place(self, place: Place) -> None:
+        return None
+
 
 class FakeMapbox:
     def __init__(self) -> None:
         self.calls: list[str] = []
+        self.rich_calls: list[str] = []
+        self.reverse_calls: list[tuple[float, float]] = []
 
     async def geocode(self, address: str) -> list[Coordinates]:
         self.calls.append(address)
         return [Coordinates(latitude=31.52, longitude=74.35)]
+
+    async def search_places_rich(
+        self,
+        query: str,
+        *,
+        limit: int = 5,
+        country: str = "pk",
+        proximity: tuple[float, float] | None = None,
+    ) -> list[Address]:
+        self.rich_calls.append(query)
+        return [
+            Address(
+                formatted=f"{query}, Lahore, Pakistan",
+                coordinates=Coordinates(latitude=31.52, longitude=74.35),
+                street=query,
+                city="Lahore",
+                country="Pakistan",
+            )
+        ]
+
+    async def reverse_geocode(self, latitude: float, longitude: float) -> Address:
+        self.reverse_calls.append((latitude, longitude))
+        return Address(
+            formatted="Pin Location, Lahore, Pakistan",
+            coordinates=Coordinates(latitude=latitude, longitude=longitude),
+            street="Pin Location",
+            city="Lahore",
+            country="Pakistan",
+        )
 
 
 def place_result(name: str = "Askari 10") -> PlaceSearchResult:
@@ -110,10 +144,26 @@ async def test_search_places_falls_back_to_mapbox_and_logs_miss_without_storing_
     response = await uc.execute("Missing Place", limit=3)
 
     assert len(response.results) == 1
-    assert response.results[0].source == "MAPBOX_TEMPORARY"
-    assert response.results[0].formatted == "Missing Place"
-    assert mapbox.calls == ["Missing Place"]
+    assert response.results[0].source == "MAPBOX"
+    assert response.results[0].formatted == "Missing Place, Lahore, Pakistan"
+    assert mapbox.rich_calls == ["Missing Place"]
+    assert mapbox.reverse_calls == []
     assert repo.events[0]["served_from"] == "MAPBOX_FALLBACK"
+
+
+@pytest.mark.asyncio
+async def test_search_places_uses_reverse_for_coordinate_query() -> None:
+    repo = FakePlaceRepository([])
+    mapbox = FakeMapbox()
+    uc = SearchPlacesUseCase(cast(Any, repo), cast(Any, mapbox), fallback_enabled=True)
+
+    response = await uc.execute("31.53723, 74.42631")
+
+    assert len(response.results) == 1
+    assert response.results[0].formatted == "Pin Location, Lahore, Pakistan"
+    assert mapbox.rich_calls == []
+    assert mapbox.reverse_calls == [(31.53723, 74.42631)]
+    assert repo.events[0]["served_from"] == "COORDINATE_REVERSE"
 
 
 @pytest.mark.asyncio

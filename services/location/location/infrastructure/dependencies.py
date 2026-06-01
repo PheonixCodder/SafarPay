@@ -149,4 +149,7 @@ def get_search_places_uc(connection: HTTPConnection) -> SearchPlacesUseCase:
 
 
 def get_reverse_geocode_uc(connection: HTTPConnection) -> ReverseGeocodeUseCase:
-    return ReverseGeocodeUseCase(client=get_mapbox(connection))
+    return ReverseGeocodeUseCase(
+        client=get_mapbox(connection),
+        place_repo=get_place_repo(connection),
+    )

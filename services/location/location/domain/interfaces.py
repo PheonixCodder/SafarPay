@@ -26,6 +26,7 @@ from .models import (
     LocationHistory,
     LocationUpdate,
     PassengerLocation,
+    Place,
     PlaceSearchResult,
 )
 
@@ -181,6 +182,27 @@ class PlaceRepositoryProtocol(Protocol):
         """Record search observability without storing temporary Mapbox data."""
         ...
 
+    async def save_place(self, place: Place) -> None:
+        """Persist a place (upsert by source_key).
+
+        Used to save Mapbox results into the local database so future
+        searches hit the local index instead of calling the external API.
+        """
+        ...
+
+    async def nearest_place(
+        self,
+        latitude: float,
+        longitude: float,
+        max_distance_meters: float = 200,
+    ) -> PlaceSearchResult | None:
+        """Find the closest indexed place within max_distance_meters.
+
+        Used by ReverseGeocodeUseCase for local-first reverse lookups.
+        Returns None if no place is close enough.
+        """
+        ...
+
     async def get_ride_route(self, ride_id: UUID) -> list[LocationHistory]:
         """Return the ordered sequence of driver pings for a completed ride.
 
@@ -304,4 +326,20 @@ class GeocodingClientProtocol(Protocol):
 
     async def reverse_geocode(self, latitude: float, longitude: float) -> Address:
         """Convert coordinates to a human-readable address string."""
+        ...
+
+    async def search_places_rich(
+        self,
+        query: str,
+        *,
+        limit: int = 5,
+        country: str = "pk",
+        proximity: tuple[float, float] | None = None,
+    ) -> list[Address]:
+        """Forward geocode returning full Address objects (with place names).
+
+        Unlike ``geocode()`` which returns bare Coordinates, this method
+        extracts place_name, street, city, and country from the provider
+        response so results can be displayed and saved to the local DB.
+        """
         ...

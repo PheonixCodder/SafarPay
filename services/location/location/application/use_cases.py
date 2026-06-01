@@ -46,12 +46,14 @@ from ..domain.interfaces import (
 )
 from ..domain.models import (
     ActorType,
+    Address,
     Coordinates,
     DriverStatus,
     LocationUpdate,
     Place,
     PlaceSearchResult,
 )
+from ..maps.query_detection import is_coordinate_formatted, parse_coordinates_query
 from ..infrastructure.websocket_manager import WebSocketManager
 from .schemas import (
     AddressResponse,
@@ -131,6 +133,52 @@ def _passenger_to_response(pl) -> PassengerLocationResponse | None:
         updated_at=pl.updated_at,
         ride_id=pl.ride_id,
     )
+
+
+def _address_has_human_label(addr: Address) -> bool:
+    if addr.street or addr.city:
+        return True
+    return not is_coordinate_formatted(addr.formatted)
+
+
+def _place_from_mapbox_address(
+    addr: Address,
+    *,
+    place_type: str,
+    source_key: str,
+) -> Place:
+    name = addr.street or addr.formatted.split(",")[0].strip() or "Location"
+    return Place(
+        name=name,
+        formatted=addr.formatted,
+        coordinates=Coordinates(
+            latitude=addr.coordinates.latitude,
+            longitude=addr.coordinates.longitude,
+        ),
+        place_type=place_type,
+        source="MAPBOX",
+        source_key=source_key,
+        country_code="PK",
+        street=addr.street,
+        city=addr.city,
+        country=addr.country,
+        postal_code=addr.postal_code,
+    )
+
+
+def _place_has_human_label(place: Place) -> bool:
+    if place.street or place.city:
+        return True
+    return not is_coordinate_formatted(place.formatted)
+
+
+def _mapbox_proximity(
+    latitude: float | None,
+    longitude: float | None,
+) -> tuple[float, float] | None:
+    if latitude is None or longitude is None:
+        return None
+    return (longitude, latitude)
 
 
 def _place_to_response(result: PlaceSearchResult) -> PlaceSearchResultResponse:
@@ -621,9 +669,20 @@ class SearchPlacesUseCase:
         longitude: float | None = None,
         limit: int = 10,
     ) -> PlaceSearchResponse:
+        stripped = query.strip()
+        parsed_coords = parse_coordinates_query(stripped)
+        if parsed_coords is not None:
+            return await self._search_by_coordinates(
+                parsed_coords.latitude,
+                parsed_coords.longitude,
+                query=stripped,
+                request_latitude=latitude,
+                request_longitude=longitude,
+            )
+
         local_results = (
             await self._place_repo.search_places(
-                query,
+                stripped,
                 latitude=latitude,
                 longitude=longitude,
                 limit=limit,
@@ -655,28 +714,34 @@ class SearchPlacesUseCase:
                 results=[_place_to_response(result) for result in local_results]
             )
 
-        candidates = await self._geocoder.geocode(query)
-        fallback_results = [
-            PlaceSearchResult(
-                place=Place(
-                    name=query,
-                    formatted=query,
-                    coordinates=Coordinates(
-                        latitude=candidate.latitude,
-                        longitude=candidate.longitude,
-                    ),
-                    place_type="mapbox_place",
-                    source="MAPBOX_TEMPORARY",
-                    source_key=f"mapbox:temporary:{index}",
-                    country_code="PK",
+        proximity = _mapbox_proximity(latitude, longitude)
+        addresses = await self._geocoder.search_places_rich(
+            stripped,
+            limit=limit,
+            proximity=proximity,
+        )
+        fallback_results: list[PlaceSearchResult] = []
+        for addr in addresses:
+            place = _place_from_mapbox_address(
+                addr,
+                place_type="mapbox_place",
+                source_key=(
+                    f"mapbox:search:{addr.coordinates.latitude:.6f}:"
+                    f"{addr.coordinates.longitude:.6f}"
                 ),
-                confidence=0.50,
-                distance_meters=None,
             )
-            for index, candidate in enumerate(candidates[:limit])
-        ]
+            fallback_results.append(
+                PlaceSearchResult(
+                    place=place,
+                    confidence=0.50,
+                    distance_meters=None,
+                )
+            )
+            if _place_has_human_label(place):
+                await self._place_repo.save_place(place)
+
         await self._place_repo.record_search_event(
-            query,
+            stripped,
             result_count=len(fallback_results),
             served_from="MAPBOX_FALLBACK" if fallback_results else "EMPTY",
             latitude=latitude,
@@ -685,6 +750,62 @@ class SearchPlacesUseCase:
         return PlaceSearchResponse(
             results=[_place_to_response(result) for result in fallback_results]
         )
+
+    async def _search_by_coordinates(
+        self,
+        lat: float,
+        lng: float,
+        *,
+        query: str,
+        request_latitude: float | None,
+        request_longitude: float | None,
+    ) -> PlaceSearchResponse:
+        """Resolve a coordinate-shaped search query via reverse geocode."""
+        logger.info(
+            "Place search query looks like coordinates; using reverse geocode",
+        )
+        if not self._fallback_enabled:
+            await self._place_repo.record_search_event(
+                query,
+                result_count=0,
+                served_from="COORDINATE_QUERY_DISABLED",
+                latitude=request_latitude,
+                longitude=request_longitude,
+            )
+            return PlaceSearchResponse(results=[])
+
+        addr = await self._geocoder.reverse_geocode(lat, lng)
+        if not _address_has_human_label(addr):
+            await self._place_repo.record_search_event(
+                query,
+                result_count=0,
+                served_from="COORDINATE_REVERSE_EMPTY",
+                latitude=request_latitude,
+                longitude=request_longitude,
+            )
+            return PlaceSearchResponse(results=[])
+
+        place = _place_from_mapbox_address(
+            addr,
+            place_type="address",
+            source_key=f"mapbox:reverse:{lat:.6f}:{lng:.6f}",
+        )
+        if _place_has_human_label(place):
+            await self._place_repo.save_place(place)
+
+        result = PlaceSearchResult(
+            place=place,
+            confidence=0.85,
+            distance_meters=None,
+        )
+        await self._place_repo.record_search_event(
+            query,
+            result_count=1,
+            served_from="COORDINATE_REVERSE",
+            latitude=request_latitude,
+            longitude=request_longitude,
+        )
+        return PlaceSearchResponse(results=[_place_to_response(result)])
 
 
 class GeocodeUseCase:
@@ -706,8 +827,44 @@ class GeocodeUseCase:
         self._min_confidence = min_confidence
 
     async def execute(self, address: str) -> AddressResponse:
+        stripped = address.strip()
+        parsed_coords = parse_coordinates_query(stripped)
+        if parsed_coords is not None and self._fallback_enabled:
+            addr = await self._client.reverse_geocode(
+                parsed_coords.latitude,
+                parsed_coords.longitude,
+            )
+            if _address_has_human_label(addr):
+                if self._place_repo is not None:
+                    place = _place_from_mapbox_address(
+                        addr,
+                        place_type="address",
+                        source_key=(
+                            f"mapbox:geocode:{parsed_coords.latitude:.6f}:"
+                            f"{parsed_coords.longitude:.6f}"
+                        ),
+                    )
+                    if _place_has_human_label(place):
+                        await self._place_repo.save_place(place)
+                    await self._place_repo.record_search_event(
+                        stripped,
+                        result_count=1,
+                        served_from="COORDINATE_GEOCODE",
+                    )
+                return AddressResponse(
+                    formatted=addr.formatted,
+                    coordinates=CoordinatesResponse(
+                        latitude=addr.coordinates.latitude,
+                        longitude=addr.coordinates.longitude,
+                    ),
+                    street=addr.street,
+                    city=addr.city,
+                    country=addr.country,
+                    postal_code=addr.postal_code,
+                )
+
         if self._local_enabled and self._place_repo is not None:
-            local_results = await self._place_repo.search_places(address, limit=1)
+            local_results = await self._place_repo.search_places(stripped, limit=1)
             if local_results and local_results[0].confidence >= self._min_confidence:
                 result = local_results[0]
                 await self._place_repo.record_search_event(
@@ -727,42 +884,99 @@ class GeocodeUseCase:
                     postal_code=result.place.postal_code,
                 )
 
-        candidates = await self._client.geocode(address) if self._fallback_enabled else []
-        if candidates:
-            first = candidates[0]
-            if self._place_repo is not None:
-                await self._place_repo.record_search_event(
-                    address,
-                    result_count=len(candidates),
-                    served_from="MAPBOX_GEOCODE_FALLBACK",
+        # Use rich search to get full place names from Mapbox
+        if self._fallback_enabled:
+            rich_results = await self._client.search_places_rich(stripped, limit=1)
+            if rich_results:
+                addr = rich_results[0]
+                if self._place_repo is not None:
+                    place = _place_from_mapbox_address(
+                        addr,
+                        place_type="address",
+                        source_key=(
+                            f"mapbox:geocode:{addr.coordinates.latitude:.6f}:"
+                            f"{addr.coordinates.longitude:.6f}"
+                        ),
+                    )
+                    if _place_has_human_label(place):
+                        await self._place_repo.save_place(place)
+                    await self._place_repo.record_search_event(
+                        stripped,
+                        result_count=1,
+                        served_from="MAPBOX_GEOCODE_FALLBACK",
+                    )
+                return AddressResponse(
+                    formatted=addr.formatted,
+                    coordinates=CoordinatesResponse(
+                        latitude=addr.coordinates.latitude,
+                        longitude=addr.coordinates.longitude,
+                    ),
+                    street=addr.street,
+                    city=addr.city,
+                    country=addr.country,
+                    postal_code=addr.postal_code,
                 )
-            return AddressResponse(
-                formatted=address,
-                coordinates=CoordinatesResponse(
-                    latitude=first.latitude,
-                    longitude=first.longitude,
-                ),
-            )
-        # Graceful degradation — return the raw address with zero coordinates
+
         return AddressResponse(
-            formatted=address,
+            formatted=stripped,
             coordinates=CoordinatesResponse(latitude=0.0, longitude=0.0),
         )
 
 
 # ---------------------------------------------------------------------------
-# ReverseGeocodeUseCase (preserved — upgraded to Mapbox)
+# ReverseGeocodeUseCase — local-first with Mapbox fallback + save-through
 # ---------------------------------------------------------------------------
 
 
 class ReverseGeocodeUseCase:
-    """Convert coordinates to a human-readable address via Mapbox (cache-first)."""
+    """Convert coordinates to a human-readable address.
 
-    def __init__(self, client: GeocodingClientProtocol) -> None:
+    Strategy:
+      1. Check the local places DB for a nearby indexed place (within 200m).
+      2. If no local match, call Mapbox reverse geocode.
+      3. Save the Mapbox result to the local DB so next time it's a local hit.
+    """
+
+    def __init__(
+        self,
+        client: GeocodingClientProtocol,
+        place_repo: PlaceRepositoryProtocol | None = None,
+    ) -> None:
         self._client = client
+        self._place_repo = place_repo
 
     async def execute(self, latitude: float, longitude: float) -> AddressResponse:
+        # 1. Try local nearest-place lookup first
+        if self._place_repo is not None:
+            try:
+                local = await self._place_repo.nearest_place(latitude, longitude)
+                if local and local.distance_meters is not None and local.distance_meters < 200:
+                    return AddressResponse(
+                        formatted=local.place.formatted,
+                        coordinates=CoordinatesResponse(
+                            latitude=latitude,
+                            longitude=longitude,
+                        ),
+                        street=local.place.street,
+                        city=local.place.city,
+                        country=local.place.country,
+                        postal_code=local.place.postal_code,
+                    )
+            except Exception:  # noqa: BLE001
+                pass  # Fall through to Mapbox
+
+        # 2. Fall back to Mapbox
         addr = await self._client.reverse_geocode(latitude, longitude)
+
+        if self._place_repo is not None and _address_has_human_label(addr):
+            place = _place_from_mapbox_address(
+                addr,
+                place_type="address",
+                source_key=f"mapbox:reverse:{latitude:.6f}:{longitude:.6f}",
+            )
+            if _place_has_human_label(place):
+                await self._place_repo.save_place(place)
+
         return AddressResponse(
             formatted=addr.formatted,
             coordinates=CoordinatesResponse(
