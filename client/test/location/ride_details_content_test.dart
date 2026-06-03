@@ -1,6 +1,7 @@
 import 'package:client/features/location/controllers/ride_search_controller.dart';
 import 'package:client/features/location/domain/ride_booking_models.dart';
 import 'package:client/features/location/screens/ride_search/widgets/ride_details_content.dart';
+import 'package:client/utils/theme/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
@@ -14,6 +15,7 @@ void main() {
 
     await tester.pumpWidget(
       GetMaterialApp(
+        theme: SAppTheme.appTheme,
         home: Scaffold(
           body: SingleChildScrollView(
             child: SRideDetailsContent(controller: controller),
@@ -21,6 +23,7 @@ void main() {
         ),
       ),
     );
+    await tester.pumpAndSettle();
 
     expect(find.text('1'), findsOneWidget);
 
@@ -68,6 +71,7 @@ void main() {
 
     await tester.pumpWidget(
       GetMaterialApp(
+        theme: SAppTheme.appTheme,
         home: Scaffold(
           body: SingleChildScrollView(
             child: SRideDetailsContent(controller: controller),
@@ -75,6 +79,7 @@ void main() {
         ),
       ),
     );
+    await tester.pumpAndSettle();
 
     expect(find.text('Max co-passengers'), findsNothing);
 

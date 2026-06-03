@@ -50,11 +50,17 @@ class SNavigationBar extends StatelessWidget {
       top: false,
       child: Container(
         height: SSizes.navigationBarHeight,
-        decoration: const BoxDecoration(
-          color: SColors.white,
-          border: Border(
-            top: BorderSide(color: SColors.borderSecondary),
+        decoration: BoxDecoration(
+          color: SColors.surfaceContainerHigh,
+          border: const Border(
+            top: BorderSide(color: SColors.outlineVariant),
           ),
+          boxShadow: [
+            BoxShadow(
+              color: SColors.gold.withValues(alpha: SOpacities.goldGlow),
+              blurRadius: SSizes.goldGlowBlur,
+            ),
+          ],
         ),
         child: LayoutBuilder(
           builder: (context, constraints) {
@@ -73,8 +79,14 @@ class SNavigationBar extends StatelessWidget {
                   child: Container(
                     width: SSizes.navigationIndicatorWidth,
                     height: SSizes.navigationIndicatorHeight,
-                    decoration: const BoxDecoration(
-                      color: SColors.primary,
+                    decoration: BoxDecoration(
+                      color: SColors.gold,
+                      boxShadow: [
+                        BoxShadow(
+                          color: SColors.gold.withValues(alpha: SOpacities.goldGlow),
+                          blurRadius: SSizes.goldGlowBlur,
+                        ),
+                      ],
                       borderRadius: BorderRadius.vertical(
                         bottom: Radius.circular(SSizes.cardRadiusXs),
                       ),

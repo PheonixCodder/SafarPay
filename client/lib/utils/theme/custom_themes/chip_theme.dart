@@ -2,22 +2,30 @@ import 'package:flutter/material.dart';
 
 import '../../constants/colors.dart';
 import '../../constants/sizes.dart';
+import '../../constants/typography.dart';
 import '../../helpers/helpers.dart';
 
 class SChipTheme {
-  SChipTheme._(); // Private constructor to avoid instantiation
+  SChipTheme._();
 
-  static ChipThemeData lightChipTheme = ChipThemeData(
+  static ChipThemeData appChipTheme = ChipThemeData(
     disabledColor: SHelperFunctions.withOpacity(
-      SColors.grey,
+      SColors.surfaceContainerHighest,
       SOpacities.chipDisabled,
     ),
-    labelStyle: const TextStyle(color: SColors.textPrimary),
-    selectedColor: SColors.primary,
+    labelStyle: STypography.bodyMd,
+    selectedColor: SColors.primaryContainer,
     padding: const EdgeInsets.symmetric(
       horizontal: SSizes.chipPaddingHorizontal,
       vertical: SSizes.chipPaddingVertical,
     ),
-    checkmarkColor: SColors.white,
+    checkmarkColor: SColors.onPrimary,
+    side: BorderSide(
+      color: SHelperFunctions.withOpacity(
+        SColors.white,
+        SOpacities.outlineButtonStroke,
+      ),
+    ),
+    shape: const StadiumBorder(),
   );
 }

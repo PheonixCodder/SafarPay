@@ -22,7 +22,7 @@ class SPrimaryHeaderContainer extends StatelessWidget {
       child: SizedBox(
         height: height ?? SSizes.primaryHeaderHeight,
         child: Container(
-          color: SColors.primary,
+          color: SColors.surfaceContainerHigh,
           child: Stack(
             children: [
               Positioned(

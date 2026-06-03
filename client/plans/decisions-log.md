@@ -4,6 +4,12 @@ Permanent record of decisions that affect product scope, architecture, auth beha
 
 ## Decisions
 
+### 088 - Midnight Elite dark design system
+
+- **Date**: 2026-06-01
+- **Decision**: Replace the legacy light/teal + SF Pro UI with a single **Midnight Elite** dark theme (charcoal surfaces, gold CTAs, Plus Jakarta Sans + Inter). No light theme or Settings dark-mode toggle in this unit.
+- **Reason**: Product rebrand per `context/DESIGN.md`; dark-only reduces dual-theme maintenance while matching premium urban mobility positioning.
+
 ### Auth User Cache Is UI-Only
 
 - Date: 2026-05-19

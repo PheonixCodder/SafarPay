@@ -39,12 +39,16 @@ class SAppBar extends StatelessWidget implements PreferredSizeWidget {
                   width: 40,
                   height: 40,
                   decoration: const BoxDecoration(
-                    color: SColors.light,
+                    color: SColors.surfaceContainerHigh,
                     shape: BoxShape.circle,
                   ),
                   child: IconButton(
                     onPressed: leadingOnPressed ?? () => Get.back(),
-                    icon: const Icon(Iconsax.arrow_left, color: SColors.black, size: 20),
+                    icon: const Icon(
+                      Iconsax.arrow_left,
+                      color: SColors.onSurface,
+                      size: 20,
+                    ),
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
                   ),

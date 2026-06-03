@@ -1,25 +1,25 @@
 import 'package:flutter/material.dart';
 
 import '../../constants/colors.dart';
+import '../../constants/typography.dart';
+import '../../helpers/helpers.dart';
 
-/* -- Light & Dark Outlined Button Themes -- */
 class SOutlinedButtonTheme {
-  SOutlinedButtonTheme._(); // To avoid creating instances
+  SOutlinedButtonTheme._();
 
-  /* -- Light Theme -- */
-  static final OutlinedButtonThemeData lightOutlinedButtonTheme =
+  static final OutlinedButtonThemeData appOutlinedButtonTheme =
       OutlinedButtonThemeData(
     style: OutlinedButton.styleFrom(
-      elevation: 0,
-      foregroundColor: SColors.textPrimary,
-      side: const BorderSide(color: SColors.primary),
-      textStyle: const TextStyle(
-        fontSize: 16,
-        color: SColors.textPrimary,
-        fontWeight: FontWeight.w600,
+      foregroundColor: SColors.onSurface,
+      side: BorderSide(
+        color: SHelperFunctions.withOpacity(
+          SColors.white,
+          SOpacities.outlineButtonStroke,
+        ),
       ),
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      textStyle: STypography.bodyMd.copyWith(fontWeight: FontWeight.w600),
+      shape: const StadiumBorder(),
     ),
   );
 }

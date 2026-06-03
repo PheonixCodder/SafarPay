@@ -95,7 +95,7 @@ class _FareButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return IconButton.filled(
       style: IconButton.styleFrom(
-        backgroundColor: SColors.white,
+        backgroundColor: SColors.surfaceContainer,
         foregroundColor: SColors.textPrimary,
       ),
       onPressed: onPressed,

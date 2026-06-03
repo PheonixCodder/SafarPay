@@ -3,24 +3,22 @@ import 'package:flutter/material.dart';
 import '../../constants/colors.dart';
 
 class SCheckboxTheme {
-  SCheckboxTheme._(); // To avoid creating instances
+  SCheckboxTheme._();
 
-  // Customizable Light Checkbox Theme
-  static CheckboxThemeData lightCheckboxTheme = CheckboxThemeData(
+  static CheckboxThemeData appCheckboxTheme = CheckboxThemeData(
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
     checkColor: WidgetStateProperty.resolveWith((states) {
       if (states.contains(WidgetState.selected)) {
-        return SColors.white;
-      } else {
-        return SColors.black;
+        return SColors.onPrimary;
       }
+      return SColors.onSurfaceVariant;
     }),
     fillColor: WidgetStateProperty.resolveWith((states) {
       if (states.contains(WidgetState.selected)) {
-        return SColors.primary;
-      } else {
-        return SColors.transparent;
+        return SColors.primaryContainer;
       }
+      return SColors.transparent;
     }),
+    side: const BorderSide(color: SColors.outline),
   );
 }

@@ -120,10 +120,10 @@ class _SLoginFormState extends State<SLoginForm> {
                 onPressed:
                     widget.controller.isSendingOtp.value ? null : _sendOtp,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: SColors.black,
-                  foregroundColor: SColors.white,
+                  backgroundColor: SColors.primaryContainer,
+                  foregroundColor: SColors.onPrimary,
                   disabledBackgroundColor: SColors.buttonDisabled,
-                  disabledForegroundColor: SColors.textSecondary,
+                  disabledForegroundColor: SColors.onSurfaceVariant,
                   padding: const EdgeInsets.symmetric(vertical: 18),
                   shape: const StadiumBorder(),
                 ),

@@ -278,7 +278,7 @@ class RideDestinationEditScreen extends StatelessWidget {
                 ),
                 child: FloatingActionButton(
                   onPressed: controller.confirmMapPin,
-                  backgroundColor: SColors.white,
+                  backgroundColor: SColors.surfaceContainer,
                   child: controller.isResolvingPin.value
                       ? const SizedBox(
                           width: SSizes.iconMd,

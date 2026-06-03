@@ -26,7 +26,7 @@ class SPermissionPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: SColors.white,
+      backgroundColor: SColors.surfaceContainer,
       body: SafeArea(
         child: Stack(
           children: [

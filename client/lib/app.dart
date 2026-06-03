@@ -11,14 +11,15 @@ class App extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ShadApp.custom(
-      themeMode: ThemeMode.system,
+      themeMode: ThemeMode.dark,
       theme: ShadThemeData(
-        brightness: Brightness.light,
-        colorScheme: const ShadZincColorScheme.light(),
+        brightness: Brightness.dark,
+        colorScheme: const ShadZincColorScheme.dark(),
       ),
       appBuilder: (context) => GetMaterialApp(
-        themeMode: ThemeMode.system,
-        theme: SAppTheme.lightTheme,
+        themeMode: ThemeMode.dark,
+        theme: SAppTheme.appTheme,
+        darkTheme: SAppTheme.appTheme,
         debugShowCheckedModeBanner: false,
         localizationsDelegates: const [
           GlobalShadLocalizations.delegate,
