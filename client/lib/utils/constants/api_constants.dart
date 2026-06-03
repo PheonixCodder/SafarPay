@@ -57,7 +57,7 @@ class SApiConstants {
   static const String mapboxAccessToken = String.fromEnvironment(
     'MAPBOX_ACCESS_TOKEN',
     defaultValue:
-        'sk.eyJ1IjoicGhlb25peGNvZGVyciIsImEiOiJjbXBheWN3YmYwMjdwMnNyMG8yYTJuaTliIn0.64B6QPuZwis-JasriFM-_w',
+        '',
   );
   static const bool useLocationDemoData = bool.fromEnvironment(
     'SAFARPAY_USE_LOCATION_DEMO_DATA',
