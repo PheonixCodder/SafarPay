@@ -69,11 +69,9 @@ flutter:
     - assets/images/support/
 
   fonts:
-    - family: SF-Pro
+    - family: PlusJakartaSans
       fonts:
-        - asset: assets/fonts/SF-Pro-Display-Regular.otf
-          weight: 400
-        - asset: assets/fonts/SF-Pro-Display-Medium.otf
-          weight: 500
-        - asset: assets/fonts/SF-Pro-Display-Bold.otf
-          weight: 700
+        - asset: assets/fonts/PlusJakartaSans-Variable.ttf
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-Variable.ttf

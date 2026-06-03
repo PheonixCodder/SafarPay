@@ -1,12 +1,30 @@
 class SSizes {
   SSizes._();
 
+  /// 8px base grid (DESIGN.md).
+  static const double unit = 8.0;
+
   // Padding and margin sizes
   static const double xs = 4.0;
   static const double sm = 8.0;
   static const double md = 16.0;
   static const double lg = 24.0;
   static const double xl = 32.0;
+
+  static const double screenPadding = lg;
+  static const double stackGapLg = 32.0;
+  static const double stackGapMd = md;
+  static const double stackGapSm = sm;
+  static const double gutter = md;
+
+  // Midnight Elite shape tokens
+  static const double radiusSm = 8.0;
+  static const double radiusMd = 16.0;
+  static const double radiusPill = 9999.0;
+  static const double sheetRadiusXl = 32.0;
+  static const double chipHeight = 40.0;
+  static const double goldGlowBlur = 15.0;
+  static const double softShadowBlur = 40.0;
 
   // Icon sizes
   static const double iconXs = 12.0;
@@ -24,7 +42,7 @@ class SSizes {
   // Button sizes
   static const double buttonHeight = 18.0;
   static const double socialButtonVerticalPadding = 18.0;
-  static const double buttonRadius = 12.0;
+  static const double buttonRadius = radiusPill;
   static const double buttonWidth = 120.0;
   static const double buttonElevation = 4.0;
 
@@ -41,9 +59,9 @@ class SSizes {
   static const double spaceBtwSections = 32.0;
 
   // Border radius
-  static const double borderRadiusSm = 4.0;
-  static const double borderRadiusMd = 8.0;
-  static const double borderRadiusLg = 12.0;
+  static const double borderRadiusSm = radiusSm;
+  static const double borderRadiusMd = radiusMd;
+  static const double borderRadiusLg = 20.0;
 
   // Divider height
   static const double dividerHeight = 1.0;
@@ -58,8 +76,8 @@ class SSizes {
   static const double spaceBtwInputFields = 16.0;
 
   // Card sizes
-  static const double cardRadiusLg = 16.0;
-  static const double cardRadiusMd = 12.0;
+  static const double cardRadiusLg = borderRadiusLg;
+  static const double cardRadiusMd = radiusMd;
   static const double cardRadiusSm = 10.0;
   static const double cardRadiusXs = 6.0;
   static const double cardElevation = 2.0;
@@ -225,7 +243,7 @@ class SSizes {
   // Passenger map and ride flow dimensions
   static const double rideMapPreviewHeight = 320.0;
   static const double rideMapTrackingHeight = 460.0;
-  static const double rideSheetRadius = 24.0;
+  static const double rideSheetRadius = sheetRadiusXl;
 
   // Loading indicator size
   static const double loadingIndicatorSize = 36.0;

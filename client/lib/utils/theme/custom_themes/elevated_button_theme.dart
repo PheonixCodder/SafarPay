@@ -1,26 +1,26 @@
 import 'package:flutter/material.dart';
 
 import '../../constants/colors.dart';
+import '../../constants/typography.dart';
 
 class SElevatedButtonTheme {
   SElevatedButtonTheme._();
 
-  static ElevatedButtonThemeData lightElevatedButtonTheme =
+  static ElevatedButtonThemeData appElevatedButtonTheme =
       ElevatedButtonThemeData(
     style: ElevatedButton.styleFrom(
       elevation: 0,
-      foregroundColor: SColors.white,
-      backgroundColor: SColors.buttonPrimary,
-      disabledForegroundColor: SColors.textSecondary,
+      shadowColor: SColors.gold.withValues(alpha: SOpacities.goldGlow),
+      foregroundColor: SColors.onPrimary,
+      backgroundColor: SColors.primaryContainer,
+      disabledForegroundColor: SColors.onSurfaceVariant,
       disabledBackgroundColor: SColors.buttonDisabled,
-      side: const BorderSide(color: SColors.primary),
-      padding: const EdgeInsets.symmetric(vertical: 18),
-      textStyle: const TextStyle(
-        fontSize: 18,
+      padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 24),
+      textStyle: STypography.bodyLg.copyWith(
         fontWeight: FontWeight.w600,
-        color: SColors.textPrimary,
+        color: SColors.onPrimary,
       ),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      shape: const StadiumBorder(),
     ),
   );
 }

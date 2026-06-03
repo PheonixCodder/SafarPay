@@ -98,7 +98,7 @@ class _SEditValueDrawerState extends State<SEditValueDrawer> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      backgroundColor: SColors.white,
+      backgroundColor: SColors.surfaceContainer,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(SSizes.borderRadiusLg),
       ),

@@ -23,7 +23,7 @@ class SNavigationTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = isActive ? SColors.primary : SColors.textPrimary;
+    final color = isActive ? SColors.gold : SColors.onSurfaceVariant;
     final labelStyle =
         Theme.of(context).textTheme.labelLarge ?? const TextStyle();
 

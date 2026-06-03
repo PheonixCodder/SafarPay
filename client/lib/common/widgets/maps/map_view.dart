@@ -160,7 +160,7 @@ class _SMapViewState extends State<SMapView> {
             bottom: SSizes.md,
             child: FloatingActionButton.small(
               heroTag: null,
-              backgroundColor: SColors.white,
+              backgroundColor: SColors.surfaceContainer,
               foregroundColor: SColors.primary,
               onPressed: widget.onRecenter ?? _recenter,
               child: const Icon(Icons.my_location),
@@ -235,7 +235,7 @@ class _SMapViewState extends State<SMapView> {
               )
               .toList(),
         ),
-        lineColor: SColors.primary.toARGB32(),
+        lineColor: SColors.gold.toARGB32(),
         lineWidth: 5,
       ),
     );
@@ -293,10 +293,10 @@ class _SMapViewState extends State<SMapView> {
 
   Color _markerColor(SMapMarkerType type) {
     return switch (type) {
-      SMapMarkerType.pickup => SColors.success,
-      SMapMarkerType.dropoff => SColors.error,
-      SMapMarkerType.driver => SColors.black,
-      SMapMarkerType.passenger => SColors.primary,
+      SMapMarkerType.pickup => SColors.pickup,
+      SMapMarkerType.dropoff => SColors.destination,
+      SMapMarkerType.driver => SColors.secondary,
+      SMapMarkerType.passenger => SColors.gold,
     };
   }
 

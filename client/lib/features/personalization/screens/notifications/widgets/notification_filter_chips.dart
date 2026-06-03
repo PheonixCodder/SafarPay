@@ -48,7 +48,7 @@ class SNotificationFilterChips extends StatelessWidget {
                   fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                 ),
             selectedColor: SColors.primary,
-            backgroundColor: SColors.white,
+            backgroundColor: SColors.surfaceContainer,
             side: BorderSide(
               color: isSelected
                   ? SColors.primary

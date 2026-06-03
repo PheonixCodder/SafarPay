@@ -46,7 +46,9 @@
 
 ## Styling
 
-- Follow `ui-context.md`.
+- Follow `ui-context.md` and `context/DESIGN.md` (Midnight Elite, dark-only).
+- Use `SColors`, `STypography`, and `SSizes` for all visual tokens.
+- Prefer `Theme.of(context).colorScheme` and `textTheme` in widgets; use `SColors` for semantic colors (pickup, destination, gold glow).
 - Use `SSizes` for spacing and dimensions.
 - Use `iconsax` where icons are needed.
 - Use declared local assets through `SImages` instead of hard-coded asset paths in widgets.

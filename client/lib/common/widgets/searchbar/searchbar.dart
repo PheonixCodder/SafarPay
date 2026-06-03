@@ -52,8 +52,8 @@ class SSearchBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final effectiveIconColor = iconColor ?? SColors.darkerGrey;
-    final effectiveEndIconColor = endIconColor ?? SColors.darkerGrey;
+    final effectiveIconColor = iconColor ?? SColors.onSurfaceVariant;
+    final effectiveEndIconColor = endIconColor ?? SColors.onSurfaceVariant;
 
     return Padding(
       padding: padding,
@@ -70,14 +70,14 @@ class SSearchBar extends StatelessWidget {
             padding: contentPadding,
             decoration: BoxDecoration(
               color: showBackground
-                  ? backgroundColor ?? SColors.white
+                  ? backgroundColor ?? SColors.inputFill
                   : SColors.transparent,
               borderRadius: borderRadius ??
                   BorderRadius.circular(
                     SSizes.cardRadiusLg,
                   ),
               border: showBorder
-                  ? Border.all(color: borderColor ?? SColors.grey)
+                  ? Border.all(color: borderColor ?? SColors.outlineVariant)
                   : null,
             ),
             child: Row(

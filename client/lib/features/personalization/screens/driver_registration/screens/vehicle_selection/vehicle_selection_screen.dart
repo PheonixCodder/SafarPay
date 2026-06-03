@@ -158,7 +158,7 @@ class _DriverVehicleSelectionScreenState
       context: context,
       builder: (context) {
         return AlertDialog(
-          backgroundColor: SColors.white,
+          backgroundColor: SColors.surfaceContainer,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(SSizes.cardRadiusLg),
           ),

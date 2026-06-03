@@ -38,7 +38,7 @@ class SHomeAppBar extends StatelessWidget {
               showModalBottomSheet<void>(
                 context: context,
                 isScrollControlled: true,
-                backgroundColor: SColors.white,
+                backgroundColor: SColors.surfaceContainer,
                 shape: const RoundedRectangleBorder(
                   borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
                 ),

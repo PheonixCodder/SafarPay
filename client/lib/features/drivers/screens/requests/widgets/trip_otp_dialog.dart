@@ -31,7 +31,7 @@ class _STripOtpDialogState extends State<STripOtpDialog> {
     final textTheme = Theme.of(context).textTheme;
 
     return AlertDialog(
-      backgroundColor: SColors.white,
+      backgroundColor: SColors.surfaceContainer,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(SSizes.cardRadiusLg),
       ),
